@@ -1,0 +1,46 @@
+# .NET
+bin/
+obj/
+*.user
+*.suo
+.vs/
+*.userosscache
+*.sln.docstates
+
+# Node / Vite
+node_modules/
+dist/
+.vite/
+*.local
+.npm/
+.eslintcache
+.playwright/
+
+# Secrets / Environment
+.env
+.env.local
+.env.*.local
+**/appsettings.Development.json
+**/appsettings.Local.json
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+docker-data/
+**/*.log
+
+# Test artifacts
+coverage/
+.nyc_output/
+playwright-report/
+test-results/
+playwright/.cache/
