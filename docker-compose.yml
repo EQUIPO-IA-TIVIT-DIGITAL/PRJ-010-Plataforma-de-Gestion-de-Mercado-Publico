@@ -1,0 +1,74 @@
+services:
+  # db:  # Descomentar para usar PostgreSQL local en lugar de Cloud SQL
+  #   image: postgres:16-alpine
+  #   container_name: mpm-db
+  #   restart: unless-stopped
+  #   environment:
+  #     POSTGRES_USER: mpm
+  #     POSTGRES_PASSWORD: mpm_password
+  #     POSTGRES_DB: mpm
+  #   volumes:
+  #     - postgres_data:/var/lib/postgresql/data
+  #   ports:
+  #     - "5433:5432"
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "pg_isready -U mpm"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: mpm-redis
+    restart: unless-stopped
+    command: redis-server --requirepass redis_password
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+  api:
+    build:
+      context: .
+      dockerfile: src/MPM.Api/Dockerfile
+    container_name: mpm-api
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT}
+      - ASPNETCORE_URLS=http://+:80
+      - ConnectionStrings__PostgreSQL=Host=${DB_HOST};Port=${DB_PORT};Database=${DB_NAME};Username=${DB_USER};Password=${DB_PASSWORD}
+      - ConnectionStrings__Redis=redis:6379,password=${REDIS_PASSWORD}
+      - JWT__Secret=${JWT_SECRET}
+      - JWT__Issuer=${JWT_Issuer}
+      - JWT__Audience=${JWT_Audience}
+      - MP_TICKET=${MP_TICKET}
+      - Storage__Provider=gcs
+      - Storage__Bucket=tivit-cu010-mpm-adjuntos
+      - Gemini__ApiKey=${GEMINI_API_KEY}
+      - GOOGLE_CLOUD_PROJECT=tivit-cu010
+    depends_on:
+      # db:  # Descomentar si usas PostgreSQL local
+      #   condition: service_healthy
+      redis:
+        condition: service_started
+    ports:
+      - "5001:80"
+    volumes:
+      - ~/.config/gcloud:/root/.config/gcloud:ro
+
+  web:
+    build:
+      context: ./src/mpm-web
+      dockerfile: Dockerfile
+    container_name: mpm-web
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - "80:80"
+
+volumes:
+  postgres_data:
+  redis_data:
