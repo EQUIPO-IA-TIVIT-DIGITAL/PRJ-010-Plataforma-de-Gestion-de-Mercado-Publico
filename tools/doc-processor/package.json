@@ -1,0 +1,18 @@
+{
+  "name": "doc-processor",
+  "version": "1.0.0",
+  "description": "Procesador de documentos de licitaciones con IA (OpenAI)",
+  "main": "procesar.js",
+  "type": "module",
+  "scripts": {
+    "start": "node procesar.js",
+    "procesar": "node procesar.js"
+  },
+  "dependencies": {
+    "openai": "^4.50.0",
+    "pdf-parse": "^1.1.1",
+    "mammoth": "^1.7.0",
+    "xlsx": "^0.18.5",
+    "dotenv": "^16.4.0"
+  }
+}

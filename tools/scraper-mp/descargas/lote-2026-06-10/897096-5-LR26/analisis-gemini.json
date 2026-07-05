@@ -1,0 +1,271 @@
+{
+  "licitacion": {
+    "id": "897096-5-LR26",
+    "nombre": "CONTRATACIÓN DE CRÉDITOS PARA NUBE PÚBLICA DE GOOGLE COMO INFRAESTRUCTURA PRINCIPAL, SERVICIOS DE CIBERSEGURIDAD Y DRP PARA LA DIRECCIÓN DE COMPRAS Y CONTRATACIÓN PÚBLICA",
+    "url": "www.mercadopublico.cl"
+  },
+  "organismo": {
+    "nombre": "Dirección de Compras y Contratación Pública",
+    "alias": "ChileCompra"
+  },
+  "informe": {
+    "tipo": "INFORME DE EVALUACIÓN LICITACIÓN",
+    "fecha_documento": "2026-04-27"
+  },
+  "fechas_relevantes": {
+    "aprobacion_bases": "2026-03-13",
+    "aprobacion_respuestas": "2026-04-15",
+    "designacion_comision": "2026-04-22",
+    "cierre_recepcion_ofertas": "2026-04-24T15:15:00",
+    "apertura_ofertas": "2026-04-24T15:30:00",
+    "sancion_acta": "2026-04-27"
+  },
+  "comision_evaluadora": [
+    {
+      "nombre": "Aaron Vera",
+      "cargo": "Funcionario del Departamento de Operaciones y Soporte TI"
+    },
+    {
+      "nombre": "Benjamín Urzúa",
+      "cargo": "Funcionario del Departamento de Gestión Estratégica"
+    },
+    {
+      "nombre": "Patricio Beltrán",
+      "cargo": "Servidor Unidad Ejecutora del Programa de Mejora de la Calidad del Gasto"
+    }
+  ],
+  "criterios_evaluacion": [
+    {
+      "tipo": "Económico",
+      "criterio": "Precio total del servicio",
+      "ponderacion_porcentaje": 50
+    },
+    {
+      "tipo": "Técnico",
+      "criterio": "Certificación del Oferente como Google Cloud Partner y Partner Premier",
+      "ponderacion_porcentaje": 40
+    },
+    {
+      "tipo": "Administrativo",
+      "criterio": "Implementación de Políticas de Inclusividad (Sello Mujer)",
+      "ponderacion_porcentaje": 2
+    },
+    {
+      "tipo": "Administrativo",
+      "criterio": "Programas de integridad",
+      "ponderacion_porcentaje": 2
+    },
+    {
+      "tipo": "Administrativo",
+      "criterio": "Empresa Fomenta las Prácticas Empresariales Ambientalmente Sustentables (Huella Chile)",
+      "ponderacion_porcentaje": 2
+    },
+    {
+      "tipo": "Administrativo",
+      "criterio": "Cumplimiento requisitos formales",
+      "ponderacion_porcentaje": 4
+    }
+  ],
+  "oferentes": [
+    {
+      "rut": "92.580.000-7",
+      "razon_social": "ENTEL CHILE S.A.",
+      "estado_oferta": "Inadmisible",
+      "analisis_admisibilidad": {
+        "documentos": {
+          "declaracion_jurada_online": "SI",
+          "anexo1_datos_oferente": "SI",
+          "anexo2_oferta_tecnica": "SI",
+          "anexo3_oferta_economica": "SI",
+          "anexo4_utp": "No Aplica"
+        },
+        "garantia_seriedad": {
+          "presentada": "SI",
+          "cumple_vigencia": "NO",
+          "cumple_requisitos": "NO",
+          "fecha_vigencia_requerida": "2026-08-22",
+          "detalles_presentados": {
+            "numero": "182824",
+            "entidad_emisora": "Banco Itaú",
+            "fecha_vigencia": "2026-07-02",
+            "monto": 3000000,
+            "moneda": "CLP"
+          }
+        }
+      },
+      "motivo_inadmisibilidad": "El periodo de vigencia de la Garantía de Seriedad de la Oferta es inferior al plazo mínimo exigido en las Bases de Licitación."
+    },
+    {
+      "rut": "76.967.855-7",
+      "razon_social": "GROWTH PARTNER NETWORK SPA",
+      "estado_oferta": "Admisible",
+      "evaluacion": {
+        "economico": {
+          "precio_bruto_ofertado_usd": 2121041.95,
+          "puntaje_obtenido": 96.74,
+          "puntaje_ponderado": 48.37
+        },
+        "tecnico": {
+          "puntaje_google_partner": 100,
+          "puntaje_partner_premier": 100,
+          "puntaje_ponderado": 40
+        },
+        "administrativo": {
+          "inclusividad_sello_mujer": {
+            "puntaje_obtenido": 0,
+            "puntaje_ponderado": 0
+          },
+          "programas_integridad": {
+            "puntaje_obtenido": 100,
+            "puntaje_ponderado": 2
+          },
+          "practicas_sustentables_huella_chile": {
+            "puntaje_obtenido": 100,
+            "puntaje_ponderado": 2
+          },
+          "cumplimiento_requisitos_formales": {
+            "puntaje_obtenido": 100,
+            "puntaje_ponderado": 4
+          }
+        },
+        "puntaje_final": 96.37
+      }
+    },
+    {
+      "rut": "76.232.892-5",
+      "razon_social": "NOVENTIQ INTERNATIONAL CHILE SPA",
+      "estado_oferta": "Admisible",
+      "evaluacion": {
+        "economico": {
+          "precio_bruto_ofertado_usd": 2181020.00,
+          "puntaje_obtenido": 97.99,
+          "puntaje_ponderado": 49.00
+        },
+        "tecnico": {
+          "puntaje_google_partner": 100,
+          "puntaje_partner_premier": 100,
+          "puntaje_ponderado": 40
+        },
+        "administrativo": {
+          "inclusividad_sello_mujer": {
+            "puntaje_obtenido": 100,
+            "puntaje_ponderado": 2
+          },
+          "programas_integridad": {
+            "puntaje_obtenido": 100,
+            "puntaje_ponderado": 2
+          },
+          "practicas_sustentables_huella_chile": {
+            "puntaje_obtenido": 100,
+            "puntaje_ponderado": 2
+          },
+          "cumplimiento_requisitos_formales": {
+            "puntaje_obtenido": 100,
+            "puntaje_ponderado": 4
+          }
+        },
+        "puntaje_final": 99.00
+      }
+    },
+    {
+      "rut": "96.886.110-7",
+      "razon_social": "NTT DATA CHILE, S.A.",
+      "estado_oferta": "Inadmisible",
+      "analisis_admisibilidad": {
+        "documentos": {
+          "declaracion_jurada_online": "SI",
+          "anexo1_datos_oferente": "SI",
+          "anexo2_oferta_tecnica": "SI",
+          "anexo3_oferta_economica": "NO",
+          "anexo4_utp": "No Aplica"
+        },
+        "garantia_seriedad": {
+          "presentada": true,
+          "detalles_presentados": {
+            "numero": "74918",
+            "entidad_emisora": "Banco Santander",
+            "fecha_vigencia": "2026-08-31",
+            "monto": 3000000,
+            "moneda": "CLP"
+          }
+        }
+      },
+      "motivo_inadmisibilidad": "Ausencia del Anexo N° 3 (Oferta Económica)."
+    },
+    {
+      "rut": "76.130.712-6",
+      "razon_social": "TIVIT CHILE TERCERIZACION DE PROCESOS, SERVICIOS Y TECNOLOGIA SPA",
+      "estado_oferta": "Adjudicado",
+      "evaluacion": {
+        "economico": {
+          "precio_bruto_ofertado_usd": 2181020.00,
+          "puntaje_obtenido": 98.63,
+          "puntaje_ponderado": 49.31
+        },
+        "tecnico": {
+          "puntaje_google_partner": 100,
+          "puntaje_partner_premier": 100,
+          "puntaje_ponderado": 40
+        },
+        "administrativo": {
+          "inclusividad_sello_mujer": {
+            "puntaje_obtenido": 100,
+            "puntaje_ponderado": 2
+          },
+          "programas_integridad": {
+            "puntaje_obtenido": 100,
+            "puntaje_ponderado": 2
+          },
+          "practicas_sustentables_huella_chile": {
+            "puntaje_obtenido": 100,
+            "puntaje_ponderado": 2
+          },
+          "cumplimiento_requisitos_formales": {
+            "puntaje_obtenido": 100,
+            "puntaje_ponderado": 4
+          }
+        },
+        "puntaje_final": 99.31
+      }
+    }
+  ],
+  "resultado_final": {
+    "adjudicatario": {
+      "rut": "76.130.712-6",
+      "razon_social": "TIVIT CHILE TERCERIZACION DE PROCESOS, SERVICIOS Y TECNOLOGIA SPA",
+      "puntaje_final": 99.31
+    },
+    "inadmisibles": [
+      {
+        "rut": "92.580.000-7",
+        "razon_social": "ENTEL CHILE S.A.",
+        "motivo": "Garantía de Seriedad de la Oferta con vigencia inferior a la mínima requerida."
+      },
+      {
+        "rut": "96.886.110-7",
+        "razon_social": "NTT DATA CHILE, S.A.",
+        "motivo": "Ausencia del Anexo N° 3 (Oferta Económica)."
+      }
+    ],
+    "ranking_admisibles": [
+      {
+        "lugar": 1,
+        "rut": "76.130.712-6",
+        "razon_social": "TIVIT CHILE TERCERIZACION DE PROCESOS, SERVICIOS Y TECNOLOGIA SPA",
+        "puntaje_final": 99.31
+      },
+      {
+        "lugar": 2,
+        "rut": "76.232.892-5",
+        "razon_social": "NOVENTIQ INTERNATIONAL CHILE SPA",
+        "puntaje_final": 99.00
+      },
+      {
+        "lugar": 3,
+        "rut": "76.967.855-7",
+        "razon_social": "GROWTH PARTNER NETWORK SPA",
+        "puntaje_final": 96.37
+      }
+    ]
+  }
+}

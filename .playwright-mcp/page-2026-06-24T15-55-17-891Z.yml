@@ -1,0 +1,31 @@
+- generic [ref=e5]:
+  - generic [ref=e6]:
+    - img "TIVIT" [ref=e7]
+    - heading "TIVIT" [level=3] [ref=e8]
+    - generic [ref=e9]: Mercado Público — Ingresa a tu cuenta
+  - generic [ref=e10]:
+    - generic [ref=e12]:
+      - generic [ref=e15]: Correo electrónico
+      - generic [ref=e19]:
+        - img "mail" [ref=e21]:
+          - img [ref=e22]
+        - textbox "Correo electrónico" [ref=e24]:
+          - /placeholder: correo@empresa.com
+    - generic [ref=e26]:
+      - generic [ref=e29]: Contraseña
+      - generic [ref=e33]:
+        - img "lock" [ref=e35]:
+          - img [ref=e36]
+        - textbox "Contraseña" [ref=e38]:
+          - /placeholder: ••••••••
+        - img "eye-invisible" [ref=e40] [cursor=pointer]:
+          - img [ref=e41]
+    - generic [ref=e44]:
+      - generic [ref=e45] [cursor=pointer]:
+        - checkbox "Recordarme" [ref=e47]
+        - generic [ref=e49]: Recordarme
+      - generic [ref=e50] [cursor=pointer]: ¿Olvidaste tu contraseña?
+    - button "Ingresar" [ref=e56] [cursor=pointer]:
+      - generic [ref=e57]: Ingresar
+  - separator [ref=e58]
+  - paragraph [ref=e59]: © 2026 TIVIT · Mercado Público

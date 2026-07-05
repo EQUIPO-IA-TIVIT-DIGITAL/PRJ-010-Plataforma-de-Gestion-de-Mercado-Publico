@@ -1,88 +1,155 @@
-import { useState, useCallback, useRef, useEffect } from 'react'
+import { useState } from 'react'
 import {
-  Card, Space, Typography, Button, Input, List, Tag, Spin, Descriptions,
-  App, Divider, Empty, Row, Col, Statistic, Progress, Tooltip
+  Card, Space, Typography, Button, Spin, Descriptions,
+  Empty, Row, Col, Statistic, Progress, Table, Tag, Drawer, FloatButton,
 } from 'antd'
 import {
-  ArrowLeftOutlined, SendOutlined, RobotOutlined, UserOutlined,
+  ArrowLeftOutlined, RobotOutlined,
   ReloadOutlined, TrophyOutlined, FallOutlined, RiseOutlined,
   BulbOutlined, CheckCircleOutlined, CloseCircleOutlined,
-  FileTextOutlined, DollarOutlined, BarChartOutlined, AlertOutlined
+  FileTextOutlined, DollarOutlined, BarChartOutlined, AlertOutlined,
+  SafetyOutlined, TeamOutlined, WarningOutlined,
 } from '@ant-design/icons'
 import { useNavigate, useParams } from 'react-router-dom'
-import { useDashboard, useEnviarChat, useChatHistorial } from '../hooks/useAnalisis'
-import type { ChatMensaje } from '../types/analisis'
+import { useDashboard } from '../hooks/useAnalisis'
+import { AnalisisChat } from '../components/AnalisisChat'
+import { ComparativaDocumentos, type ValidacionDocumental } from '../components/ComparativaDocumentos'
+import { generarPdfAnalisis } from '../lib/analisisPdf'
+
+interface Organismo {
+  nombre?: string | null
+  rut?: string | null
+  unidad?: string | null
+  region?: string | null
+}
+
+interface Fechas {
+  publicacion?: string | null
+  cierre_ofertas?: string | null
+  apertura_tecnica?: string | null
+  apertura_economica?: string | null
+  adjudicacion?: string | null
+}
 
 interface LicitacionInfo {
-  nombre?: string
-  codigo?: string
-  organismo?: string
-  fecha_adjudicacion?: string
-  monto_estimado?: number
-  moneda?: string
-  adjudicatario?: {
-    nombre?: string
-    rut?: string
-    monto_adjudicado?: number
-  }
+  id?: string | null
+  nombre?: string | null
+  descripcion?: string | null
+  organismo?: Organismo | null
+  tipo_licitacion?: string | null
+  tipo_convocatoria?: string | null
+  codigo_etapa?: string | null
+  estado?: string | null
+  moneda?: string | null
+  fechas?: Fechas | null
+  monto_estimado?: number | null
+  duracion_contrato?: string | null
+  renovacion?: string | null
+  toma_razon_contraloria?: string | null
+  prohibicion_subcontratacion?: string | null
+  plazo_pago?: string | null
 }
 
-interface ParticipacionTivit {
+interface Adjudicatario {
+  nombre?: string | null
+  rut?: string | null
+  monto_adjudicado?: number | null
+  cantidad_ofertas_recibidas?: number | null
+}
+
+interface Ofertante {
+  nombre?: string | null
+  rut?: string | null
   monto_ofertado?: number | null
-  puntaje_total?: number
-  puntaje_maximo?: number
+  puntaje_total?: number | null
+  resultado?: string | null
+  motivo_inadmisibilidad?: string | null
 }
 
-interface Factor {
-  categoria?: string
-  descripcion?: string
-  impacto?: string
-  brecha?: string
+interface Adjudicacion {
+  adjudicatario?: Adjudicatario | null
+  ofertantes?: Ofertante[]
 }
 
-interface ComparativaPuntaje {
-  criterio?: string
-  ponderacion?: number
-  puntaje_tivit?: number
-  puntaje_ganador?: number
-  puntaje_maximo?: number
+interface Criterio {
+  nombre?: string | null
+  ponderacion?: number | null
+  puntaje_maximo_total?: number | null
+  puntaje_tivit_total?: number | null
+  puntaje_ganador_total?: number | null
+  brecha?: number | null
 }
 
-interface AnalisisPerdida {
-  motivo_principal?: string
-  factores?: Factor[]
-  fortalezas_tivit?: string[]
-  debilidades_tivit?: string[]
-  comparativa_puntajes?: ComparativaPuntaje[]
+interface DesglosePuntaje {
+  puntaje_tecnico?: number | null
+  puntaje_economico?: number | null
+  puntaje_administrativo?: number | null
+  puntaje_total?: number | null
+  porcentaje_cumplimiento?: number | null
 }
 
-interface ConclusionEjecutiva {
-  resumen?: string
-  lecciones_aprendidas?: string[]
-  recomendaciones?: string[]
+interface Evaluacion {
+  metodologia?: string | null
+  criterios?: Criterio[]
+  desglose_puntajes?: { tivit?: DesglosePuntaje; ganador?: DesglosePuntaje }
+}
+
+interface BrechaIdentificada {
+  area?: string | null
+  descripcion?: string | null
+  diferencia_puntaje?: number | null
+  diferencia_monto?: number | null
+  impacto?: string | null
+  se_puede_mitigar?: boolean | null
+  recomendacion_mejora?: string | null
+}
+
+interface AnalisisTivit {
+  participa?: boolean | null
+  es_ganador?: boolean | null
+  monto_ofertado?: number | null
+  puntaje_obtenido?: number | null
+  puntaje_maximo_posible?: number | null
+  resultado?: string | null
+  fortalezas?: string[]
+  debilidades?: string[]
+  brechas_identificadas?: BrechaIdentificada[]
 }
 
 interface DashboardKpi {
-  indicador?: string
-  valor?: string
-  tendencia?: string
-  color?: string
+  indicador?: string | null
+  valor?: string | null
+  tendencia?: string | null
+  color?: string | null
 }
 
 interface MetricasClave {
   diferencia_puntaje_total?: number | null
-  diferencia_monto?: number | null
-  porcentaje_cumplimiento_tivit?: number | null
-  porcentaje_cumplimiento_ganador?: number | null
+  diferencia_monto_ofertado?: number | null
+  diferencia_porcentaje_cumplimiento?: number | null
+  cantidad_ofertantes?: number | null
+  ranking_tivit?: number | null
+  margen_mejora_tecnico?: number | null
+  margen_mejora_economico?: number | null
+}
+
+interface RiesgoIdentificado {
+  riesgo?: string | null
+  nivel?: string | null
+  mitigacion?: string | null
+  impacto_estimado?: number | null
 }
 
 interface AnalisisCompleto {
-  licitacion?: LicitacionInfo
-  participacion_tivit?: ParticipacionTivit
-  analisis_perdida?: AnalisisPerdida
-  conclusion_ejecutiva?: ConclusionEjecutiva
+  licitacion?: LicitacionInfo | null
+  adjudicacion?: Adjudicacion | null
+  evaluacion?: Evaluacion | null
+  analisis_tivit?: AnalisisTivit | null
+  validacion_documental?: ValidacionDocumental
+  metricas_clave?: MetricasClave | null
   dashboard_kpis?: DashboardKpi[]
-  metricas_clave?: MetricasClave
+  recomendaciones_estrategicas?: string[]
+  riesgos_identificados?: RiesgoIdentificado[]
 }
 
 function tryParse(contenido: string | null | undefined): AnalisisCompleto | null {
@@ -95,13 +162,21 @@ function tryParse(contenido: string | null | undefined): AnalisisCompleto | null
   }
 }
 
-function formatMoney(value?: number | null, moneda = 'CLP'): string {
+function formatMoney(value?: number | null, moneda?: string | null): string {
   if (value == null) return 'No especificado'
-  return new Intl.NumberFormat('es-CL', {
-    style: 'currency',
-    currency: moneda,
-    maximumFractionDigits: 0,
-  }).format(value)
+  const code = (moneda ?? 'CLP').toUpperCase()
+  if (code === 'UF') {
+    return new Intl.NumberFormat('es-CL', { maximumFractionDigits: 1, minimumFractionDigits: 1 }).format(value) + ' UF'
+  }
+  try {
+    return new Intl.NumberFormat('es-CL', {
+      style: 'currency',
+      currency: code,
+      maximumFractionDigits: 0,
+    }).format(value)
+  } catch {
+    return new Intl.NumberFormat('es-CL', { maximumFractionDigits: 0 }).format(value) + ' ' + code
+  }
 }
 
 function formatNumber(value?: number | null, suffix = ''): string {
@@ -109,66 +184,90 @@ function formatNumber(value?: number | null, suffix = ''): string {
   return `${value}${suffix}`
 }
 
-function impactoColor(impacto?: string): string {
-  if (!impacto) return 'default'
+function impactoColor(impacto?: string | null): { color: string; bg: string } {
+  if (!impacto) return { color: '#64748b', bg: '#f8fafc' }
   const i = impacto.toLowerCase()
-  if (i.includes('alto')) return 'red'
-  if (i.includes('medio')) return 'orange'
-  if (i.includes('bajo')) return 'green'
+  if (i.includes('alto')) return { color: '#ef4444', bg: '#fef2f2' }
+  if (i.includes('medio')) return { color: '#f59e0b', bg: '#fffbeb' }
+  if (i.includes('bajo')) return { color: '#10b981', bg: '#f0fdf4' }
+  return { color: '#64748b', bg: '#f8fafc' }
+}
+
+function nivelColor(nivel?: string | null): string {
+  if (!nivel) return 'default'
+  const n = nivel.toLowerCase()
+  if (n.includes('alto')) return 'red'
+  if (n.includes('medio')) return 'orange'
+  if (n.includes('bajo')) return 'green'
   return 'default'
 }
 
-function tendenciaIcon(tendencia?: string) {
+function tendenciaColor(tendencia?: string | null): string {
+  if (tendencia?.toLowerCase() === 'negativa') return '#ef4444'
+  if (tendencia?.toLowerCase() === 'positiva') return '#10b981'
+  return '#3b82f6'
+}
+
+function tendenciaIcon(tendencia?: string | null) {
   if (tendencia?.toLowerCase() === 'negativa') return <FallOutlined />
   if (tendencia?.toLowerCase() === 'positiva') return <RiseOutlined />
   return null
 }
 
-function tendenciaColor(tendencia?: string): string {
-  if (tendencia?.toLowerCase() === 'negativa') return '#ff4d4f'
-  if (tendencia?.toLowerCase() === 'positiva') return '#52c41a'
-  return '#1677ff'
+// ---- Section title component ----
+function SectionTitle({ icon, title, color = '#E30613' }: { icon: React.ReactNode; title: string; color?: string }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+      <div
+        style={{
+          width: 28,
+          height: 28,
+          borderRadius: 7,
+          background: color + '18',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          color,
+          fontSize: 14,
+        }}
+      >
+        {icon}
+      </div>
+      <span style={{ fontWeight: 700, fontSize: 14, color: 'var(--text-primary)' }}>{title}</span>
+    </div>
+  )
 }
 
 export function AnalisisDashboardPage() {
   const { id } = useParams<{ id: string }>()
   const workspaceId = id ? Number(id) : null
   const navigate = useNavigate()
-  const { message } = App.useApp()
-  const [chatInput, setChatInput] = useState('')
-  const chatEndRef = useRef<HTMLDivElement>(null)
+  const [chatOpen, setChatOpen] = useState(false)
 
   const { data: dashboardData, isLoading: dashboardLoading } = useDashboard(workspaceId)
-  const { data: chatData, isLoading: chatLoading } = useChatHistorial(workspaceId)
-  const chatMutation = useEnviarChat()
 
   const resultado = dashboardData?.data
   const analisis = tryParse(resultado?.contenidoJson)
-  const mensajes: ChatMensaje[] = chatData?.data?.mensajes ?? []
-
-  useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [mensajes])
-
-  const handleEnviarChat = useCallback(async () => {
-    if (!workspaceId || !chatInput.trim()) return
-    const mensaje = chatInput.trim()
-    setChatInput('')
-    try {
-      await chatMutation.mutateAsync({ workspaceId, mensaje })
-    } catch {
-      message.error('Error al enviar mensaje')
-    }
-  }, [workspaceId, chatInput, chatMutation, message])
 
   if (dashboardLoading) {
-    return <div style={{ textAlign: 'center', padding: 40 }}><Spin size="large" /></div>
+    return (
+      <div style={{ textAlign: 'center', padding: 80 }}>
+        <Spin size="large" />
+        <p style={{ marginTop: 16, color: 'var(--text-secondary)', fontSize: 14 }}>
+          Cargando análisis…
+        </p>
+      </div>
+    )
   }
 
   if (!resultado) {
     return (
-      <Space direction="vertical" size="large" style={{ width: '100%' }}>
-        <Button icon={<ArrowLeftOutlined />} onClick={() => navigate(`/analisis/${workspaceId}`)}>
+      <Space direction="vertical" size={16} style={{ width: '100%' }}>
+        <Button
+          icon={<ArrowLeftOutlined />}
+          onClick={() => navigate(`/analisis/${workspaceId}`)}
+          style={{ borderRadius: 10 }}
+        >
           Volver al workspace
         </Button>
         <Card>
@@ -180,8 +279,12 @@ export function AnalisisDashboardPage() {
 
   if (!analisis) {
     return (
-      <Space direction="vertical" size="large" style={{ width: '100%' }}>
-        <Button icon={<ArrowLeftOutlined />} onClick={() => navigate(`/analisis/${workspaceId}`)}>
+      <Space direction="vertical" size={16} style={{ width: '100%' }}>
+        <Button
+          icon={<ArrowLeftOutlined />}
+          onClick={() => navigate(`/analisis/${workspaceId}`)}
+          style={{ borderRadius: 10 }}
+        >
           Volver
         </Button>
         <Card>
@@ -197,206 +300,492 @@ export function AnalisisDashboardPage() {
   }
 
   const lic = analisis.licitacion
-  const part = analisis.participacion_tivit
-  const ap = analisis.analisis_perdida
-  const ce = analisis.conclusion_ejecutiva
+  const adj = analisis.adjudicacion
+  const ev = analisis.evaluacion
+  const at = analisis.analisis_tivit
   const kpis = analisis.dashboard_kpis ?? []
   const mc = analisis.metricas_clave
+  const criterios = ev?.criterios ?? []
+  const ofertantes = adj?.ofertantes ?? []
+  const recomendaciones = analisis.recomendaciones_estrategicas ?? []
+  const riesgos = analisis.riesgos_identificados ?? []
+  const moneda = lic?.moneda
+
+  const handleDownloadPDF = () => {
+    // PDF estructurado (texto real y seleccionable) generado desde el objeto
+    // de datos del análisis, no desde una captura del DOM
+    generarPdfAnalisis(analisis, {
+      documentoNombre: resultado.documentoNombre,
+      modeloUsado: resultado.modeloUsado,
+      fechaAnalisis: new Date(resultado.createdAt).toLocaleString('es-CL'),
+    })
+  }
 
   return (
-    <Space direction="vertical" size="large" style={{ width: '100%' }}>
-      <Space>
-        <Button icon={<ArrowLeftOutlined />} onClick={() => navigate(`/analisis/${workspaceId}`)}>
-          Volver
-        </Button>
-        <Typography.Title level={3} style={{ margin: 0 }}>
-          {lic?.nombre ?? 'Dashboard de Análisis'}
-        </Typography.Title>
-        <Tag color="success">Completado</Tag>
-      </Space>
+    <Space direction="vertical" size={20} style={{ width: '100%' }} id="dashboard-content">
 
+      {/* ---- Page Header ---- */}
+      <div className="mpm-page-header">
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
+            <Button
+              icon={<ArrowLeftOutlined />}
+              onClick={() => navigate(`/analisis/${workspaceId}`)}
+              style={{ borderRadius: 10, height: 36 }}
+            >
+              Volver
+            </Button>
+            <div
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: 8,
+                background: 'linear-gradient(135deg, #10b981, #34d399)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxShadow: '0 4px 10px rgba(16,185,129,0.3)',
+              }}
+            >
+              <BarChartOutlined style={{ color: 'white', fontSize: 15 }} />
+            </div>
+            <h1 className="mpm-page-title" style={{ fontSize: 18 }}>
+              {lic?.nombre ?? 'Dashboard de Análisis'}
+            </h1>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingLeft: 96 }}>
+            <span
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 4,
+                padding: '3px 10px',
+                borderRadius: 999,
+                fontSize: 11,
+                fontWeight: 600,
+                color: '#10b981',
+                background: '#f0fdf4',
+                border: '1px solid rgba(16,185,129,0.2)',
+              }}
+            >
+              <CheckCircleOutlined /> Completado
+            </span>
+            {lic?.id && (
+              <span
+                style={{
+                  fontSize: 12,
+                  color: '#3b82f6',
+                  background: '#eff6ff',
+                  padding: '3px 8px',
+                  borderRadius: 6,
+                  fontFamily: 'monospace',
+                  fontWeight: 600,
+                }}
+              >
+                {lic.id}
+              </span>
+            )}
+          </div>
+        </div>
+
+        <Button
+          icon={<ReloadOutlined />}
+          onClick={() => navigate(0)}
+          style={{ borderRadius: 10, height: 36 }}
+        >
+          Recargar
+        </Button>
+        <Button
+          icon={<FileTextOutlined />}
+          onClick={handleDownloadPDF}
+          style={{
+            borderRadius: 10, height: 36,
+            background: '#0f172a', color: 'white', border: 'none',
+          }}
+        >
+          Exportar PDF
+        </Button>
+      </div>
+
+      {/* ---- KPI Cards ---- */}
       {kpis.length > 0 && (
-        <Row gutter={[16, 16]}>
-          {kpis.map((kpi, i) => (
-            <Col key={i} xs={24} sm={12} md={8} lg={6}>
-              <Card size="small" style={{ borderTop: `3px solid ${tendenciaColor(kpi.tendencia)}` }}>
-                <Statistic
-                  title={
-                    <Space>
-                      {tendenciaIcon(kpi.tendencia)}
-                      <span>{kpi.indicador}</span>
-                    </Space>
-                  }
-                  value={kpi.valor}
-                  valueStyle={{ color: tendenciaColor(kpi.tendencia), fontSize: 22 }}
-                />
-              </Card>
-            </Col>
-          ))}
-        </Row>
+        <div>
+          <p className="mpm-section-title">Indicadores clave</p>
+          <Row gutter={[16, 16]}>
+            {kpis.map((kpi, i) => {
+              const color = tendenciaColor(kpi.tendencia)
+              return (
+                <Col key={i} xs={24} sm={12} md={8} lg={6}>
+                  <div
+                    className="mpm-stat-card"
+                    style={{
+                      borderTopColor: color,
+                      background: 'white',
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'flex-start',
+                        marginBottom: 8,
+                      }}
+                    >
+                      <div className="mpm-stat-label">{kpi.indicador}</div>
+                      {tendenciaIcon(kpi.tendencia) && (
+                        <span style={{ color, fontSize: 16 }}>
+                          {tendenciaIcon(kpi.tendencia)}
+                        </span>
+                      )}
+                    </div>
+                    <div className="mpm-stat-value" style={{ color }}>
+                      {kpi.valor}
+                    </div>
+                  </div>
+                </Col>
+              )
+            })}
+          </Row>
+        </div>
       )}
 
+      {/* ---- Métricas clave ---- */}
       {mc && (
-        <Card size="small" title={<Space><BarChartOutlined /><span>Métricas clave</span></Space>}>
-          <Row gutter={[16, 16]}>
+        <Card>
+          <SectionTitle icon={<BarChartOutlined />} title="Métricas clave" color="#8b5cf6" />
+          <Row gutter={[24, 24]}>
             {mc.diferencia_puntaje_total != null && (
               <Col xs={24} sm={12} md={6}>
                 <Statistic
-                  title="Diferencia puntaje total"
+                  title={<span style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 600 }}>Diferencia puntaje total</span>}
                   value={mc.diferencia_puntaje_total}
                   precision={2}
-                  valueStyle={{ color: mc.diferencia_puntaje_total < 0 ? '#ff4d4f' : '#52c41a' }}
+                  valueStyle={{
+                    color: mc.diferencia_puntaje_total < 0 ? '#ef4444' : '#10b981',
+                    fontWeight: 700,
+                    fontSize: 24,
+                  }}
                   prefix={mc.diferencia_puntaje_total < 0 ? <FallOutlined /> : <RiseOutlined />}
                 />
               </Col>
             )}
-            {mc.diferencia_monto != null && (
+            {mc.diferencia_monto_ofertado != null && (
               <Col xs={24} sm={12} md={6}>
                 <Statistic
-                  title="Diferencia monto"
-                  value={mc.diferencia_monto}
+                  title={<span style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 600 }}>Diferencia monto ofertado</span>}
+                  value={mc.diferencia_monto_ofertado}
                   precision={0}
-                  valueStyle={{ color: mc.diferencia_monto < 0 ? '#ff4d4f' : '#52c41a' }}
-                  prefix={mc.diferencia_monto < 0 ? <FallOutlined /> : <RiseOutlined />}
-                  formatter={(v) => formatMoney(Number(v), lic?.moneda ?? 'CLP')}
+                  valueStyle={{
+                    color: mc.diferencia_monto_ofertado < 0 ? '#ef4444' : '#10b981',
+                    fontWeight: 700,
+                    fontSize: 24,
+                  }}
+                  prefix={mc.diferencia_monto_ofertado < 0 ? <FallOutlined /> : <RiseOutlined />}
+                  formatter={(v) => formatMoney(Number(v), moneda)}
                 />
               </Col>
             )}
-            {mc.porcentaje_cumplimiento_tivit != null && (
+            {ev?.desglose_puntajes?.tivit?.porcentaje_cumplimiento != null && (
               <Col xs={24} sm={12} md={6}>
                 <div>
-                  <Typography.Text type="secondary">% Cumplimiento TIVIT</Typography.Text>
+                  <p style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 600, marginBottom: 8 }}>
+                    % Cumplimiento TIVIT
+                  </p>
                   <Progress
-                    percent={mc.porcentaje_cumplimiento_tivit}
-                    strokeColor={mc.porcentaje_cumplimiento_tivit < 50 ? '#ff4d4f' : '#1677ff'}
-                    format={(p) => `${p?.toFixed(1)}%`}
+                    percent={ev.desglose_puntajes.tivit.porcentaje_cumplimiento}
+                    strokeColor={ev.desglose_puntajes.tivit.porcentaje_cumplimiento < 50 ? '#ef4444' : '#3b82f6'}
+                    trailColor="#f1f5f9"
+                    format={(p) => <span style={{ fontWeight: 700 }}>{p?.toFixed(1)}%</span>}
                   />
                 </div>
               </Col>
             )}
-            {mc.porcentaje_cumplimiento_ganador != null && (
+            {ev?.desglose_puntajes?.ganador?.porcentaje_cumplimiento != null && (
               <Col xs={24} sm={12} md={6}>
                 <div>
-                  <Typography.Text type="secondary">% Cumplimiento ganador</Typography.Text>
+                  <p style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 600, marginBottom: 8 }}>
+                    % Cumplimiento ganador
+                  </p>
                   <Progress
-                    percent={mc.porcentaje_cumplimiento_ganador}
-                    strokeColor="#52c41a"
-                    format={(p) => `${p?.toFixed(1)}%`}
+                    percent={ev.desglose_puntajes.ganador.porcentaje_cumplimiento}
+                    strokeColor="#10b981"
+                    trailColor="#f1f5f9"
+                    format={(p) => <span style={{ fontWeight: 700 }}>{p?.toFixed(1)}%</span>}
                   />
                 </div>
               </Col>
             )}
           </Row>
+          {(mc.cantidad_ofertantes != null || mc.ranking_tivit != null || mc.margen_mejora_tecnico != null || mc.margen_mejora_economico != null) && (
+            <Row gutter={[24, 16]} style={{ marginTop: 8 }}>
+              {mc.cantidad_ofertantes != null && (
+                <Col xs={12} md={6}>
+                  <Statistic title="Cantidad de ofertantes" value={mc.cantidad_ofertantes} valueStyle={{ fontSize: 18 }} />
+                </Col>
+              )}
+              {mc.ranking_tivit != null && (
+                <Col xs={12} md={6}>
+                  <Statistic title="Ranking TIVIT" value={`#${mc.ranking_tivit}`} valueStyle={{ fontSize: 18 }} />
+                </Col>
+              )}
+              {mc.margen_mejora_tecnico != null && (
+                <Col xs={12} md={6}>
+                  <Statistic title="Margen de mejora técnico" value={mc.margen_mejora_tecnico} precision={2} valueStyle={{ fontSize: 18 }} />
+                </Col>
+              )}
+              {mc.margen_mejora_economico != null && (
+                <Col xs={12} md={6}>
+                  <Statistic title="Margen de mejora económico" value={mc.margen_mejora_economico} precision={2} valueStyle={{ fontSize: 18 }} />
+                </Col>
+              )}
+            </Row>
+          )}
         </Card>
       )}
 
+      {/* ---- Licitación info ---- */}
       {lic && (
-        <Card size="small" title={<Space><FileTextOutlined /><span>Licitación</span></Space>}>
-          <Descriptions column={2} size="small" bordered>
-            <Descriptions.Item label="Nombre" span={2}>{lic.nombre ?? '—'}</Descriptions.Item>
-            <Descriptions.Item label="Código">{lic.codigo ?? '—'}</Descriptions.Item>
-            <Descriptions.Item label="Organismo">{lic.organismo ?? '—'}</Descriptions.Item>
-            <Descriptions.Item label="Fecha adjudicación">{lic.fecha_adjudicacion ?? '—'}</Descriptions.Item>
-            <Descriptions.Item label="Monto estimado">{formatMoney(lic.monto_estimado, lic.moneda)}</Descriptions.Item>
-            {lic.adjudicatario && (
-              <>
-                <Descriptions.Item label="Adjudicatario" span={2}>
-                  <Space direction="vertical" size={0}>
-                    <Space>
-                      <TrophyOutlined style={{ color: '#faad14' }} />
-                      <Typography.Text strong>{lic.adjudicatario.nombre}</Typography.Text>
-                    </Space>
-                    <Typography.Text type="secondary">RUT: {lic.adjudicatario.rut}</Typography.Text>
-                    <Typography.Text type="secondary">
-                      Monto adjudicado: {formatMoney(lic.adjudicatario.monto_adjudicado, lic.moneda)}
-                    </Typography.Text>
-                  </Space>
-                </Descriptions.Item>
-              </>
+        <Card>
+          <SectionTitle icon={<FileTextOutlined />} title="Información de la licitación" color="#3b82f6" />
+          <Descriptions column={2} size="small">
+            <Descriptions.Item label="Nombre" span={2}>
+              <span style={{ fontWeight: 600 }}>{lic.nombre ?? '—'}</span>
+            </Descriptions.Item>
+            <Descriptions.Item label="Código">
+              <span style={{ fontFamily: 'monospace', fontSize: 12, color: '#3b82f6', background: '#eff6ff', padding: '2px 8px', borderRadius: 6 }}>
+                {lic.id ?? '—'}
+              </span>
+            </Descriptions.Item>
+            <Descriptions.Item label="Estado">{lic.estado ?? '—'}</Descriptions.Item>
+            <Descriptions.Item label="Organismo">{lic.organismo?.nombre ?? '—'}</Descriptions.Item>
+            <Descriptions.Item label="Región">{lic.organismo?.region ?? '—'}</Descriptions.Item>
+            <Descriptions.Item label="Tipo de licitación">{lic.tipo_licitacion ?? '—'}</Descriptions.Item>
+            <Descriptions.Item label="Tipo de convocatoria">{lic.tipo_convocatoria ?? '—'}</Descriptions.Item>
+            <Descriptions.Item label="Fecha adjudicación">{lic.fechas?.adjudicacion ?? '—'}</Descriptions.Item>
+            <Descriptions.Item label="Cierre de ofertas">{lic.fechas?.cierre_ofertas ?? '—'}</Descriptions.Item>
+            <Descriptions.Item label="Monto estimado">
+              <span style={{ fontWeight: 600, color: '#0f172a' }}>
+                {formatMoney(lic.monto_estimado, moneda)}
+              </span>
+            </Descriptions.Item>
+            <Descriptions.Item label="Duración contrato">{lic.duracion_contrato ?? '—'}</Descriptions.Item>
+            {adj?.adjudicatario && (
+              <Descriptions.Item label="Adjudicatario" span={2}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <TrophyOutlined style={{ color: '#f59e0b' }} />
+                    <span style={{ fontWeight: 700 }}>{adj.adjudicatario.nombre ?? '—'}</span>
+                  </div>
+                  <span style={{ color: 'var(--text-secondary)', fontSize: 12 }}>
+                    RUT: {adj.adjudicatario.rut ?? '—'}
+                  </span>
+                  <span style={{ color: 'var(--text-secondary)', fontSize: 12 }}>
+                    Monto adjudicado: <strong>{formatMoney(adj.adjudicatario.monto_adjudicado, moneda)}</strong>
+                  </span>
+                </div>
+              </Descriptions.Item>
             )}
           </Descriptions>
         </Card>
       )}
 
-      {part && (
-        <Card size="small" title={<Space><DollarOutlined /><span>Participación de TIVIT</span></Space>}>
-          <Row gutter={[16, 16]}>
-            <Col xs={24} sm={12}>
+      {/* ---- Participación TIVIT ---- */}
+      {at && (
+        <Card>
+          <SectionTitle icon={<DollarOutlined />} title="Participación de TIVIT" color="#E30613" />
+          <Row gutter={[24, 16]}>
+            <Col xs={24} sm={8}>
               <Statistic
-                title="Monto ofertado"
-                value={part.monto_ofertado}
-                formatter={(v) => formatMoney(typeof v === 'number' ? v : null, lic?.moneda ?? 'CLP')}
+                title={<span style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 600 }}>Monto ofertado</span>}
+                value={at.monto_ofertado ?? 0}
+                formatter={(v) => formatMoney(typeof v === 'number' ? v : null, moneda)}
+                valueStyle={{ fontSize: 22, fontWeight: 700 }}
               />
             </Col>
-            <Col xs={24} sm={12}>
-              <div>
-                <Typography.Text type="secondary">Puntaje total</Typography.Text>
-                <Progress
-                  percent={part.puntaje_maximo ? (part.puntaje_total ?? 0) : 0}
-                  strokeColor="#ff4d4f"
-                  format={() => `${formatNumber(part.puntaje_total)} / ${formatNumber(part.puntaje_maximo)}`}
-                />
-              </div>
+            <Col xs={24} sm={8}>
+              <p style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 600, marginBottom: 8 }}>
+                Puntaje total
+              </p>
+              <Progress
+                percent={at.puntaje_maximo_posible ? Math.round(((at.puntaje_obtenido ?? 0) / at.puntaje_maximo_posible) * 100) : 0}
+                strokeColor="#ef4444"
+                trailColor="#f1f5f9"
+                format={() => (
+                  <span style={{ fontWeight: 700, fontSize: 13 }}>
+                    {formatNumber(at.puntaje_obtenido)} / {formatNumber(at.puntaje_maximo_posible)}
+                  </span>
+                )}
+              />
+            </Col>
+            <Col xs={24} sm={8}>
+              <p style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 600, marginBottom: 8 }}>
+                Resultado
+              </p>
+              <Tag color={at.es_ganador ? 'success' : 'error'} style={{ fontSize: 13, padding: '4px 10px' }}>
+                {at.resultado ?? (at.es_ganador ? 'Adjudicado' : 'No adjudicado')}
+              </Tag>
             </Col>
           </Row>
         </Card>
       )}
 
-      {ap?.motivo_principal && (
-        <Card size="small" title={<Space><AlertOutlined style={{ color: '#ff4d4f' }} /><span>Motivo principal de la pérdida</span></Space>}>
-          <Typography.Paragraph style={{ whiteSpace: 'pre-wrap', margin: 0 }}>
-            {ap.motivo_principal}
-          </Typography.Paragraph>
-        </Card>
-      )}
-
-      {ap?.factores && ap.factores.length > 0 && (
-        <Card size="small" title="Factores de pérdida">
-          <List
+      {/* ---- Ofertantes ---- */}
+      {ofertantes.length > 0 && (
+        <Card>
+          <SectionTitle icon={<TeamOutlined />} title="Ofertantes" color="#3b82f6" />
+          <Table
+            dataSource={ofertantes.map((o, i) => ({ ...o, key: i }))}
+            pagination={false}
             size="small"
-            dataSource={ap.factores}
-            renderItem={(f, i) => (
-              <List.Item>
-                <Space direction="vertical" size={4} style={{ width: '100%' }}>
-                  <Space wrap>
-                    <Tag color="blue">{i + 1}</Tag>
-                    <Tag>{f.categoria}</Tag>
-                    <Tag color={impactoColor(f.impacto)}>Impacto: {f.impacto}</Tag>
-                    {f.brecha && <Tag color="purple">Brecha: {f.brecha}</Tag>}
-                  </Space>
-                  <Typography.Text>{f.descripcion}</Typography.Text>
-                </Space>
-              </List.Item>
-            )}
+            columns={[
+              { title: 'Nombre', dataIndex: 'nombre', key: 'nombre', render: (v?: string | null) => v ?? '—' },
+              { title: 'RUT', dataIndex: 'rut', key: 'rut', render: (v?: string | null) => v ?? '—' },
+              {
+                title: 'Monto ofertado', dataIndex: 'monto_ofertado', key: 'monto_ofertado',
+                render: (v?: number | null) => formatMoney(v, moneda),
+              },
+              { title: 'Puntaje', dataIndex: 'puntaje_total', key: 'puntaje_total', render: (v?: number | null) => formatNumber(v) },
+              {
+                title: 'Resultado', dataIndex: 'resultado', key: 'resultado',
+                render: (v?: string | null) => v ? <Tag color={v.toLowerCase().includes('adjudicad') && !v.toLowerCase().includes('no') ? 'success' : 'default'}>{v}</Tag> : '—',
+              },
+            ]}
           />
         </Card>
       )}
 
-      {ap?.comparativa_puntajes && ap.comparativa_puntajes.length > 0 && (
-        <Card size="small" title="Comparativa de puntajes">
+      {/* ---- Brechas identificadas ---- */}
+      {at?.brechas_identificadas && at.brechas_identificadas.length > 0 && (
+        <Card>
+          <SectionTitle icon={<AlertOutlined />} title="Brechas identificadas" color="#f59e0b" />
+          <Space direction="vertical" size={12} style={{ width: '100%' }}>
+            {at.brechas_identificadas.map((f, i) => {
+              const cfg = impactoColor(f.impacto)
+              return (
+                <div
+                  key={i}
+                  style={{
+                    background: 'var(--bg-muted)',
+                    borderRadius: 10,
+                    padding: '14px 16px',
+                    border: '1px solid var(--border)',
+                    display: 'flex',
+                    gap: 14,
+                    alignItems: 'flex-start',
+                  }}
+                >
+                  <div
+                    style={{
+                      width: 28,
+                      height: 28,
+                      borderRadius: '50%',
+                      background: '#0f172a',
+                      color: 'white',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: 12,
+                      fontWeight: 700,
+                      flexShrink: 0,
+                    }}
+                  >
+                    {i + 1}
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
+                      {f.area && (
+                        <span style={{ fontSize: 11, fontWeight: 600, color: '#64748b', background: '#f1f5f9', padding: '2px 8px', borderRadius: 999 }}>
+                          {f.area}
+                        </span>
+                      )}
+                      {f.impacto && (
+                        <span style={{ fontSize: 11, fontWeight: 600, color: cfg.color, background: cfg.bg, padding: '2px 8px', borderRadius: 999 }}>
+                          Impacto: {f.impacto}
+                        </span>
+                      )}
+                      {f.diferencia_puntaje != null && (
+                        <span style={{ fontSize: 11, fontWeight: 600, color: '#8b5cf6', background: '#faf5ff', padding: '2px 8px', borderRadius: 999 }}>
+                          Diferencia: {f.diferencia_puntaje} pts
+                        </span>
+                      )}
+                      {f.se_puede_mitigar != null && (
+                        <span style={{ fontSize: 11, fontWeight: 600, color: f.se_puede_mitigar ? '#10b981' : '#ef4444', background: f.se_puede_mitigar ? '#f0fdf4' : '#fef2f2', padding: '2px 8px', borderRadius: 999 }}>
+                          {f.se_puede_mitigar ? 'Mitigable' : 'No mitigable'}
+                        </span>
+                      )}
+                    </div>
+                    <Typography.Text style={{ fontSize: 13, color: 'var(--text-primary)' }}>
+                      {f.descripcion}
+                    </Typography.Text>
+                    {f.recomendacion_mejora && (
+                      <div style={{ marginTop: 6, fontSize: 12, color: 'var(--text-secondary)' }}>
+                        <BulbOutlined style={{ marginRight: 4, color: '#f59e0b' }} />
+                        {f.recomendacion_mejora}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
+          </Space>
+        </Card>
+      )}
+
+      {/* ---- Comparativa de puntajes por criterio ---- */}
+      {criterios.length > 0 && (
+        <Card>
+          <SectionTitle icon={<BarChartOutlined />} title="Comparativa de puntajes por criterio" color="#8b5cf6" />
           <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
               <thead>
-                <tr style={{ background: '#fafafa' }}>
-                  <th style={{ border: '1px solid #d9d9d9', padding: 8, textAlign: 'left' }}>Criterio</th>
-                  <th style={{ border: '1px solid #d9d9d9', padding: 8, textAlign: 'center' }}>Ponderación</th>
-                  <th style={{ border: '1px solid #d9d9d9', padding: 8, textAlign: 'center' }}>TIVIT</th>
-                  <th style={{ border: '1px solid #d9d9d9', padding: 8, textAlign: 'center' }}>Ganador</th>
-                  <th style={{ border: '1px solid #d9d9d9', padding: 8, textAlign: 'center' }}>Máximo</th>
-                  <th style={{ border: '1px solid #d9d9d9', padding: 8, textAlign: 'center' }}>Brecha</th>
+                <tr style={{ background: 'var(--bg-muted)' }}>
+                  {['Criterio', 'Ponderación', 'TIVIT', 'Ganador', 'Máximo', 'Brecha'].map((h) => (
+                    <th
+                      key={h}
+                      style={{
+                        border: '1px solid var(--border)',
+                        padding: '10px 12px',
+                        textAlign: h === 'Criterio' ? 'left' : 'center',
+                        fontSize: 11,
+                        fontWeight: 700,
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.05em',
+                        color: 'var(--text-secondary)',
+                      }}
+                    >
+                      {h}
+                    </th>
+                  ))}
                 </tr>
               </thead>
               <tbody>
-                {ap.comparativa_puntajes.map((c, i) => {
-                  const brecha = (c.puntaje_tivit ?? 0) - (c.puntaje_ganador ?? 0)
+                {criterios.map((c, i) => {
+                  const brecha = c.brecha ?? ((c.puntaje_tivit_total ?? 0) - (c.puntaje_ganador_total ?? 0))
                   return (
-                    <tr key={i}>
-                      <td style={{ border: '1px solid #d9d9d9', padding: 8 }}>{c.criterio}</td>
-                      <td style={{ border: '1px solid #d9d9d9', padding: 8, textAlign: 'center' }}>{formatNumber(c.ponderacion, '%')}</td>
-                      <td style={{ border: '1px solid #d9d9d9', padding: 8, textAlign: 'center', color: '#ff4d4f', fontWeight: 600 }}>{formatNumber(c.puntaje_tivit)}</td>
-                      <td style={{ border: '1px solid #d9d9d9', padding: 8, textAlign: 'center', color: '#52c41a', fontWeight: 600 }}>{formatNumber(c.puntaje_ganador)}</td>
-                      <td style={{ border: '1px solid #d9d9d9', padding: 8, textAlign: 'center' }}>{formatNumber(c.puntaje_maximo)}</td>
-                      <td style={{ border: '1px solid #d9d9d9', padding: 8, textAlign: 'center', color: brecha < 0 ? '#ff4d4f' : '#52c41a' }}>
+                    <tr key={i} style={{ background: i % 2 === 0 ? 'white' : '#fafbff' }}>
+                      <td style={{ border: '1px solid var(--border)', padding: '10px 12px', fontWeight: 500 }}>{c.nombre ?? '—'}</td>
+                      <td style={{ border: '1px solid var(--border)', padding: '10px 12px', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                        {formatNumber(c.ponderacion, '%')}
+                      </td>
+                      <td style={{ border: '1px solid var(--border)', padding: '10px 12px', textAlign: 'center', color: '#ef4444', fontWeight: 700 }}>
+                        {formatNumber(c.puntaje_tivit_total)}
+                      </td>
+                      <td style={{ border: '1px solid var(--border)', padding: '10px 12px', textAlign: 'center', color: '#10b981', fontWeight: 700 }}>
+                        {formatNumber(c.puntaje_ganador_total)}
+                      </td>
+                      <td style={{ border: '1px solid var(--border)', padding: '10px 12px', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                        {formatNumber(c.puntaje_maximo_total)}
+                      </td>
+                      <td
+                        style={{
+                          border: '1px solid var(--border)',
+                          padding: '10px 12px',
+                          textAlign: 'center',
+                          fontWeight: 700,
+                          color: brecha < 0 ? '#ef4444' : '#10b981',
+                          background: brecha < 0 ? '#fef2f2' : '#f0fdf4',
+                        }}
+                      >
                         {brecha > 0 ? '+' : ''}{brecha.toFixed(2)}
                       </td>
                     </tr>
@@ -408,153 +797,157 @@ export function AnalisisDashboardPage() {
         </Card>
       )}
 
-      {((ap?.fortalezas_tivit && ap.fortalezas_tivit.length > 0) || (ap?.debilidades_tivit && ap.debilidades_tivit.length > 0)) && (
+      {/* ---- Fortalezas y Debilidades ---- */}
+      {(((at?.fortalezas?.length) ?? 0) > 0 || ((at?.debilidades?.length) ?? 0) > 0) && (
         <Row gutter={[16, 16]}>
-          {ap?.fortalezas_tivit && ap.fortalezas_tivit.length > 0 && (
+          {at?.fortalezas && at.fortalezas.length > 0 && (
             <Col xs={24} md={12}>
-              <Card size="small" title={<Space><CheckCircleOutlined style={{ color: '#52c41a' }} /><span>Fortalezas TIVIT</span></Space>}>
-                <List
-                  size="small"
-                  dataSource={ap.fortalezas_tivit}
-                  renderItem={(item, i) => (
-                    <List.Item>
-                      <Space align="start">
-                        <CheckCircleOutlined style={{ color: '#52c41a', marginTop: 4 }} />
-                        <span>{item}</span>
-                      </Space>
-                    </List.Item>
-                  )}
-                />
+              <Card style={{ height: '100%', borderColor: 'rgba(16,185,129,0.2)', borderLeftWidth: 4, borderLeftColor: '#10b981' }}>
+                <SectionTitle icon={<CheckCircleOutlined />} title="Fortalezas TIVIT" color="#10b981" />
+                <Space direction="vertical" size={8} style={{ width: '100%' }}>
+                  {at.fortalezas.map((item, i) => (
+                    <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+                      <CheckCircleOutlined style={{ color: '#10b981', marginTop: 3, flexShrink: 0 }} />
+                      <span style={{ fontSize: 13, color: 'var(--text-primary)', lineHeight: 1.6 }}>{item}</span>
+                    </div>
+                  ))}
+                </Space>
               </Card>
             </Col>
           )}
-          {ap?.debilidades_tivit && ap.debilidades_tivit.length > 0 && (
+          {at?.debilidades && at.debilidades.length > 0 && (
             <Col xs={24} md={12}>
-              <Card size="small" title={<Space><CloseCircleOutlined style={{ color: '#ff4d4f' }} /><span>Debilidades TIVIT</span></Space>}>
-                <List
-                  size="small"
-                  dataSource={ap.debilidades_tivit}
-                  renderItem={(item, i) => (
-                    <List.Item>
-                      <Space align="start">
-                        <CloseCircleOutlined style={{ color: '#ff4d4f', marginTop: 4 }} />
-                        <span>{item}</span>
-                      </Space>
-                    </List.Item>
-                  )}
-                />
+              <Card style={{ height: '100%', borderColor: 'rgba(239,68,68,0.2)', borderLeftWidth: 4, borderLeftColor: '#ef4444' }}>
+                <SectionTitle icon={<CloseCircleOutlined />} title="Debilidades TIVIT" color="#ef4444" />
+                <Space direction="vertical" size={8} style={{ width: '100%' }}>
+                  {at.debilidades.map((item, i) => (
+                    <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+                      <CloseCircleOutlined style={{ color: '#ef4444', marginTop: 3, flexShrink: 0 }} />
+                      <span style={{ fontSize: 13, color: 'var(--text-primary)', lineHeight: 1.6 }}>{item}</span>
+                    </div>
+                  ))}
+                </Space>
               </Card>
             </Col>
           )}
         </Row>
       )}
 
-      {ce?.resumen && (
-        <Card size="small" title="Resumen ejecutivo">
-          <Typography.Paragraph style={{ whiteSpace: 'pre-wrap', margin: 0 }}>
-            {ce.resumen}
-          </Typography.Paragraph>
-        </Card>
-      )}
+      {/* ---- Comparativa de documentos (validación documental) ---- */}
+      <ComparativaDocumentos validacion={analisis.validacion_documental} />
 
-      {ce?.lecciones_aprendidas && ce.lecciones_aprendidas.length > 0 && (
-        <Card size="small" title={<Space><BulbOutlined style={{ color: '#faad14' }} /><span>Lecciones aprendidas</span></Space>}>
-          <List
+      {/* ---- Riesgos identificados ---- */}
+      {riesgos.length > 0 && (
+        <Card>
+          <SectionTitle icon={<SafetyOutlined />} title="Riesgos identificados" color="#ef4444" />
+          <Table
+            dataSource={riesgos.map((r, i) => ({ ...r, key: i }))}
+            pagination={false}
             size="small"
-            dataSource={ce.lecciones_aprendidas}
-            renderItem={(item, i) => (
-              <List.Item>
-                <Space align="start">
-                  <Tag color="gold">{i + 1}</Tag>
-                  <span>{item}</span>
-                </Space>
-              </List.Item>
-            )}
+            columns={[
+              { title: 'Riesgo', dataIndex: 'riesgo', key: 'riesgo', render: (v?: string | null) => v ?? '—' },
+              {
+                title: 'Nivel', dataIndex: 'nivel', key: 'nivel', width: 100,
+                render: (v?: string | null) => v ? <Tag icon={<WarningOutlined />} color={nivelColor(v)}>{v}</Tag> : '—',
+              },
+              { title: 'Mitigación', dataIndex: 'mitigacion', key: 'mitigacion', render: (v?: string | null) => v ?? '—' },
+            ]}
           />
         </Card>
       )}
 
-      {ce?.recomendaciones && ce.recomendaciones.length > 0 && (
-        <Card size="small" title="Recomendaciones">
-          <List
-            size="small"
-            dataSource={ce.recomendaciones}
-            renderItem={(item, i) => (
-              <List.Item>
-                <Space align="start">
-                  <Tag color="blue">{i + 1}</Tag>
-                  <span>{item}</span>
-                </Space>
-              </List.Item>
-            )}
-          />
-        </Card>
-      )}
-
-      <Card size="small" title="Metadata" extra={<Button icon={<ReloadOutlined />} onClick={() => navigate(0)} size="small">Recargar</Button>}>
-        <Descriptions column={2} size="small">
-          <Descriptions.Item label="Documento">{resultado.documentoNombre}</Descriptions.Item>
-          <Descriptions.Item label="Modelo">{resultado.modeloUsado}</Descriptions.Item>
-          <Descriptions.Item label="Tokens entrada">{resultado.tokensEntrada.toLocaleString()}</Descriptions.Item>
-          <Descriptions.Item label="Tokens salida">{resultado.tokensSalida.toLocaleString()}</Descriptions.Item>
-          <Descriptions.Item label="Fecha">{new Date(resultado.createdAt).toLocaleString('es-CL')}</Descriptions.Item>
-        </Descriptions>
-      </Card>
-
-      <Divider />
-
-      <Card
-        size="small"
-        title={
-          <Space>
-            <RobotOutlined />
-            <span>Chat contextual</span>
+      {/* ---- Recomendaciones estratégicas ---- */}
+      {recomendaciones.length > 0 && (
+        <Card style={{ background: 'linear-gradient(135deg, #fafbff, #f0f4ff)', borderColor: 'rgba(59,130,246,0.2)' }}>
+          <SectionTitle icon={<BulbOutlined />} title="Recomendaciones estratégicas" color="#3b82f6" />
+          <Space direction="vertical" size={8} style={{ width: '100%' }}>
+            {recomendaciones.map((item, i) => (
+              <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                <span
+                  style={{
+                    width: 22,
+                    height: 22,
+                    borderRadius: '50%',
+                    background: '#eff6ff',
+                    color: '#3b82f6',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: 11,
+                    fontWeight: 700,
+                    flexShrink: 0,
+                    border: '1px solid rgba(59,130,246,0.3)',
+                  }}
+                >
+                  {i + 1}
+                </span>
+                <span style={{ fontSize: 13, color: 'var(--text-primary)', lineHeight: 1.6 }}>{item}</span>
+              </div>
+            ))}
           </Space>
-        }
-      >
-        <div style={{ maxHeight: 400, overflowY: 'auto', marginBottom: 16 }}>
-          {mensajes.length === 0 && !chatLoading && (
-            <Typography.Text type="secondary" style={{ display: 'block', textAlign: 'center', padding: 16 }}>
-              Haz una pregunta sobre el análisis
-            </Typography.Text>
-          )}
-          <List
-            size="small"
-            dataSource={mensajes}
-            loading={chatLoading}
-            renderItem={(msg) => (
-              <List.Item>
-                <Space align="start" style={{ width: '100%' }}>
-                  {msg.rol === 'user' ? <UserOutlined /> : <RobotOutlined />}
-                  <div style={{ flex: 1 }}>
-                    <Typography.Text style={{ whiteSpace: 'pre-wrap' }}>{msg.contenido}</Typography.Text>
-                    <br />
-                    <Typography.Text type="secondary" style={{ fontSize: 11 }}>
-                      {new Date(msg.createdAt).toLocaleTimeString('es-CL')}
-                    </Typography.Text>
-                  </div>
-                </Space>
-              </List.Item>
-            )}
-          />
-          <div ref={chatEndRef} />
+        </Card>
+      )}
+
+      {/* ---- Metadata ---- */}
+      <Card style={{ background: 'var(--bg-muted)', border: '1px solid var(--border)' }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 24 }}>
+          <div>
+            <p style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: 4 }}>
+              Documento
+            </p>
+            <p style={{ fontSize: 13, fontWeight: 500, margin: 0 }}>{resultado.documentoNombre}</p>
+          </div>
+          <div>
+            <p style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: 4 }}>
+              Modelo
+            </p>
+            <p style={{ fontSize: 13, fontWeight: 500, margin: 0 }}>{resultado.modeloUsado}</p>
+          </div>
+          <div>
+            <p style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: 4 }}>
+              Tokens entrada
+            </p>
+            <p style={{ fontSize: 13, fontWeight: 500, margin: 0 }}>{(resultado.tokensEntrada ?? 0).toLocaleString()}</p>
+          </div>
+          <div>
+            <p style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: 4 }}>
+              Tokens salida
+            </p>
+            <p style={{ fontSize: 13, fontWeight: 500, margin: 0 }}>{(resultado.tokensSalida ?? 0).toLocaleString()}</p>
+          </div>
+          <div>
+            <p style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: 4 }}>
+              Fecha análisis
+            </p>
+            <p style={{ fontSize: 13, fontWeight: 500, margin: 0 }}>
+              {new Date(resultado.createdAt).toLocaleString('es-CL')}
+            </p>
+          </div>
         </div>
-        <Space.Compact style={{ width: '100%' }}>
-          <Input
-            value={chatInput}
-            onChange={(e) => setChatInput(e.target.value)}
-            onPressEnter={handleEnviarChat}
-            placeholder="Pregunta sobre el análisis..."
-            disabled={chatMutation.isPending}
-          />
-          <Button
-            type="primary"
-            icon={<SendOutlined />}
-            onClick={handleEnviarChat}
-            loading={chatMutation.isPending}
-          />
-        </Space.Compact>
       </Card>
+
+      {/* ---- Chat contextual: botón flotante + panel lateral ---- */}
+      <FloatButton
+        icon={<RobotOutlined />}
+        type="primary"
+        tooltip="Chat contextual con IA"
+        style={{ insetInlineEnd: 32, insetBlockEnd: 32 }}
+        onClick={() => setChatOpen(true)}
+      />
+      <Drawer
+        title={
+          <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <RobotOutlined style={{ color: '#8b5cf6' }} /> Chat contextual con IA
+          </span>
+        }
+        placement="right"
+        width={440}
+        open={chatOpen}
+        onClose={() => setChatOpen(false)}
+        destroyOnClose={false}
+      >
+        <AnalisisChat workspaceId={workspaceId} maxHeight="calc(100vh - 260px)" />
+      </Drawer>
     </Space>
   )
 }

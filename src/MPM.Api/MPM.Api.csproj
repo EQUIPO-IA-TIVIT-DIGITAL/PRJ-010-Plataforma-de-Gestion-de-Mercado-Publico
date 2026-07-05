@@ -1,0 +1,38 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="MPM.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Dapper" Version="2.1.35" />
+    <PackageReference Include="Google.Cloud.Storage.V1" Version="4.10.0" />
+    <PackageReference Include="Npgsql" Version="8.0.3" />
+    <PackageReference Include="StackExchange.Redis" Version="2.7.33" />
+    <PackageReference Include="Microsoft.AspNetCore.SignalR.StackExchangeRedis" Version="8.0.6" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.6" />
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Database\Scripts\*.sql" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\MPM.Shared\MPM.Shared.csproj" />
+    <ProjectReference Include="..\MPM.Core\MPM.Core.csproj" />
+    <ProjectReference Include="..\MPM.Modules.Licitaciones\MPM.Modules.Licitaciones.csproj" />
+    <ProjectReference Include="..\MPM.Modules.Catalogo\MPM.Modules.Catalogo.csproj" />
+    <ProjectReference Include="..\MPM.Modules.Mensajeria\MPM.Modules.Mensajeria.csproj" />
+    <ProjectReference Include="..\MPM.Modules.Auth\MPM.Modules.Auth.csproj" />
+    <ProjectReference Include="..\MPM.Modules.Analisis\MPM.Modules.Analisis.csproj" />
+    <ProjectReference Include="..\MPM.Modules.Notificaciones\MPM.Modules.Notificaciones.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,50 @@
+- generic [ref=e4]:
+  - complementary [ref=e5]:
+    - generic [ref=e6]:
+      - generic [ref=e7]:
+        - generic [ref=e8] [cursor=pointer]:
+          - img "TIVIT" [ref=e9]
+          - generic [ref=e10]:
+            - strong [ref=e12]: TIVIT
+            - text: Mercado Público
+        - button "Colapsar menú" [expanded] [ref=e13] [cursor=pointer]:
+          - img "menu-fold" [ref=e14]:
+            - img [ref=e15]
+      - navigation [ref=e17]:
+        - generic [ref=e18]: Navegación
+        - generic [ref=e19] [cursor=pointer]:
+          - img "file-text" [ref=e21]:
+            - img [ref=e22]
+          - generic [ref=e24]: Licitaciones
+        - generic [ref=e25] [cursor=pointer]:
+          - img "database" [ref=e27]:
+            - img [ref=e28]
+          - generic [ref=e30]: Catálogos
+        - generic [ref=e31] [cursor=pointer]:
+          - img "bar-chart" [ref=e33]:
+            - img [ref=e34]
+          - generic [ref=e36]: Análisis
+        - generic [ref=e37] [cursor=pointer]:
+          - img "message" [ref=e39]:
+            - img [ref=e40]
+          - generic [ref=e42]: Mensajes
+        - generic [ref=e43] [cursor=pointer]:
+          - img "bell" [ref=e45]:
+            - img [ref=e46]
+          - generic [ref=e48]: Notificaciones
+      - generic [ref=e50]:
+        - generic [ref=e52]: AT
+        - generic [ref=e53]:
+          - generic [ref=e54]: Admin TIVIT
+          - generic [ref=e55]: admin@tivit.cl
+  - generic [ref=e56]:
+    - generic [ref=e57]:
+      - img "bell" [ref=e61] [cursor=pointer]:
+        - img [ref=e62]
+      - generic [ref=e65] [cursor=pointer]:
+        - generic [ref=e67]: AT
+        - generic [ref=e69]: Admin TIVIT
+        - img "down" [ref=e70]:
+          - img [ref=e71]
+    - main [ref=e73]:
+      - paragraph [ref=e83]: Cargando análisis…

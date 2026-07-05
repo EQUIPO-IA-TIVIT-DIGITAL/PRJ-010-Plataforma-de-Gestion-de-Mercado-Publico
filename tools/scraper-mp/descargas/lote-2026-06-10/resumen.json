@@ -1,0 +1,101 @@
+{
+  "lote": "lote-2026-06-10",
+  "fechaEjecucion": "2026-06-10T13:34:23.873Z",
+  "configuracion": {
+    "fechaDesde": "01-01-2026",
+    "estado": "Adjudicada",
+    "region": "Todas"
+  },
+  "estadisticas": {
+    "totalLicitaciones": 6,
+    "exitosas": 6,
+    "sinActa": 0,
+    "conError": 0
+  },
+  "licitaciones": [
+    {
+      "codigo": "14-13-B226",
+      "nombre": "SERVICIO DE HOUSING - CÓDIGO: E1O2RT9",
+      "descripcion": "El Instituto Nacional de Estadística, en adelante “INE”, requiere contratar para la Subdirección de TIC, el Servicio de Housing para su sitio principal de procesamiento. El servicio de Housing requeri",
+      "demandante": "",
+      "fechaPublicacion": "20-04-2026 12:17:45",
+      "fechaCierre": "11-05-2026 15:00:00",
+      "estado": "completo",
+      "actaEvaluacion": "/home/maliaga/Proyectos/CU010 - Mercado Público/tools/scraper-mp/descargas/lote-2026-06-10/14-13-B226/Informe_Evaluación_14-13-B226.pdf",
+      "actaDescargada": true,
+      "errorActa": null,
+      "urlFicha": "https://www.mercadopublico.cl/Procurement/Modules/RFB/DetailsAcquisition.aspx?qs=PY4f//Her4PTWFpYcthZCw==",
+      "carpeta": "/home/maliaga/Proyectos/CU010 - Mercado Público/tools/scraper-mp/descargas/lote-2026-06-10/14-13-B226"
+    },
+    {
+      "codigo": "897096-5-LR26",
+      "nombre": "Contratación Creditos para Nube Publica de Google",
+      "descripcion": "La Dirección de Compras y Contratación Pública, requiere la Contratación de Créditos para Nube Pública de Google como Infraestructura Principal, Servicios de Ciberseguridad y DRP para la Dirección de ",
+      "demandante": "",
+      "fechaPublicacion": "25-03-2026 13:01:00",
+      "fechaCierre": "24-04-2026 15:15:00",
+      "estado": "completo",
+      "actaEvaluacion": "/home/maliaga/Proyectos/CU010 - Mercado Público/tools/scraper-mp/descargas/lote-2026-06-10/897096-5-LR26/Informe_de_evaluación_firmado_Creditos_Google.pdf",
+      "actaDescargada": true,
+      "errorActa": null,
+      "urlFicha": "https://www.mercadopublico.cl/Procurement/Modules/RFB/DetailsAcquisition.aspx?qs=L8ulGSEvT88UUqkdChni0A==",
+      "carpeta": "/home/maliaga/Proyectos/CU010 - Mercado Público/tools/scraper-mp/descargas/lote-2026-06-10/897096-5-LR26"
+    },
+    {
+      "codigo": "622-11-I226",
+      "nombre": "CREDITOS CLOUD COMPUTING AWS PARA PLATAFORMA TGR",
+      "descripcion": "Esta licitación comprende la adquisición de créditos cloud computing AWS, en adelante “AWS”, a ser utilizados como recursos cloud de alta disponibilidad que sean de fácil acceso y de altos estándares ",
+      "demandante": "",
+      "fechaPublicacion": "18-02-2026 12:28:04",
+      "fechaCierre": "24-03-2026 13:00:00",
+      "estado": "completo",
+      "actaEvaluacion": "/home/maliaga/Proyectos/CU010 - Mercado Público/tools/scraper-mp/descargas/lote-2026-06-10/622-11-I226/Acta_evaluación_lic_privada_CRÉDITOS_CLOUD_AWS__ID_622-11-I226_fi.pdf",
+      "actaDescargada": true,
+      "errorActa": null,
+      "urlFicha": "https://www.mercadopublico.cl/Procurement/Modules/RFB/DetailsAcquisition.aspx?qs=4ahhbCc6cOF7k87BGHapLw==",
+      "carpeta": "/home/maliaga/Proyectos/CU010 - Mercado Público/tools/scraper-mp/descargas/lote-2026-06-10/622-11-I226"
+    },
+    {
+      "codigo": "622-12-LP26",
+      "nombre": "CLOUD COMPUTING GCP PARA LAS PLATAFORMAS DE TGR",
+      "descripcion": "Adquisición de Créditos Disponibles en Recursos Cloud GCP Créditos para plataforma Google Cloud Plataform, en adelante “GCP”, a ser utilizados como recursos cloud de alta disponibilidad que sean de fá",
+      "demandante": "",
+      "fechaPublicacion": "17-02-2026 16:15:11",
+      "fechaCierre": "20-03-2026 15:30:00",
+      "estado": "completo",
+      "actaEvaluacion": "/home/maliaga/Proyectos/CU010 - Mercado Público/tools/scraper-mp/descargas/lote-2026-06-10/622-12-LP26/ACTA_DE_EVALUACIÓN_Licitación_Pública_ID_622-12-LP26_firmada.pdf",
+      "actaDescargada": true,
+      "errorActa": null,
+      "urlFicha": "https://www.mercadopublico.cl/Procurement/Modules/RFB/DetailsAcquisition.aspx?qs=gjZPrBaHKwuyKIsjj9tcNA==",
+      "carpeta": "/home/maliaga/Proyectos/CU010 - Mercado Público/tools/scraper-mp/descargas/lote-2026-06-10/622-12-LP26"
+    },
+    {
+      "codigo": "869591-2-LP26",
+      "nombre": "Desarrollo de la Nueva Plataforma PAC",
+      "descripcion": "La Dirección de Compras y Contratación Pública en adelante “DCCP” o “Dirección ChileCompra”, indistintamente requiere contratación del desarrollo de la nueva plataforma del plan anual de compras PAC p",
+      "demandante": "",
+      "fechaPublicacion": "23-01-2026 12:22:19",
+      "fechaCierre": "12-02-2026 15:00:00",
+      "estado": "completo",
+      "actaEvaluacion": "/home/maliaga/Proyectos/CU010 - Mercado Público/tools/scraper-mp/descargas/lote-2026-06-10/869591-2-LP26/Informe_Comisión_evaluadora_ID_869591-2-LP26.pdf",
+      "actaDescargada": true,
+      "errorActa": null,
+      "urlFicha": "https://www.mercadopublico.cl/Procurement/Modules/RFB/DetailsAcquisition.aspx?qs=Dypiqy2H9U3oiXsDPt3y7g==",
+      "carpeta": "/home/maliaga/Proyectos/CU010 - Mercado Público/tools/scraper-mp/descargas/lote-2026-06-10/869591-2-LP26"
+    },
+    {
+      "codigo": "1002584-16-LR25",
+      "nombre": "CLOUD MICROSOFT AZURE PARA LA DEP",
+      "descripcion": "Conforme a lo dispuesto en la Ley N° 19.886, de Bases sobre Contratos Administrativos de Suministro y Prestación de Servicios, en adelante “Ley de Compras”, y en el Decreto N° 661, que Aprueba Reglame",
+      "demandante": "",
+      "fechaPublicacion": "02-01-2026 10:49:37",
+      "fechaCierre": "02-02-2026 16:00:00",
+      "estado": "completo",
+      "actaEvaluacion": "/home/maliaga/Proyectos/CU010 - Mercado Público/tools/scraper-mp/descargas/lote-2026-06-10/1002584-16-LR25/REX_N°280_DECLÁRESE_INADMISIBLE_LA_OFERTA_QUE_SE_INDICA__Y_ADJUDI.pdf",
+      "actaDescargada": true,
+      "errorActa": null,
+      "urlFicha": "https://www.mercadopublico.cl/Procurement/Modules/RFB/DetailsAcquisition.aspx?qs=2OvLpcym3BzAzn9wCys1Aw==",
+      "carpeta": "/home/maliaga/Proyectos/CU010 - Mercado Público/tools/scraper-mp/descargas/lote-2026-06-10/1002584-16-LR25"
+    }
+  ]
+}

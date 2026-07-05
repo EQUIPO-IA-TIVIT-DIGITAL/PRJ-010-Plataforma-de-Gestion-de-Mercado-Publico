@@ -1,0 +1,151 @@
+using Dapper;
+using System.Data;
+
+namespace $NAMESPACE.Modules.$ENTITY.Features;
+
+public class List${ENTITY}Handler(IDbConnection db)
+{
+    public async Task<(List<${ENTITY}ListItem>, PaginationResult)> HandleAsync(
+        List${ENTITY}Request request,
+        CancellationToken ct = default)
+    {
+        var command = new CommandDefinition(
+            "$SCHEMA.List$ENTITY",
+            new
+            {
+                ParamIPage = request.Page,
+                ParamIPageSize = request.PageSize,
+                ParamISortBy = request.SortBy ?? "CreatedDate",
+                ParamISortOrder = request.SortOrder ?? "DESC",
+                ParamISearchFilter = request.SearchFilter
+            },
+            commandType: CommandType.StoredProcedure,
+            cancellationToken: ct);
+
+        var results = await db.QueryAsync<dynamic>(command);
+        var items = new List<${ENTITY}ListItem>();
+        int totalCount = 0;
+
+        foreach (var row in results)
+        {
+            var dict = (IDictionary<string, object>)row;
+            SpResultHelper.ThrowIfError(dict);
+            totalCount = dict.GetValue<int>("TotalCount");
+            items.Add(MapListItem(dict));
+        }
+
+        return (items, new PaginationResult(request.Page, request.PageSize, totalCount));
+    }
+
+    private static ${ENTITY}ListItem MapListItem(IDictionary<string, object> dict)
+    {
+        return new ${ENTITY}ListItem
+        {
+            Id = dict.GetValue<int>("${ENTITY}Id"),
+            CreatedDate = dict.GetValue<DateTime>("CreatedDate"),
+        };
+    }
+}
+
+public class Get${ENTITY}Handler(IDbConnection db)
+{
+    public async Task<${ENTITY}DetailResponse> HandleAsync(
+        int id,
+        CancellationToken ct = default)
+    {
+        var command = new CommandDefinition(
+            "$SCHEMA.Get$ENTITY",
+            new { ParamIId = id },
+            commandType: CommandType.StoredProcedure,
+            cancellationToken: ct);
+
+        var result = await db.QuerySingleAsync<dynamic>(command);
+        SpResultHelper.ThrowIfError((IDictionary<string, object>)result);
+
+        var dict = (IDictionary<string, object>)result;
+        return new ${ENTITY}DetailResponse
+        {
+            Id = dict.GetValue<int>("${ENTITY}Id"),
+            CreatedDate = dict.GetValue<DateTime>("CreatedDate"),
+        };
+    }
+}
+
+public class Create${ENTITY}Handler(IDbConnection db)
+{
+    public async Task<Create${ENTITY}Response> HandleAsync(
+        Create${ENTITY}Request request,
+        int currentUserId,
+        CancellationToken ct = default)
+    {
+        var command = new CommandDefinition(
+            "$SCHEMA.Create$ENTITY",
+            new
+            {
+                ParamICurrentUserId = currentUserId
+            },
+            commandType: CommandType.StoredProcedure,
+            cancellationToken: ct);
+
+        var result = await db.QuerySingleAsync<dynamic>(command);
+        SpResultHelper.ThrowIfError((IDictionary<string, object>)result);
+
+        var dict = (IDictionary<string, object>)result;
+        return new Create${ENTITY}Response
+        {
+            Id = dict.GetValue<int>("${ENTITY}Id"),
+            CreatedDate = dict.GetValue<DateTime>("CreatedDate"),
+        };
+    }
+}
+
+public class Update${ENTITY}Handler(IDbConnection db)
+{
+    public async Task<Update${ENTITY}Response> HandleAsync(
+        int id,
+        Update${ENTITY}Request request,
+        int currentUserId,
+        CancellationToken ct = default)
+    {
+        var command = new CommandDefinition(
+            "$SCHEMA.Update$ENTITY",
+            new
+            {
+                ParamIId = id,
+                ParamICurrentUserId = currentUserId
+            },
+            commandType: CommandType.StoredProcedure,
+            cancellationToken: ct);
+
+        var result = await db.QuerySingleAsync<dynamic>(command);
+        SpResultHelper.ThrowIfError((IDictionary<string, object>)result);
+
+        var dict = (IDictionary<string, object>)result;
+        return new Update${ENTITY}Response
+        {
+            Id = dict.GetValue<int>("${ENTITY}Id"),
+        };
+    }
+}
+
+public class Delete${ENTITY}Handler(IDbConnection db)
+{
+    public async Task<bool> HandleAsync(
+        int id,
+        int currentUserId,
+        CancellationToken ct = default)
+    {
+        var command = new CommandDefinition(
+            "$SCHEMA.Delete$ENTITY",
+            new
+            {
+                ParamIId = id,
+                ParamICurrentUserId = currentUserId
+            },
+            commandType: CommandType.StoredProcedure,
+            cancellationToken: ct);
+
+        await db.QueryAsync<dynamic>(command);
+        return true;
+    }
+}

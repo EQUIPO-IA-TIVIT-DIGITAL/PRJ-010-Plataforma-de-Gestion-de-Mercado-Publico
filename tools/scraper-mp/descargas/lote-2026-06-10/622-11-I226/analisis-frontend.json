@@ -1,0 +1,125 @@
+{
+  "licitacion": {
+    "nombre": "CRÉDITOS CLOUD COMPUTING AWS PARA LAS PLATAFORMAS DE TESORERÍA GENERAL DE LA REPÚBLICA",
+    "codigo": "622-11-1226",
+    "organismo": "Tesorería General de la República",
+    "fecha_adjudicacion": "2026-03-30",
+    "monto_estimado": null,
+    "moneda": "CLP",
+    "adjudicatario": {
+      "nombre": "TIVIT CHILE TERCERIZACIÓN DE PROCESOS, SERVICIOS Y TECNOLOGÍA SPA",
+      "rut": "76.130.712-6",
+      "monto_adjudicado": 480000000
+    }
+  },
+  "participacion_tivit": {
+    "monto_ofertado": 403361344,
+    "puntaje_total": 100.0,
+    "puntaje_maximo": 100.0
+  },
+  "analisis_perdida": {
+    "motivo_principal": "Adjudicación exitosa. TIVIT fue el único oferente, su propuesta fue declarada admisible y obtuvo el puntaje máximo en todos los criterios de evaluación.",
+    "factores": [
+      "Oferta económica evaluada con la nota máxima (100).",
+      "Acreditación de 10 contratos en el sector privado, obteniendo la nota máxima (100).",
+      "Acreditación de 5 contratos en el sector público, obteniendo la nota máxima (100).",
+      "Cumplimiento total de los requisitos formales, obteniendo la nota máxima (100).",
+      "Presentación de un programa de integridad completo y respaldado, obteniendo la nota máxima (100).",
+      "Ausencia de sanciones en el registro de proveedores, resultando en cero puntos de descuento por comportamiento contractual."
+    ],
+    "fortalezas_tivit": [
+      "Sólida y máxima experiencia demostrable tanto en el sector público como en el privado.",
+      "Propuesta económica competitiva que alcanzó el puntaje máximo.",
+      "Impecable cumplimiento de los aspectos administrativos y formales de la licitación.",
+      "Excelente historial contractual sin sanciones registradas."
+    ],
+    "debilidades_tivit": [],
+    "comparativa_puntajes": [
+      {
+        "oferente": "TIVIT CHILE TERCERIZACIÓN DE PROCESOS, SERVICIOS Y TECNOLOGÍA SPA",
+        "puntaje_final": 100.0,
+        "observaciones": "Único oferente."
+      }
+    ]
+  },
+  "conclusion_ejecutiva": {
+    "resumen": "TIVIT CHILE fue el único participante y adjudicatario recomendado en la licitación, logrando un puntaje perfecto de 100 sobre 100. La oferta fue declarada admisible y cumplió con todos los requisitos, destacando por obtener la máxima calificación en todos los criterios evaluados: precio, experiencia en sector público y privado, cumplimiento formal y programa de integridad. La comisión evaluadora recomendó la adjudicación del contrato por un monto de $480.000.000.",
+    "lecciones_aprendidas": [
+      "La presentación de una oferta exhaustiva y bien documentada que cumple con todos los requisitos es clave para el éxito.",
+      "Demostrar una experiencia superior a la mínima requerida en ambos sectores (público y privado) consolida la propuesta y asegura el puntaje máximo en dichos criterios.",
+      "Mantener un historial contractual impecable y sin sanciones es un diferenciador positivo."
+    ],
+    "recomendaciones": [
+      "Adjudicar la Licitación Privada ID 622-11-1226 a TIVIT CHILE TERCERIZACIÓN DE PROCESOS, SERVICIOS Y TECNOLOGÍA SPA.",
+      "Proceder con la formalización del contrato por el monto adjudicado de $480.000.000, impuestos incluidos."
+    ]
+  },
+  "dashboard_kpis": [
+    {
+      "nombre": "Puntaje Oferta Económica",
+      "valor": 70.00,
+      "valor_maximo": 70,
+      "ponderacion": "70%"
+    },
+    {
+      "nombre": "Puntaje Experiencia Sector Privado",
+      "valor": 10.00,
+      "valor_maximo": 10,
+      "ponderacion": "10%"
+    },
+    {
+      "nombre": "Puntaje Experiencia Sector Público",
+      "valor": 15.00,
+      "valor_maximo": 15,
+      "ponderacion": "15%"
+    },
+    {
+      "nombre": "Puntaje Cumplimiento Requisitos Formales",
+      "valor": 3.00,
+      "valor_maximo": 3,
+      "ponderacion": "3%"
+    },
+    {
+      "nombre": "Puntaje Programa de Integridad",
+      "valor": 2.00,
+      "valor_maximo": 2,
+      "ponderacion": "2%"
+    },
+    {
+      "nombre": "Descuento por Comportamiento Contractual",
+      "valor": 0,
+      "valor_maximo": 0,
+      "ponderacion": "N/A"
+    }
+  ],
+  "metricas_clave": {
+    "oferta_economica_precio": {
+      "ponderacion": "70%",
+      "nota": 100.0,
+      "puntaje": 70.00
+    },
+    "experiencia_sector_privado": {
+      "ponderacion": "10%",
+      "nota": 100.0,
+      "puntaje": 10.00
+    },
+    "experiencia_sector_publico": {
+      "ponderacion": "15%",
+      "nota": 100.0,
+      "puntaje": 15.00
+    },
+    "cumplimiento_requisitos_formales": {
+      "ponderacion": "3%",
+      "nota": 100.0,
+      "puntaje": 3.00
+    },
+    "existencia_programa_integridad": {
+      "ponderacion": "2%",
+      "nota": 100.0,
+      "puntaje": 2.00
+    },
+    "comportamiento_contractual": {
+      "puntaje_descontado": 0
+    }
+  }
+}

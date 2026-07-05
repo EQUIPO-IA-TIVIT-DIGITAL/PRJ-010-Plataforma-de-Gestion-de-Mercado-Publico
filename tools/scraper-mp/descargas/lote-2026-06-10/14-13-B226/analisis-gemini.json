@@ -1,0 +1,216 @@
+{
+  "licitacion_info": {
+    "titulo": "INFORME DE EVALUACIÓN DE OFERTAS PARA PROCESO DE LICITACIÓN PRIVADA",
+    "nombre_proceso": "SERVICIO DE HOUSING - CÓDIGO: E102RT9",
+    "id_licitacion": "14-13-B226",
+    "codigo_servicio": "E102RT9",
+    "organismo_publico": "INSTITUTO NACIONAL DE ESTADISTICA",
+    "fecha_documento": "MAYO 2026",
+    "lugar": "SANTIAGO"
+  },
+  "fechas_proceso": {
+    "publicacion": "20-04-2026",
+    "cierre": "11-05-2026",
+    "apertura": "11-05-2026",
+    "emision_resolucion_comision": "20-04-2026",
+    "fecha_evaluacion": "20-05-2026"
+  },
+  "comision_evaluadora": {
+    "resolucion_exenta": "N° 1425 Aprueba bases",
+    "titulares": [
+      {
+        "nombre": "José Luis Ortega Cerda",
+        "rol": "Integra"
+      },
+      {
+        "nombre": "Andrés Ulloa Cerda",
+        "rol": "Integra"
+      },
+      {
+        "nombre": "Alejandro Freraut Cáceres",
+        "rol": "Integra"
+      }
+    ],
+    "suplentes": [
+      {
+        "nombre": "Osvaldo Cornejo Barra",
+        "rol": "No integra"
+      },
+      {
+        "nombre": "Alex Jara Valenzuela",
+        "rol": "No integra"
+      },
+      {
+        "nombre": "Francisco Soto Rivera",
+        "rol": "No integra"
+      }
+    ]
+  },
+  "ofertas_recibidas": {
+    "numero_ofertas": 2,
+    "ofertantes": [
+      {
+        "nombre_razon_social": "EMPRESA NACIONAL DE TELECOMUNICACIONES S A",
+        "nombre_fantasia": "ENTEL CHILE S.A.",
+        "rut": "92.580.000-7",
+        "oferta_economica": {
+          "monto_bruto_mensual_uf": 156.961,
+          "periodo_meses": 36,
+          "monto_total_uf": 5650.6,
+          "impuestos_incluidos": true
+        },
+        "resultado_admisibilidad": "ADMISIBLE"
+      },
+      {
+        "nombre_razon_social": "TIVIT CHILE TERCERIZACION DE PROCESOS, SERVICIOS Y TECNOLOGIA SPA",
+        "nombre_fantasia": "TIVIT CHILE",
+        "rut": "76.130.712-6",
+        "oferta_economica": {
+          "monto_bruto_mensual_uf": 152.645,
+          "periodo_meses": 36,
+          "monto_total_uf": 5495.22,
+          "impuestos_incluidos": true
+        },
+        "resultado_admisibilidad": "INADMISIBLE"
+      }
+    ]
+  },
+  "analisis_admisibilidad": {
+    "resumen": [
+      {
+        "ofertante": "ENTEL CHILE S.A.",
+        "rut": "92.580.000-7",
+        "resultado": "ADMISIBLE",
+        "observaciones": "Cumple con todos los requisitos de admisibilidad."
+      },
+      {
+        "ofertante": "TIVIT CHILE",
+        "rut": "76.130.712-6",
+        "resultado": "INADMISIBLE",
+        "observaciones": "No cumple con los requisitos específicos establecidos en la oferta técnica (Artículo 5.II)."
+      }
+    ],
+    "incumplimientos_tecnicos_tivit": [
+      "Tiempos de Respuesta y Reposición: El seguro indicado no declara que garantiza algún 'tiempo de respuesta y reposición de los equipos en caso de siniestro'.",
+      "Verificación de alertas de fallas: No se hace mención explícita a la 'verificación de alertas de fallas' para TODOS los equipos involucrados.",
+      "Funcionamiento de mecanismos de respaldo de suministro eléctrico: No se menciona explícitamente que posterior al traslado, se realizarán las pruebas de 'funcionamiento de mecanismos de respaldo de suministro eléctrico'.",
+      "Currículums resumidos del personal: No indica explícitamente que entregará los currículums resumidos y las certificaciones vigentes del personal.",
+      "Certificaciones vigentes: No menciona cómo se validarán las certificaciones del personal que participará en las labores.",
+      "Facilidades a los proveedores de enlaces: No se indica explícitamente que se darán 'las facilidades a los proveedores de enlaces, para la instalación y/o habilitación en el meet-me room'.",
+      "Disponer de cableado horizontal: No se indica de forma explícita que se dispondrá 'de manera oportuna del cableado horizontal requerido entre el meet-me room y los racks'."
+    ]
+  },
+  "criterios_evaluacion": {
+    "formula_general": "Mejor Oferta = Evaluación administrativa (5%) + Evaluación técnica (45%) + Evaluación económica (50%)",
+    "formula_calculo": "Mejor Oferta = (A*0,05) + (B*0,45) + (C*0,50)",
+    "criterios": [
+      {
+        "nombre": "Evaluación de los Criterios Administrativos (A)",
+        "ponderacion_total": "5%",
+        "subcriterios": [
+          {
+            "nombre": "Cumplimiento de Requisitos Formales",
+            "ponderacion": "90%"
+          },
+          {
+            "nombre": "Programas de Integridad",
+            "ponderacion": "10%"
+          }
+        ]
+      },
+      {
+        "nombre": "Evaluación de las Ofertas Técnicas (B)",
+        "ponderacion_total": "45%",
+        "subcriterios": [
+          {
+            "nombre": "Igualdad de género o liderazgo de mujeres",
+            "ponderacion": "5%"
+          },
+          {
+            "nombre": "Referencias de clientes",
+            "ponderacion": "70%"
+          },
+          {
+            "nombre": "Comportamiento contractual anterior",
+            "ponderacion": "20%"
+          },
+          {
+            "nombre": "Convenio de reciclaje",
+            "ponderacion": "5%"
+          }
+        ]
+      },
+      {
+        "nombre": "Evaluación de las Ofertas Económicas (C)",
+        "ponderacion_total": "50%",
+        "subcriterios": [
+          {
+            "nombre": "Oferta Económica",
+            "ponderacion": "100%",
+            "formula": "(Precio Oferta mínima / Precio Oferta evaluada) * 100"
+          }
+        ]
+      }
+    ]
+  },
+  "evaluacion_oferta_admisible": {
+    "ofertante": "ENTEL CHILE S.A.",
+    "rut": "92.580.000-7",
+    "evaluacion_administrativa": {
+      "puntaje_final": 100.00,
+      "ponderado": 5.00
+    },
+    "evaluacion_tecnica": {
+      "puntaje_final": 24.00,
+      "ponderado": 10.80,
+      "detalle": [
+        {
+          "subcriterio": "Igualdad de género o liderazgo de mujeres",
+          "puntaje": 100.00,
+          "ponderado": 5.00,
+          "observacion": "Presenta políticas de diversidad, inclusión y protocolo de transición de género. No cuenta con Sello Empresa Mujer."
+        },
+        {
+          "subcriterio": "Referencias de clientes",
+          "puntaje": 20.00,
+          "ponderado": 14.00,
+          "observacion": "Presenta 3 referencias, pero solo 1 cumple con los requisitos (firma electrónica avanzada). Las otras 2 no cumplen por falta de timbre o firma no avanzada."
+        },
+        {
+          "subcriterio": "Comportamiento contractual anterior",
+          "puntaje": 0.00,
+          "ponderado": 0.00,
+          "observacion": "Proveedor registra 24 sanciones en los últimos 24 meses."
+        },
+        {
+          "subcriterio": "Convenio de reciclaje",
+          "puntaje": 100.00,
+          "ponderado": 5.00,
+          "observacion": "Presenta certificados de destrucción y reciclaje MIDAS y Política Ambiental Entel Chile."
+        }
+      ]
+    },
+    "evaluacion_economica": {
+      "monto_total_uf": 5650.60,
+      "puntaje": 100.00,
+      "ponderado": 50.00
+    },
+    "resultado_final": {
+      "puntaje_total": 65.80
+    }
+  },
+  "adjudicacion": {
+    "propuesta_comision": "Adjudicar la licitación al proveedor por haber cumplido con los requisitos de admisibilidad, obteniendo el mejor puntaje conforme a los criterios de evaluación.",
+    "adjudicatario": {
+      "nombre_razon_social": "EMPRESA NACIONAL DE TELECOMUNICACIONES S A",
+      "nombre_fantasia": "ENTEL CHILE S.A.",
+      "rut": "92.580.000-7"
+    },
+    "monto_adjudicado": {
+      "precio_neto_uf": 4748.4,
+      "iva_uf": 902.2,
+      "precio_bruto_uf": 5650.6,
+      "descripcion_monto": "CINCO MIL SEISCIENTAS CINCUENTA COMA SEIS UNIDADES DE FOMENTO IMPUESTO INCLUIDO"
+    }
+  }
+}

@@ -1,0 +1,100 @@
+======================================================================
+REPORTE - AGENTE MERCADO PUBLICO
+======================================================================
+Fecha: 2026-06-24T15:24:16.640Z
+Lote: lote-2026-06-24
+Configuración: Desde=01-01-2000, Estado=Adjudicada, Región=Todas
+
+ESTADÍSTICAS
+----------------------------------------
+Total licitaciones: 10
+Con Acta descargada: 10
+Sin Acta de Evaluación: 0
+Con error: 0
+
+DETALLE DE LICITACIONES
+----------------------------------------
+
+  Código: 14-13-B226
+  Nombre: SERVICIO DE HOUSING - CÓDIGO: E1O2RT9
+  Demandante: N/A
+  Publicación: 20-04-2026 12:17:45
+  Cierre: 11-05-2026 15:00:00
+  Acta: ✓ Descargada
+  Estado: completo
+
+  Código: 869591-6-LR26
+  Nombre: CONTRATACIÓN DE CRÉDITOS DE NUBE PÚBLICA DE AWS PARA USO DE INFRAESTRUCTURA CLOUD DE PLATAFORMAS Y SERVICIOS
+  Demandante: N/A
+  Publicación: 15-04-2026 14:31:00
+  Cierre: 22-05-2026 15:00:00
+  Acta: ✓ Descargada
+  Estado: completo
+
+  Código: 1605-23-LP26
+  Nombre: LP-4609 Servicio de Ciberinteligencia por 36 meses
+  Demandante: N/A
+  Publicación: 13-04-2026 18:05:00
+  Cierre: 05-05-2026 16:00:00
+  Acta: ✓ Descargada
+  Estado: completo
+
+  Código: 548874-36-I226
+  Nombre: SERVICIO DE INFRAESTRUCTURA COMO SERVICIO IAAS
+  Demandante: N/A
+  Publicación: 30-03-2026 17:25:41
+  Cierre: 13-05-2026 15:30:00
+  Acta: ✓ Descargada
+  Estado: completo
+
+  Código: 897096-5-LR26
+  Nombre: Contratación Creditos para Nube Publica de Google
+  Demandante: N/A
+  Publicación: 25-03-2026 13:01:00
+  Cierre: 24-04-2026 15:15:00
+  Acta: ✓ Descargada
+  Estado: completo
+
+  Código: 622-11-I226
+  Nombre: CREDITOS CLOUD COMPUTING AWS PARA PLATAFORMA TGR
+  Demandante: N/A
+  Publicación: 18-02-2026 12:28:04
+  Cierre: 24-03-2026 13:00:00
+  Acta: ✓ Descargada
+  Estado: completo
+
+  Código: 622-12-LP26
+  Nombre: CLOUD COMPUTING GCP PARA LAS PLATAFORMAS DE TGR
+  Demandante: N/A
+  Publicación: 17-02-2026 16:15:11
+  Cierre: 20-03-2026 15:30:00
+  Acta: ✓ Descargada
+  Estado: completo
+
+  Código: 869591-2-LP26
+  Nombre: Desarrollo de la Nueva Plataforma PAC
+  Demandante: N/A
+  Publicación: 23-01-2026 12:22:19
+  Cierre: 12-02-2026 15:00:00
+  Acta: ✓ Descargada
+  Estado: completo
+
+  Código: 2981-2-LR26
+  Nombre: JENATID - SERVICIO DE COMUNICACIONES SERTEL
+  Demandante: N/A
+  Publicación: 06-01-2026 16:13:12
+  Cierre: 17-03-2026 15:00:00
+  Acta: ✓ Descargada
+  Estado: completo
+
+  Código: 1002584-16-LR25
+  Nombre: CLOUD MICROSOFT AZURE PARA LA DEP
+  Demandante: N/A
+  Publicación: 02-01-2026 10:49:37
+  Cierre: 02-02-2026 16:00:00
+  Acta: ✓ Descargada
+  Estado: completo
+
+======================================================================
+FIN DEL REPORTE
+======================================================================

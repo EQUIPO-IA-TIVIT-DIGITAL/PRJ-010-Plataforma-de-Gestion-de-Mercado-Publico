@@ -1,0 +1,19 @@
+prioridad,orden,fase,spec,estado,semana_estimada,pedido_cliente_cubierto,cambio_2026_07_03
+Hecho,0,Análisis histórico / validación documental,017-ajustes-urgentes-cliente,Implementado,-,"Comparar razón de pérdida vs. documentos enviados",Sin cambio
+Hecho,0,Extracción de licitaciones vía API directa,016-extraccion-documentos-api,Implementado,-,"Prerequisito de Buscador, Alertas e Inteligencia Competitiva",Sin cambio
+N1,1,Fase 5 — Despliegue en GCP,002-fase5-deploy-gcp,Planned,N1 - inmediata,"Despliegue en producción en GCP",Reescrito de On-Premise/Huawei a GCP; elevado a N1
+N2,2,Fase 6 — Alertas Inteligentes por Palabras Clave,003-fase6-alertas-keywords,Planned,Semana 2 (Julio 2026),"Alertas con sinónimos IA; notificación enriquecida; account managers",Alcance ampliado con User Stories 3 y 4
+N3,3,Buscador Inteligente en Lenguaje Natural,018-buscador-inteligente-nl,Planned,Semana 3 (Julio 2026),"Buscador con conceptos/sinónimos sobre licitaciones",Spec nueva creada 2026-07-03
+N4,4,Fase 7 — Pipeline de Oportunidades,004-fase7-pipeline-oportunidades,Planned,Semana 4 (Julio-Agosto 2026),"Motor de validación de completitud de ofertas",Desplazada una semana; motor de validación confirmado en US2 existente
+Paralelo,5,Rediseño Frontend de MPM,019-rediseno-frontend,Planned,Paralelo / sin fecha fija,"Rediseño frontend sin competir por prioridad",Spec nueva creada 2026-07-03
+Pausado,6,Fase 8 — Análisis IA de Bases de Licitación,005-fase8-analisis-bases,Planned (pausado),-,-,Pausado 2026-07-03
+Pausado,7,Fase 9 — Reportes Ejecutivos Automáticos,006-fase9-reportes-ejecutivos,Planned (pausado),-,-,Pausado 2026-07-03
+Pausado,8,Fase 10 — Notificaciones Multicanal,007-fase10-notificaciones-multicanal,Planned (pausado),-,-,Pausado 2026-07-03
+Pausado,9,Fase 11 — Inteligencia Competitiva Avanzada,008-fase11-inteligencia-competitiva,Planned (pausado),-,"Por qué gana Sonda (pedido #7) — candidata a reactivarse primero",Pausado 2026-07-03
+Pausado,10,Fase 12 — Gestión de Garantías,009-fase12-garantias,Planned (pausado),-,-,Pausado 2026-07-03
+Pausado,11,Fase 13 — CRM de Organismos Compradores,010-fase13-crm-organismos,Planned (pausado),-,-,Pausado 2026-07-03
+Pausado,12,Fase 14 — Predictor de Éxito,011-fase14-predictor-exito,Planned (pausado),-,-,Pausado 2026-07-03
+Pausado,13,Fase 15 — Pricing Intelligence,012-fase15-pricing-intelligence,Planned (pausado),-,-,Pausado 2026-07-03
+Pausado,14,Fase 16 — Portal de Revisión Externa,013-fase16-portal-colaboracion,Planned (pausado),-,-,Pausado 2026-07-03
+Pausado,15,Fase 17 — Gestión Documental de Propuestas,014-fase17-gestion-documental,Planned (pausado),-,-,Pausado 2026-07-03
+Pausado,16,Fase 18 — Integración ERP (SAP / Oracle),015-fase18-integracion-erp,Planned (pausado),-,-,Pausado 2026-07-03

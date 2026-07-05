@@ -1,0 +1,11 @@
+**/obj
+**/bin
+**/node_modules
+**/.git
+**/.opencode
+**/dist
+**/.vs
+**/*.user
+tools/scraper-mp/.env
+tools/scraper-mp/descargas
+tools/scraper-mp/debug-*.png

@@ -1,0 +1,134 @@
+{
+  "licitacion": {
+    "nombre": "CONTRATACIÓN DE CRÉDITOS PARA NUBE PÚBLICA DE GOOGLE COMO INFRAESTRUCTURA PRINCIPAL, SERVICIOS DE CIBERSEGURIDAD Y DRP PARA LA DIRECCIÓN DE COMPRAS Y CONTRATACIÓN PÚBLICA",
+    "codigo": "897096-5-LR26",
+    "organismo": "Dirección ChileCompra",
+    "fecha_adjudicacion": "2026-04-27",
+    "monto_estimado": null,
+    "moneda": "USD",
+    "adjudicatario": {
+      "nombre": "TIVIT CHILE TERCERIZACION DE PROCESOS, SERVICIOS Y TECNOLOGIA SPA",
+      "rut": "76.130.712-6",
+      "monto_adjudicado": 2181020.00
+    }
+  },
+  "participacion_tivit": {
+    "monto_ofertado": 2181020.00,
+    "puntaje_total": 99.31,
+    "puntaje_maximo": 100
+  },
+  "analisis_perdida": {
+    "motivo_principal": "Adjudicación exitosa. TIVIT obtuvo el puntaje más alto en la evaluación, superando a los demás competidores.",
+    "factores": [
+      {
+        "categoria": "Económico",
+        "descripcion": "TIVIT presentó la oferta económica más ventajosa, obteniendo el puntaje más alto (98,63) en este criterio, lo que fue decisivo para la adjudicación debido a su alta ponderación (50%).",
+        "impacto": "Alto",
+        "brecha": "TIVIT superó al segundo lugar (Noventiq) por 0.31 puntos ponderados en el criterio económico."
+      },
+      {
+        "categoria": "Técnico y Administrativo",
+        "descripcion": "TIVIT cumplió con el 100% de los requisitos técnicos y administrativos, obteniendo el puntaje máximo en todas las certificaciones, políticas de inclusividad, programas de integridad, prácticas sustentables y requisitos formales.",
+        "impacto": "Alto",
+        "brecha": "TIVIT igualó el puntaje máximo con los otros competidores admisibles en estos criterios, demostrando un cumplimiento total y sin fisuras."
+      }
+    ],
+    "fortalezas_tivit": [
+      "Oferta económica altamente competitiva, logrando el puntaje más alto en el criterio de mayor ponderación.",
+      "Cumplimiento total de los requisitos técnicos, incluyendo certificaciones como Google Cloud Partner y Partner Premier.",
+      "Cumplimiento impecable de todos los criterios administrativos (Sello Mujer, Programa de Integridad, Huella Chile, Requisitos Formales)."
+    ],
+    "debilidades_tivit": [
+      "No se identificaron debilidades en la oferta presentada según el informe de evaluación; se cumplieron todos los requisitos y se obtuvo el puntaje máximo en la mayoría de los criterios."
+    ],
+    "comparativa_puntajes": [
+      {
+        "criterio": "CRITERIO ECONÓMICO",
+        "ponderacion": 50,
+        "puntaje_tivit": 49.31,
+        "puntaje_ganador": 49.31,
+        "puntaje_maximo": 50
+      },
+      {
+        "criterio": "Certificación del oferente como Google Cloud Partner y Partner premier",
+        "ponderacion": 40,
+        "puntaje_tivit": 40.00,
+        "puntaje_ganador": 40.00,
+        "puntaje_maximo": 40
+      },
+      {
+        "criterio": "Implementación de Políticas de Inclusividad (Sello Mujer)",
+        "ponderacion": 2,
+        "puntaje_tivit": 2.00,
+        "puntaje_ganador": 2.00,
+        "puntaje_maximo": 2
+      },
+      {
+        "criterio": "Programas de integridad",
+        "ponderacion": 2,
+        "puntaje_tivit": 2.00,
+        "puntaje_ganador": 2.00,
+        "puntaje_maximo": 2
+      },
+      {
+        "criterio": "Empresa Fomenta las Prácticas Empresariales Ambientalmente Sustentables (Huella Chile)",
+        "ponderacion": 2,
+        "puntaje_tivit": 2.00,
+        "puntaje_ganador": 2.00,
+        "puntaje_maximo": 2
+      },
+      {
+        "criterio": "Criterio Cumplimiento Requisitos Formales",
+        "ponderacion": 4,
+        "puntaje_tivit": 4.00,
+        "puntaje_ganador": 4.00,
+        "puntaje_maximo": 4
+      }
+    ]
+  },
+  "conclusion_ejecutiva": {
+    "resumen": "TIVIT Chile se adjudicó la licitación ID 897096-5-LR26 para la 'Contratación de Créditos para Nube Pública de Google' con la Dirección ChileCompra. La propuesta de TIVIT fue la mejor evaluada entre las tres ofertas admisibles, alcanzando un puntaje final de 99,31 sobre 100. El factor clave de la victoria fue la superioridad en el criterio económico, donde obtuvo el puntaje más alto (98,63), lo que se tradujo en una ventaja decisiva en la ponderación final (49,31 puntos). Adicionalmente, TIVIT demostró un cumplimiento impecable en todos los criterios técnicos y administrativos, obteniendo la máxima puntuación posible en certificaciones de Google Partner, políticas de inclusividad, programas de integridad, sustentabilidad y requisitos formales. La oferta de 2.181.020,00 USD fue considerada la más conveniente para los intereses de la institución, consolidando la adjudicación.",
+    "lecciones_aprendidas": [
+      "La combinación de una oferta económica agresiva y el cumplimiento exhaustivo de todos los requisitos técnicos y administrativos es una fórmula ganadora.",
+      "Mantener al día las certificaciones clave (Google Partner Premier) y las credenciales administrativas (Sello Mujer, Huella Chile) es fundamental para maximizar el puntaje y evitar desventajas.",
+      "La diferenciación en el criterio económico, incluso por un margen pequeño, es crucial en licitaciones con alta ponderación en el precio."
+    ],
+    "recomendaciones": [
+      "Continuar con la estrategia de presentar ofertas económicas altamente competitivas, especialmente en licitaciones donde el precio tiene una ponderación del 50% o más.",
+      "Mantener el enfoque en el cumplimiento formal y administrativo para asegurar la máxima puntuación en estos criterios y evitar riesgos de inadmisibilidad.",
+      "Realizar un análisis competitivo de las ofertas de los competidores más cercanos (ej. Noventiq) para identificar patrones y ajustar futuras estrategias de precios y propuestas de valor."
+    ]
+  },
+  "dashboard_kpis": [
+    {
+      "indicador": "Resultado de la Licitación",
+      "valor": "Adjudicada",
+      "tendencia": "positiva",
+      "color": "green"
+    },
+    {
+      "indicador": "Puntaje Final Obtenido",
+      "valor": "99.31 / 100",
+      "tendencia": "positiva",
+      "color": "green"
+    },
+    {
+      "indicador": "Posición en Criterio Económico",
+      "valor": "1° de 3",
+      "tendencia": "positiva",
+      "color": "green"
+    },
+    {
+      "indicador": "Cumplimiento Técnico y Administrativo",
+      "valor": "100%",
+      "tendencia": "positiva",
+      "color": "green"
+    }
+  ],
+  "metricas_clave": {
+    "diferencia_puntaje_total": 0.31,
+    "diferencia_monto": 0,
+    "porcentaje_cumplimiento_tivit": 99.31,
+    "porcentaje_cumplimiento_ganador": 99.31
+  }
+}

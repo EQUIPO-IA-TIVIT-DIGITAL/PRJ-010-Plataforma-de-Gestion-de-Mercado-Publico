@@ -1,0 +1,113 @@
+{
+  "licitacion": {
+    "nombre": "Desarrollo de la Nueva Plataforma PAC",
+    "codigo": "869591-2-LP26",
+    "organismo": "Dirección ChileCompra",
+    "fecha_adjudicacion": "2026-03-09",
+    "monto_estimado": null,
+    "moneda": "UF",
+    "adjudicatario": {
+      "nombre": "ARKHO SPA",
+      "rut": "76.011.398-0",
+      "monto_adjudicado": 11900
+    }
+  },
+  "participacion_tivit": {
+    "monto_ofertado": null,
+    "puntaje_total": null,
+    "puntaje_maximo": 100
+  },
+  "analisis_perdida": {
+    "motivo_principal": "Declarado inadmisible por incumplimiento de los requisitos técnicos mínimos de admisibilidad en la Oferta Técnica (Anexo 3).",
+    "factores": [
+      "La oferta fue declarada inadmisible antes de la etapa de evaluación de puntajes.",
+      "Incumplimiento de la cláusula 14.4.2 'Cronograma de Trabajo' de las bases de licitación.",
+      "La omisión o presentación incompleta del Anexo N°3 Oferta Técnica deriva en la inadmisibilidad total de la propuesta, según la Cláusula N°3 de las bases."
+    ],
+    "fortalezas_tivit": [],
+    "debilidades_tivit": [
+      "El cronograma de trabajo presentado en el Anexo 3 no cumplió con lo establecido en la Cláusula 14.4.3 Letra B, específicamente en cuanto a los porcentajes de dedicación del equipo.",
+      "Presentación de una oferta técnica incompleta que no satisfizo los requisitos mínimos para ser considerada admisible."
+    ],
+    "comparativa_puntajes": [
+      {
+        "oferente": "ARKHO SPA",
+        "estado": "Adjudicado",
+        "puntaje_tecnico": 63,
+        "puntaje_economico": 20,
+        "puntaje_administrativo": 3,
+        "puntaje_final": 86
+      },
+      {
+        "oferente": "TIVIT Chile",
+        "estado": "No Admisible",
+        "puntaje_tecnico": null,
+        "puntaje_economico": null,
+        "puntaje_administrativo": null,
+        "puntaje_final": null
+      },
+      {
+        "oferente": "Pragma informática S.A",
+        "estado": "No Admisible",
+        "puntaje_tecnico": null,
+        "puntaje_economico": null,
+        "puntaje_administrativo": null,
+        "puntaje_final": null
+      }
+    ]
+  },
+  "conclusion_ejecutiva": {
+    "resumen": "TIVIT Chile (RUT 76.130.712-6) fue declarado inadmisible en la licitación ID 869591-2-LP26 para el 'Desarrollo de la Nueva Plataforma PAC'. La descalificación ocurrió en la etapa de admisibilidad debido a que su oferta técnica (Anexo 3) no cumplió con los requisitos mínimos del cronograma de trabajo, específicamente al no detallar los porcentajes de dedicación del equipo. Como resultado, su propuesta no fue evaluada ni su oferta económica considerada. La licitación fue adjudicada a ARKHO SPA, el único oferente admisible, con un puntaje de 86 puntos y una oferta de 11.900 UF.",
+    "lecciones_aprendidas": [
+      "La presentación completa y precisa de la Oferta Técnica (Anexo 3) es un requisito de admisibilidad crítico y no subsanable.",
+      "El incumplimiento de requisitos técnicos mínimos, incluso en detalles como el cronograma de trabajo, conlleva a la descalificación automática de la oferta.",
+      "Superar la fase de admisibilidad es un paso esencial antes de que los méritos técnicos o económicos de la propuesta puedan ser evaluados."
+    ],
+    "recomendaciones": [
+      "Implementar un riguroso proceso de revisión y validación interna para todos los anexos y documentos de la oferta, asegurando el cumplimiento de cada punto de las bases.",
+      "Utilizar checklists detallados basados en las cláusulas de admisibilidad (ej. Cláusula 14.4) para verificar que todos los elementos requeridos, como el cronograma y la dedicación del equipo, están incluidos y correctamente detallados.",
+      "Realizar capacitaciones al equipo de propuestas sobre las causales comunes de inadmisibilidad para minimizar errores formales y técnicos en futuras licitaciones."
+    ]
+  },
+  "dashboard_kpis": [
+    {
+      "kpi": "Resultado de la Oferta",
+      "valor": "Inadmisible",
+      "meta": "Adjudicada"
+    },
+    {
+      "kpi": "Etapa de Descalificación",
+      "valor": "Admisibilidad Técnica",
+      "meta": "N/A"
+    },
+    {
+      "kpi": "Puntaje Final Obtenido",
+      "valor": "No evaluado",
+      "meta": "> 80"
+    },
+    {
+      "kpi": "Monto Adjudicado (UF)",
+      "valor": 11900,
+      "meta": "N/A"
+    },
+    {
+      "kpi": "Número de Oferentes",
+      "valor": 3,
+      "meta": "N/A"
+    },
+    {
+      "kpi": "Oferentes Admisibles",
+      "valor": 1,
+      "meta": "N/A"
+    }
+  ],
+  "metricas_clave": {
+    "rut_tivit": "76.130.712-6",
+    "fecha_ingreso_oferta_tivit": "2026-02-12T11:54:00",
+    "numero_total_oferentes": 3,
+    "numero_oferentes_admisibles": 1,
+    "numero_oferentes_inadmisibles": 2,
+    "monto_garantia_seriedad_oferta_clp": 2000000,
+    "tipo_instrumento_garantia_tivit": "BG (boleta de garantía)"
+  }
+}
