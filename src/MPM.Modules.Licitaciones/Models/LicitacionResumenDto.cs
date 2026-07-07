@@ -5,6 +5,8 @@ namespace MPM.Modules.Licitaciones.Models;
 
 public class LicitacionResumenDto
 {
+    /// <summary>Id interno (bigint), agregado 2026-07-06 para el selector de "probar alerta" de 003-fase6-alertas-keywords.</summary>
+    public long Id { get; set; }
     public string CodigoExterno { get; set; } = string.Empty;
     public string Nombre { get; set; } = string.Empty;
     public string Tipo { get; set; } = string.Empty;

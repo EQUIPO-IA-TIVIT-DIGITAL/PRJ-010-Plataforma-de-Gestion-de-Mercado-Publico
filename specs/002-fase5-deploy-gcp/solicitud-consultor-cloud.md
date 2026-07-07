@@ -1,3 +1,5 @@
+> ⚠️ **Superado en parte — respuesta de Nicolás del 2026-07-06**: este correo pedía VM con IP externa, firewall TCP:80 abierto a todo origen, y solo quitar `0.0.0.0/0` de Cloud SQL. Nicolás rechazó la VPC default, la IP pública en la VM, y el enfoque de Cloud SQL (exige Private IP total, no solo cerrar `0.0.0.0/0`). La respuesta corregida está en `solicitud-segmentacion-red.md`. Se deja este correo como registro histórico de la solicitud original.
+
 Asunto: [MPM / CU010] Recursos a crear en tivit-cu010
 
 Hola Nicolás, ¿cómo estás?

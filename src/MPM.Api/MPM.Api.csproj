@@ -33,6 +33,7 @@
     <ProjectReference Include="..\MPM.Modules.Auth\MPM.Modules.Auth.csproj" />
     <ProjectReference Include="..\MPM.Modules.Analisis\MPM.Modules.Analisis.csproj" />
     <ProjectReference Include="..\MPM.Modules.Notificaciones\MPM.Modules.Notificaciones.csproj" />
+    <ProjectReference Include="..\MPM.Modules.Alertas\MPM.Modules.Alertas.csproj" />
   </ItemGroup>
 
 </Project>

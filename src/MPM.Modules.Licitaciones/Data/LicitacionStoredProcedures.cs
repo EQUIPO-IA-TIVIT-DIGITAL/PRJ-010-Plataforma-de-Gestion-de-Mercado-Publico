@@ -22,4 +22,7 @@ public static class LicitacionStoredProcedures
     public const string AclaracionUpsert = "SELECT * FROM usp_Licitaciones_Aclaracion_Upsert(@p_codigo, @p_codigo_aclaracion, @p_pregunta, @p_respuesta, @p_fecha_publicacion, @p_fecha_respuesta)";
     public const string AclaracionMarcarNotificada = "SELECT usp_Licitaciones_Aclaracion_MarcarNotificada(@p_id)";
     public const string ObtenerSeguidas = "SELECT * FROM usp_Licitaciones_ObtenerSeguidas(@p_usuario_id)";
+
+    // Soporte para el motor de matching de Alertas (003-fase6-alertas-keywords)
+    public const string ListarParaMatching = "SELECT * FROM usp_Licitaciones_ListarParaMatching(@p_fecha_desde)";
 }

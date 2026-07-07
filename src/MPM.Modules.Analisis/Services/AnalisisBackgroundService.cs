@@ -8,7 +8,7 @@ namespace MPM.Modules.Analisis.Services;
 
 public interface IAnalisisBackgroundService
 {
-    void EnqueueAnalisis(long workspaceId, long documentoId, string documentoNombre, string rutaStorage, string geminiApiKey);
+    void EnqueueAnalisis(long workspaceId, long documentoId, string documentoNombre, string rutaStorage);
 }
 
 public class AnalisisBackgroundService : IAnalisisBackgroundService
@@ -23,7 +23,7 @@ public class AnalisisBackgroundService : IAnalisisBackgroundService
         _logger = logger;
     }
 
-    public void EnqueueAnalisis(long workspaceId, long documentoId, string documentoNombre, string rutaStorage, string geminiApiKey)
+    public void EnqueueAnalisis(long workspaceId, long documentoId, string documentoNombre, string rutaStorage)
     {
         lock (_activeAnalisis)
         {
@@ -39,7 +39,7 @@ public class AnalisisBackgroundService : IAnalisisBackgroundService
         {
             try
             {
-                await ProcessAnalisisAsync(workspaceId, documentoId, documentoNombre, rutaStorage, geminiApiKey);
+                await ProcessAnalisisAsync(workspaceId, documentoId, documentoNombre, rutaStorage);
             }
             catch (Exception ex)
             {
@@ -56,7 +56,7 @@ public class AnalisisBackgroundService : IAnalisisBackgroundService
         });
     }
 
-    private async Task ProcessAnalisisAsync(long workspaceId, long documentoId, string documentoNombre, string rutaStorage, string geminiApiKey)
+    private async Task ProcessAnalisisAsync(long workspaceId, long documentoId, string documentoNombre, string rutaStorage)
     {
         using var scope = _scopeFactory.CreateScope();
         var handler = scope.ServiceProvider.GetRequiredService<AnalisisHandler>();
@@ -67,9 +67,15 @@ public class AnalisisBackgroundService : IAnalisisBackgroundService
 
         try
         {
+            // Si ya está en GCS, se referencia directo (gcsUri) sin necesitar los bytes en el
+            // body de la request a Gemini (020-migracion-gemini-adc) — igual se descargan acá
+            // porque el resto del pipeline (nombre, tamaño) los sigue usando, pero GeminiService
+            // ignora pdfBytes cuando gcsUri no es null.
             byte[] pdfBytes;
+            string? gcsUri = null;
             if (rutaStorage.StartsWith("gs://"))
             {
+                gcsUri = rutaStorage;
                 var stream = await storageService.DownloadAsync(rutaStorage, CancellationToken.None);
                 if (stream == null) throw new InvalidOperationException("No se pudo leer el PDF desde el storage");
                 using var ms = new MemoryStream();
@@ -83,7 +89,7 @@ public class AnalisisBackgroundService : IAnalisisBackgroundService
 
             _logger.LogInformation("PDF {File} descargado ({Size} bytes), enviando a Gemini", documentoNombre, pdfBytes.Length);
 
-            var geminiResponse = await geminiService.AnalyzePdfAsync(pdfBytes, documentoNombre, geminiApiKey, CancellationToken.None);
+            var geminiResponse = await geminiService.AnalyzePdfAsync(pdfBytes, documentoNombre, gcsUri, CancellationToken.None);
 
             if (string.IsNullOrEmpty(geminiResponse.Text))
             {

@@ -1,11 +1,23 @@
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using MPM.Shared.Services;
 
 namespace MPM.Modules.Analisis.Services;
 
-public class GeminiService(HttpClient httpClient, ILogger<GeminiService> logger)
+/// <summary>
+/// Cliente de Gemini vía Vertex AI, autenticado con ADC (020-migracion-gemini-adc) — ya no vía
+/// API key. Vertex AI no tiene la "File API" efímera de la Developer API
+/// (<c>generativelanguage.googleapis.com/upload/...</c>), así que el bug ya conocido de PDFs
+/// escaneados (ver memoria "feedback-scraper-bugs" Bug 3) se resuelve distinto acá: cuando el
+/// documento ya vive en GCS (<c>Storage:Provider=gcs</c>, el caso de producción), se referencia
+/// directo por <c>fileData.fileUri = gs://...</c> — Gemini lee el PDF completo desde GCS, sin
+/// las limitaciones de tamaño/calidad de mandar el PDF inline en base64. Con storage local se
+/// usa <c>inlineData</c> (mismo fallback que ya existía).
+/// </summary>
+public class GeminiService(HttpClient httpClient, IConfiguration config, GoogleAdcTokenProvider tokenProvider, ILogger<GeminiService> logger)
 {
     public const string ModelName = "gemini-2.5-pro";
     private static readonly JsonSerializerOptions _jsonOptions = new()
@@ -14,23 +26,40 @@ public class GeminiService(HttpClient httpClient, ILogger<GeminiService> logger)
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
     };
 
-    public async Task<GeminiResponse> AnalyzePdfAsync(byte[] pdfBytes, string fileName, string apiKey, CancellationToken ct = default)
+    private string ProjectId => config["GOOGLE_CLOUD_PROJECT"]
+        ?? throw new InvalidOperationException("GOOGLE_CLOUD_PROJECT no configurado");
+    private string Region => config["Vertex:Region"] ?? "us-central1";
+
+    private string EndpointFor(string model) =>
+        $"https://{Region}-aiplatform.googleapis.com/v1/projects/{ProjectId}/locations/{Region}/publishers/google/models/{model}:generateContent";
+
+    private async Task<HttpRequestMessage> BuildRequestAsync(string model, object body, CancellationToken ct)
+    {
+        var token = await tokenProvider.GetAccessTokenAsync(ct);
+        var json = JsonSerializer.Serialize(body, _jsonOptions);
+        var request = new HttpRequestMessage(HttpMethod.Post, EndpointFor(model))
+        {
+            Content = new StringContent(json, Encoding.UTF8, "application/json")
+        };
+        request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+        return request;
+    }
+
+    /// <param name="gcsUri">
+    /// Si el documento ya está en GCS (<c>gs://...</c>), se referencia directo sin mandar
+    /// <paramref name="pdfBytes"/> en el body — más eficiente y evita el límite de tamaño de
+    /// <c>inlineData</c>. Si es <c>null</c> (storage local), se usa <paramref name="pdfBytes"/>
+    /// como <c>inlineData</c> en base64.
+    /// </param>
+    public async Task<GeminiResponse> AnalyzePdfAsync(byte[] pdfBytes, string fileName, string? gcsUri, CancellationToken ct = default)
     {
         var prompt = GetAnalisisPrompt();
-        logger.LogInformation("Enviando PDF {File} a Gemini para análisis ({Size} bytes)", fileName, pdfBytes.Length);
+        logger.LogInformation("Enviando PDF {File} a Gemini (Vertex AI) para análisis ({Size} bytes, gcsUri={GcsUri})", fileName, pdfBytes.Length, gcsUri ?? "(inline)");
 
-        // Try File API first (better support for scanned/image-based PDFs)
-        try
-        {
-            return await AnalyzePdfViaFileApiAsync(pdfBytes, fileName, apiKey, prompt, ct);
-        }
-        catch (Exception ex)
-        {
-            logger.LogWarning("File API falló ({Msg}), reintentando con inline_data", ex.Message);
-        }
+        object documentPart = gcsUri != null
+            ? new { fileData = new { mimeType = "application/pdf", fileUri = gcsUri } }
+            : new { inlineData = new { mimeType = "application/pdf", data = Convert.ToBase64String(pdfBytes) } };
 
-        // Fallback: inline_data
-        var pdfBase64 = Convert.ToBase64String(pdfBytes);
         var request = new
         {
             contents = new[]
@@ -38,26 +67,19 @@ public class GeminiService(HttpClient httpClient, ILogger<GeminiService> logger)
                 new
                 {
                     role = "user",
-                    parts = new object[]
-                    {
-                        new { inline_data = new { mime_type = "application/pdf", data = pdfBase64 } },
-                        new { text = prompt }
-                    }
+                    parts = new object[] { documentPart, new { text = prompt } }
                 }
             },
-            generation_config = new { temperature = 0.2, max_output_tokens = 65536, response_mime_type = "application/json" }
+            generationConfig = new { temperature = 0.2, maxOutputTokens = 65536, responseMimeType = "application/json" }
         };
 
-        var jsonRequest = JsonSerializer.Serialize(request, _jsonOptions);
-        var content = new StringContent(jsonRequest, Encoding.UTF8, "application/json");
-        var response = await httpClient.PostAsync(
-            $"https://generativelanguage.googleapis.com/v1beta/models/{ModelName}:generateContent?key={apiKey}",
-            content, ct);
+        using var httpRequest = await BuildRequestAsync(ModelName, request, ct);
+        var response = await httpClient.SendAsync(httpRequest, ct);
 
         if (!response.IsSuccessStatusCode)
         {
             var errorBody = await response.Content.ReadAsStringAsync(ct);
-            logger.LogError("Gemini API error {Status}: {Body}", (int)response.StatusCode, errorBody);
+            logger.LogError("Gemini (Vertex AI) error {Status}: {Body}", (int)response.StatusCode, errorBody);
             response.EnsureSuccessStatusCode();
         }
 
@@ -66,107 +88,7 @@ public class GeminiService(HttpClient httpClient, ILogger<GeminiService> logger)
         return await ParseGeminiResponse(jsonResponse);
     }
 
-    private async Task<GeminiResponse> AnalyzePdfViaFileApiAsync(byte[] pdfBytes, string fileName, string apiKey, string prompt, CancellationToken ct)
-    {
-        // Step 1: Upload to Gemini File API
-        var uploadContent = new ByteArrayContent(pdfBytes);
-        uploadContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/pdf");
-        uploadContent.Headers.Add("X-Goog-Upload-Protocol", "raw");
-        uploadContent.Headers.Add("X-Goog-Upload-Header-Content-Type", "application/pdf");
-
-        var uploadResponse = await httpClient.PostAsync(
-            $"https://generativelanguage.googleapis.com/upload/v1beta/files?key={apiKey}",
-            uploadContent, ct);
-
-        if (!uploadResponse.IsSuccessStatusCode)
-        {
-            var err = await uploadResponse.Content.ReadAsStringAsync(ct);
-            throw new InvalidOperationException($"File upload failed {(int)uploadResponse.StatusCode}: {err[..Math.Min(200, err.Length)]}");
-        }
-
-        var uploadJson = await uploadResponse.Content.ReadAsStringAsync(ct);
-        using var uploadDoc = JsonDocument.Parse(uploadJson);
-        var fileElement = uploadDoc.RootElement.GetProperty("file");
-        var fileUri = fileElement.GetProperty("uri").GetString()
-            ?? throw new InvalidOperationException("No fileUri in upload response");
-        var fileName2 = fileElement.GetProperty("name").GetString()
-            ?? throw new InvalidOperationException("No file name in upload response");
-
-        logger.LogInformation("PDF subido a Gemini File API: {Uri}", fileUri);
-
-        // Gemini procesa el archivo de forma asíncrona (state: PROCESSING -> ACTIVE).
-        // Si se llama a generateContent mientras sigue en PROCESSING, el modelo responde
-        // como si no se hubiera enviado ningún documento. Hacemos polling hasta ACTIVE.
-        await EsperarArchivoActivoAsync(fileName2, apiKey, ct);
-
-        // Step 2: Analyze using file_data reference
-        var request = new
-        {
-            contents = new[]
-            {
-                new
-                {
-                    role = "user",
-                    parts = new object[]
-                    {
-                        new { file_data = new { mime_type = "application/pdf", file_uri = fileUri } },
-                        new { text = prompt }
-                    }
-                }
-            },
-            generation_config = new { temperature = 0.2, max_output_tokens = 65536, response_mime_type = "application/json" }
-        };
-
-        var jsonRequest = JsonSerializer.Serialize(request, _jsonOptions);
-        var content = new StringContent(jsonRequest, Encoding.UTF8, "application/json");
-        var response = await httpClient.PostAsync(
-            $"https://generativelanguage.googleapis.com/v1beta/models/{ModelName}:generateContent?key={apiKey}",
-            content, ct);
-
-        if (!response.IsSuccessStatusCode)
-        {
-            var errorBody = await response.Content.ReadAsStringAsync(ct);
-            logger.LogError("Gemini API error {Status}: {Body}", (int)response.StatusCode, errorBody);
-            response.EnsureSuccessStatusCode();
-        }
-
-        var jsonResponse = await response.Content.ReadAsStringAsync(ct);
-        logger.LogInformation("Respuesta de Gemini (File API) recibida ({Length} chars)", jsonResponse.Length);
-        return await ParseGeminiResponse(jsonResponse);
-    }
-
-    private async Task EsperarArchivoActivoAsync(string fileName, string apiKey, CancellationToken ct)
-    {
-        const int maxIntentos = 10;
-        var delayMs = 1000;
-
-        for (var intento = 1; intento <= maxIntentos; intento++)
-        {
-            var response = await httpClient.GetAsync(
-                $"https://generativelanguage.googleapis.com/v1beta/{fileName}?key={apiKey}", ct);
-
-            if (response.IsSuccessStatusCode)
-            {
-                var json = await response.Content.ReadAsStringAsync(ct);
-                using var doc = JsonDocument.Parse(json);
-                var state = doc.RootElement.TryGetProperty("state", out var s) ? s.GetString() : null;
-
-                if (state == "ACTIVE") return;
-                if (state == "FAILED")
-                    throw new InvalidOperationException($"Gemini File API reportó FAILED para {fileName}");
-
-                logger.LogInformation("Archivo {File} en Gemini aún en estado {State}, esperando ({Intento}/{Max})",
-                    fileName, state, intento, maxIntentos);
-            }
-
-            await Task.Delay(delayMs, ct);
-            delayMs = Math.Min(delayMs * 2, 5000);
-        }
-
-        throw new InvalidOperationException($"Gemini File API no llegó a ACTIVE tras {maxIntentos} intentos para {fileName}");
-    }
-
-    public async Task<GeminiChatResponse> ChatAsync(string mensaje, string contextoAnalisis, List<ChatHistoryItem> historial, string apiKey, CancellationToken ct = default)
+    public async Task<GeminiChatResponse> ChatAsync(string mensaje, string contextoAnalisis, List<ChatHistoryItem> historial, CancellationToken ct = default)
     {
         var systemInstruction = $@"Eres un asistente experto en análisis de licitaciones.
 Contexto del análisis (JSON):
@@ -198,22 +120,17 @@ FORMATO DE RESPUESTA (obligatorio):
 
         var request = new
         {
-            system_instruction = new { parts = new[] { new { text = systemInstruction } } },
+            systemInstruction = new { parts = new[] { new { text = systemInstruction } } },
             contents,
-            generation_config = new
+            generationConfig = new
             {
                 temperature = 0.3,
-                max_output_tokens = 2048
+                maxOutputTokens = 2048
             }
         };
 
-        var jsonRequest = JsonSerializer.Serialize(request, _jsonOptions);
-        var content = new StringContent(jsonRequest, Encoding.UTF8, "application/json");
-
-        var response = await httpClient.PostAsync(
-            $"https://generativelanguage.googleapis.com/v1beta/models/{ModelName}:generateContent?key={apiKey}",
-            content, ct);
-
+        using var httpRequest = await BuildRequestAsync(ModelName, request, ct);
+        var response = await httpClient.SendAsync(httpRequest, ct);
         response.EnsureSuccessStatusCode();
 
         var jsonResponse = await response.Content.ReadAsStringAsync(ct);

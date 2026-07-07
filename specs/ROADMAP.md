@@ -4,6 +4,7 @@
 - **2026-06-09** — "Revisión Alcance Mercado Público". Transcript: `info/Revisión Alcance Mercado Público - 2026_06_09 10_58 GMT-05_00 - Anotações do Gemini.pdf`
 - **2026-07-01** — "[CU010] - Revisión de Alcance". Transcript: `info/[CU010] - Revisión de Alcance _ 2026_07_01 14_59 GMT-05_00 - Notas de Gemini.md`
 - **2026-07-03** — Ajuste directo del cliente en sesión de trabajo (sin transcript): confirma la secuencia Alertas → Buscador → Pipeline, eleva Despliegue en GCP a N1, pausa el resto del roadmap (Fases 8-18), y agrega Rediseño Frontend como workstream paralelo de baja prioridad.
+- **2026-07-06** — "[EQUIPO-IA] Reunión General" (interna TIVIT, no es reunión con el cliente). Transcript: `info/[EQUIPO-IA] REUNIÓN GENERAL _ 2026_07_06 08_56 GMT-05_00 - Notas de Gemini.md`. Manuel Aliaga (gerencia) confirma deadline exacto para CU010 (jueves 9 de julio, 7:59 a.m.) y agrega una instrucción interna nueva: integrar las alertas con un bot de Telegram (ver pedido #12 abajo).
 
 Este documento es la fuente única de verdad sobre secuencia y prioridad vigente. Las fechas ("Semana estimada") dentro de cada `specs/0XX-.../spec.md` pueden quedar desactualizadas tras esta repriorización — en caso de conflicto, **este roadmap manda**. Export tabular: [`specs/roadmap.csv`](roadmap.csv).
 
@@ -24,6 +25,8 @@ Este documento es la fuente única de verdad sobre secuencia y prioridad vigente
 | 9 | **Despliegue en producción en GCP como prioridad N1**, por delante de todo lo demás | 2026-07-03 | Cliente |
 | 10 | Rediseño frontend, explícitamente sin competir por prioridad con lo funcional | 2026-07-03 | Cliente |
 | 11 | Fases 8-18 del roadmap original quedan en pausa — foco exclusivo en el punto de dolor del cliente | 2026-07-03 | Cliente |
+| 12 | Integrar el sistema de Alertas con un bot de Telegram para notificación inmediata (adicional al in-app) — **instrucción interna de gerencia (Manuel), no pedido directo del cliente** | 2026-07-06 | Manuel (interno) |
+| 13 | Reforzar la explicabilidad del análisis histórico (`017`, ya implementado) — el equipo debe poder justificar cada campo mostrado ante preguntas de los stakeholders, no solo mostrarlo | 2026-07-06 | Manuel (interno) |
 
 ---
 
@@ -34,19 +37,24 @@ Este documento es la fuente única de verdad sobre secuencia y prioridad vigente
 | Feature | Spec | Cubre el pedido # |
 |---|---|---|
 | Análisis histórico / validación documental (razón de pérdida vs. documentos enviados) | [`017-ajustes-urgentes-cliente`](017-ajustes-urgentes-cliente/spec.md) | 1 |
-| Extracción de licitaciones vía API directa (base de datos propia sincronizada diariamente) | [`016-extraccion-documentos-api`](016-extraccion-documentos-api/spec.md) | prerequisito de 2, 3, 7 |
+
+### 🟠 Backlog técnico — no bloquea N1-N4, pero habilita trabajo futuro
+
+| Feature | Spec | Estado real | Por qué importa |
+|---|---|---|---|
+| Extracción de documentos (Acta de Evaluación) vía HTTP directo, sin navegador por licitación | [`016-extraccion-documentos-api`](016-extraccion-documentos-api/spec.md) | **Actualizado 2026-07-06**: implementada a nivel de código (`WebFormsParser`, `MpSessionProvider`, `AdjuntosHttpExtractor`, `DocumentExtractionService`), pero el spike en vivo (T004, credenciales reales) encontró que el listado de adjuntos está protegido por **reCAPTCHA Enterprise** — irresoluble por HTTP puro, solo un navegador real lo pasa. `Extraccion:Modo` queda en `solo_navegador` indefinidamente. Detalle en `contracts/internal-api.md`. | Ya NO es el habilitador de la migración a Cloud Run como se pensó — resultó no reducir el uso de Chromium. La migración a Cloud Run + Cloud Run Jobs (`002-fase5-deploy-gcp`) sigue viable igual, porque Cloud Run Jobs no throttlean CPU por inactividad (a diferencia de Services) y pueden correr el ciclo completo del scraper con navegador sin problema. |
 
 ### 🔴 N1 — Ahora, antes que cualquier otro ítem
 
 | Feature | Spec | Cubre el pedido # | Cambio por repriorización |
 |---|---|---|---|
-| Fase 5 — Despliegue en GCP | [`002-fase5-deploy-gcp`](002-fase5-deploy-gcp/spec.md) | 9 | **Reescrito 2026-07-03**: pasa de "On-Premise + Huawei Cloud" a Google Cloud, reutilizando el proyecto `tivit-cu010` y el bucket GCS `tivit-cu010-mpm-adjuntos` ya existentes (evidencia: commit `62c5bf2`, `GcsStorageService` ya implementado). Elevado de Semana 1 genérica a **N1 explícito** — nada más se despliega ni se usa operativamente sin esto. |
+| Fase 5 — Despliegue en GCP | [`002-fase5-deploy-gcp`](002-fase5-deploy-gcp/spec.md) | 9 | **Reescrito 2026-07-03**: pasa de "On-Premise + Huawei Cloud" a Google Cloud, reutilizando el proyecto `tivit-cu010` y el bucket GCS `tivit-cu010-mpm-adjuntos` ya existentes. Elevado a **N1 explícito**. **Pivote 2026-07-06**: de Compute Engine a **Cloud Run + Cloud Run Jobs** (restricciones de infraestructura TIVIT: sin IP pública en VM/Cloud SQL, VPC custom obligatoria). Ahora **depende de `016-extraccion-documentos-api`** (ver Backlog técnico abajo) antes de poder desplegar `scraper-job` — la fecha de N1 se corre en función de cuándo se complete 016. |
 
 ### 🔜 N2 — Julio 2026, en curso
 
 | Feature | Spec | Cubre el pedido # | Cambio por repriorización |
 |---|---|---|---|
-| Fase 6 — Alertas Inteligentes por Palabras Clave | [`003-fase6-alertas-keywords`](003-fase6-alertas-keywords/spec.md) | 3, 4, 5 | Alcance ampliado 2026-07-03: User Story 3 (sinónimos vía IA) y User Story 4 (notificación enriquecida a account managers). Complejidad Media → Media-Alta; estimación 1 → 1.5 semanas. |
+| Fase 6 — Alertas Inteligentes por Palabras Clave | [`003-fase6-alertas-keywords`](003-fase6-alertas-keywords/spec.md) | 3, 4, 5, 12 | Alcance ampliado 2026-07-03: User Story 3 (sinónimos vía IA) y User Story 4 (notificación enriquecida a account managers). Complejidad Media → Media-Alta; estimación 1 → 1.5 semanas. **Ampliado de nuevo 2026-07-06**: User Story 5 (bot de Telegram, pedido #12, instrucción interna) + función de "disparar alerta de prueba" para demo. |
 
 ### 🔜 N3 — Julio 2026, nuevo
 
@@ -96,6 +104,9 @@ Fase 11 (Inteligencia Competitiva) sigue siendo la candidata más probable a rea
 4. **Fases 8-18 se pausan, no se eliminan**: siguen especificadas (`spec.md` + `plan.md` existentes) para retomarlas sin perder el trabajo de definición ya hecho, pero no se ejecuta trabajo de implementación en ellas hasta que el cliente lo pida.
 5. **Rediseño Frontend es explícitamente no-bloqueante**: se especificó con un criterio de éxito propio (SC-004: "nunca desplaza Alertas/Buscador/Pipeline") para que quede claro en el spec mismo, no solo en este roadmap, que no debe competir por tiempo del equipo con el bloque funcional urgente.
 6. **Reuniones semanales de seguimiento** (pedido #8): no es una feature de producto, es gobernanza — se registra como recordatorio operativo. Coordinar con Francisco Lopez Balart, miércoles 16:00, 20-30 min.
+7. **`016-extraccion-documentos-api` se mueve de "Hecho" a "Backlog técnico"** (2026-07-06): estaba mal marcada como completada. Se mantiene fuera de la secuencia N1-N4 porque no es un pedido directo del cliente, pero se documenta su relación con `002-fase5-deploy-gcp`: es el prerequisito técnico para eventualmente migrar de Compute Engine a Cloud Run + Cloud Run Jobs (elimina el uso continuo de Chromium/Playwright embebido, que hoy es el principal motivo por el que Cloud Run no es viable). No bloquea N1 — Compute Engine sigue siendo la decisión correcta para el deploy inmediato.
+8. **Deadline exacto de CU010 confirmado 2026-07-06**: jueves 9 de julio, 7:59 a.m. — todo el sistema (Fase 5 + módulo de Alertas) debe estar operativo. Fuente: reunión interna "[EQUIPO-IA] Reunión General", no una fecha límite comunicada directamente por Francisco en las actas anteriores, pero tratada internamente como firme. **Aclaración del usuario (2026-07-06)**: Manuel sigue una cadencia semanal de presentar una funcionalidad nueva cada jueves — la de esta semana es el módulo de Alertas (003). Esto significa que 003 no es "trabajo en paralelo mientras se espera a Nicolás", es la entrega concreta que se presenta el jueves, con la misma urgencia que el deploy.
+9. **Bot de Telegram (pedido #12) se agrega a `003-fase6-alertas-keywords` como User Story 5, prioridad P2**: es instrucción interna de Manuel, no bloquea el "go/no-go" del cliente (ya cubierto por notificación in-app), pero se pide explícitamente para la demo del jueves — no se crea una spec nueva porque encaja naturalmente como un canal adicional de la misma feature de Alertas.
 
 ## Próximos pasos inmediatos
 

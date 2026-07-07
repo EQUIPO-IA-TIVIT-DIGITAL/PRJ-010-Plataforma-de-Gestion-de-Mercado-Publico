@@ -126,6 +126,15 @@ public class AnalisisHandler(DbConnectionFactory dbFactory)
             commandType: CommandType.Text);
     }
 
+    public async Task<ResultadoDto?> ObtenerResultadoPorLicitacionAsync(long licitacionId, CancellationToken ct = default)
+    {
+        await using var conn = _dbFactory.Create();
+        return await conn.QuerySingleOrDefaultAsync<ResultadoDto>(
+            AnalisisStoredProcedures.ResultadosObtenerPorLicitacion,
+            new { p_licitacion_id = licitacionId },
+            commandType: CommandType.Text);
+    }
+
     public async Task<(long Id, string? Error)> ObtenerOCrearChatConversacionAsync(long workspaceId, CancellationToken ct = default)
     {
         await using var conn = _dbFactory.Create();

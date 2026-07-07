@@ -12,6 +12,7 @@ public static class AnalisisStoredProcedures
     public const string DocumentosObtener = "SELECT * FROM usp_AnalisisDocumentos_Obtener(@p_id)";
     public const string ResultadosCrear = "CALL usp_AnalisisResultados_Crear(@p_workspace_id, @p_documento_id, @p_contenido_json, @p_modelo_usado, @p_tokens_entrada, @p_tokens_salida, @p_id, @p_error_msg)";
     public const string ResultadosObtenerPorWorkspace = "SELECT * FROM usp_AnalisisResultados_ObtenerPorWorkspace(@p_workspace_id)";
+    public const string ResultadosObtenerPorLicitacion = "SELECT * FROM usp_AnalisisResultados_ObtenerPorLicitacion(@p_licitacion_id)";
     public const string ChatObtenerOCrearConversacion = "CALL usp_AnalisisChat_ObtenerOCrearConversacion(@p_workspace_id, @p_conversacion_id, @p_error_msg)";
     public const string ChatEnviarMensaje = "CALL usp_AnalisisChat_EnviarMensaje(@p_conversacion_id, @p_rol, @p_contenido, @p_id, @p_error_msg)";
     public const string ChatObtenerHistorial = "SELECT * FROM usp_AnalisisChat_ObtenerHistorial(@p_conversacion_id, @p_limit)";

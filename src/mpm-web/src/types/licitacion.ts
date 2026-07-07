@@ -8,6 +8,7 @@ export const TIPO_LICITACION = {
 export type TipoLicitacion = (typeof TIPO_LICITACION)[keyof typeof TIPO_LICITACION];
 
 export interface LicitacionResumen {
+  id: number;
   codigoExterno: string;
   nombre: string;
   tipo: TipoLicitacion;

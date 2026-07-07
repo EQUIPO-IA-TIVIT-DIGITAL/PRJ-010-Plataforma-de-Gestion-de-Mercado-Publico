@@ -17,7 +17,7 @@ import { buscarLicitaciones } from './modulos/buscar.js';
 import { extraerDatosLicitacion, cerrarFicha } from './modulos/licitacion.js';
 import { descargarActaEvaluacion } from './modulos/adjuntos.js';
 import { crearCarpetaLote, crearCarpetaLicitacion, guardarDatosLicitacion, guardarResumen, guardarReporteTexto } from './modulos/storage.js';
-import { initDB, closeDB, upsertLicitacion, registrarAdjunto, obtenerUltimaSync, iniciarSyncLog, finalizarSyncLog } from './modulos/db.js';
+import { initDB, closeDB, upsertLicitacion, registrarAdjunto, obtenerUltimaSync, iniciarSyncLog, finalizarSyncLog, tieneAnalisisCompletado, licitacionYaExiste } from './modulos/db.js';
 import { pipelineAnalisisCompleto } from './modulos/api-client.js';
 import { isDaemonMode, isIncrementalMode, checkExistingProcess, setupSignalHandlers, startDaemon, removePidFile } from './modulos/scheduler.js';
 
@@ -78,17 +78,48 @@ async function executeCycle() {
 
     console.log(`[CICLO] ${licitaciones.length} licitaciones encontradas`);
 
-    const carpetaLote = crearCarpetaLote(CARPETA_BASE);
-    console.log(`\n[CICLO] Paso 4/5: Procesando ${licitaciones.length} licitaciones...`);
+    const offset = parseInt(process.env.MP_OFFSET || '0', 10);
+    const limite = parseInt(process.env.MP_LIMIT || '0', 10);
+    const licitacionesAcotadas = limite > 0
+      ? licitaciones.slice(offset, offset + limite)
+      : licitaciones.slice(offset);
+    if (offset > 0 || limite > 0) {
+      console.log(`[CICLO] MP_OFFSET=${offset} MP_LIMIT=${limite || 'sin limite'}: acotando a ${licitacionesAcotadas.length} de ${licitaciones.length} licitaciones (indices ${offset}-${offset + licitacionesAcotadas.length - 1}, modo de prueba)`);
+    }
 
-    for (let i = 0; i < licitaciones.length; i++) {
-      const lic = licitaciones[i];
+    // Pre-filtro: si ya existe analisis completo para el codigo, no hace falta ni abrir la
+    // ficha ni gastar el cupo limitado de "Ver Adjuntos" en ella -- se detecto el 2026-07-07
+    // que reprocesar licitaciones ya analizadas gastaba cupo sin necesidad.
+    console.log('\n[CICLO] Verificando cuales ya tienen analisis completo (para no gastar cupo en ellas)...');
+    const licitacionesAProcesar = [];
+    let saltadasPreviamente = 0;
+    for (const lic of licitacionesAcotadas) {
+      const idExistente = lic.codigo ? await licitacionYaExiste(lic.codigo) : null;
+      const yaAnalizada = idExistente && await tieneAnalisisCompletado(idExistente);
+      if (yaAnalizada) {
+        saltadasPreviamente++;
+      } else {
+        licitacionesAProcesar.push(lic);
+      }
+    }
+    console.log(`[CICLO] ${saltadasPreviamente} ya analizadas (omitidas sin abrir su ficha), ${licitacionesAProcesar.length} pendientes de procesar`);
+
+    const carpetaLote = crearCarpetaLote(CARPETA_BASE);
+    console.log(`\n[CICLO] Paso 4/5: Procesando ${licitacionesAProcesar.length} licitaciones pendientes...`);
+
+    const maxFallosConsecutivos = parseInt(process.env.MP_MAX_FALLOS_CONSECUTIVOS || '2', 10);
+    let fallosConsecutivos = 0;
+    let detenidoPorFallos = false;
+
+    for (let i = 0; i < licitacionesAProcesar.length; i++) {
+      const lic = licitacionesAProcesar[i];
       console.log(`\n${'─'.repeat(50)}`);
-      console.log(`[CICLO] ${i + 1}/${licitaciones.length}: ${(lic.codigo || lic.nombre || 'sin código').substring(0, 50)}`);
+      console.log(`[CICLO] ${i + 1}/${licitacionesAProcesar.length}: ${(lic.codigo || lic.nombre || 'sin código').substring(0, 50)}`);
       console.log(`${'─'.repeat(50)}`);
 
       let fichaPage = null;
       let isPopup = false;
+      let estaFallo = false;
 
       try {
         const result = await extraerDatosLicitacion(page, context, lic);
@@ -138,8 +169,14 @@ async function executeCycle() {
 
           if (resultAdjuntos.actaDescargada) {
             console.log(`[CICLO] Acta descargada: ${resultAdjuntos.actaEvaluacion}`);
+            fallosConsecutivos = 0;
 
-            if (licitacionDbId && ANALISIS_IA) {
+            const yaAnalizada = licitacionDbId && await tieneAnalisisCompletado(licitacionDbId);
+            if (yaAnalizada) {
+              console.log(`[CICLO] Ya existe un analisis completado para esta licitacion, se omite Gemini (evita gasto duplicado)`);
+            }
+
+            if (licitacionDbId && ANALISIS_IA && !yaAnalizada) {
               console.log(`[CICLO] Iniciando pipeline IA para acta...`);
               const iaResult = await pipelineAnalisisCompleto(
                 licitacionDbId,
@@ -163,10 +200,12 @@ async function executeCycle() {
             }
           } else {
             console.log(`[CICLO] Sin Acta: ${resultAdjuntos.error || 'No encontrada'}`);
+            estaFallo = true;
           }
         } else {
           console.log(`[CICLO] No se pudo abrir la ficha, saltando descarga`);
           datos.errorActa = 'No se pudo abrir la ficha';
+          estaFallo = true;
         }
 
         guardarDatosLicitacion(carpetaLicitacion, datos);
@@ -174,6 +213,7 @@ async function executeCycle() {
 
       } catch (e) {
         console.log(`[CICLO] Error procesando licitacion ${i + 1}: ${e.message}`);
+        estaFallo = true;
         resultados.push({
           ...lic,
           estado: 'error',
@@ -188,14 +228,46 @@ async function executeCycle() {
         }
       }
 
-      if (i < licitaciones.length - 1) {
-        console.log(`[CICLO] Esperando ${DELAY_MS}ms...`);
-        await esperarConDelay(DELAY_MS);
+      if (estaFallo) {
+        fallosConsecutivos++;
+      }
+
+      // Deteccion de cupo agotado: el 2026-07-07 se confirmo con dos corridas independientes
+      // (sesion/navegador/login nuevos en ambas) que el 403 en "Ver Adjuntos" es un limite de
+      // VOLUMEN acumulado (cuenta o IP) por ventana de tiempo -- no se resuelve con pausas
+      // cortas dentro de la misma sesion, solo con tiempo real de espera. Insistir con el resto
+      // de la lista una vez agotado el cupo solo genera fallos garantizados (y probablemente
+      // sigue gastando el mismo cupo ya agotado). Se corta la sesion apenas se detectan
+      // MP_MAX_FALLOS_CONSECUTIVOS fallos seguidos, en vez de agotar toda la lista pendiente.
+      if (fallosConsecutivos >= maxFallosConsecutivos) {
+        console.log(`\n[CICLO] ${fallosConsecutivos} fallos consecutivos detectados -- probable cupo agotado. Cortando sesion en vez de seguir insistiendo.`);
+        detenidoPorFallos = true;
+        break;
+      }
+
+      if (i < licitacionesAProcesar.length - 1) {
+        // Enfriamiento mas largo cada N licitaciones (ademas del delay normal entre cada una).
+        const enfriamientoCada = parseInt(process.env.MP_ENFRIAMIENTO_CADA || '8', 10);
+        const enfriamientoMs = parseInt(process.env.MP_ENFRIAMIENTO_MS || '60000', 10);
+        if (enfriamientoCada > 0 && (i + 1) % enfriamientoCada === 0) {
+          console.log(`[CICLO] Enfriamiento largo: ${enfriamientoMs}ms tras ${i + 1} licitaciones...`);
+          await esperarConDelay(enfriamientoMs);
+        } else {
+          console.log(`[CICLO] Esperando ${DELAY_MS}ms...`);
+          await esperarConDelay(DELAY_MS);
+        }
       }
     }
 
     console.log('\n[CICLO] Paso 5/5: Generando reporte...');
     await cerrarYGenerar(browser, context, page, resultados, carpetaLote, syncId, horaInicio);
+
+    if (detenidoPorFallos) {
+      // Senal para el orquestador de sesiones (ejecutarConReintentosDeSesion): hay que
+      // esperar un enfriamiento largo real y reintentar con una sesion/login nuevos.
+      return { detenidoPorFallos: true };
+    }
+    return { detenidoPorFallos: false };
 
   } catch (e) {
     console.error(`\n[CICLO] ERROR FATAL: ${e.message}`);
@@ -267,6 +339,36 @@ async function cerrarYGenerar(browser, context, page, resultados, carpetaLote, s
   console.log('[CICLO] Proceso completado.');
 }
 
+/**
+ * Orquestador de sesiones: corre executeCycle() en un loop, y si una sesion se corta por
+ * cupo agotado (deteccion de fallos consecutivos en "Ver Adjuntos"), espera un enfriamiento
+ * largo real y arranca una sesion/navegador/login completamente nuevos, continuando con lo
+ * que quede pendiente (el pre-filtro de "ya analizada" al inicio de cada ciclo se encarga de
+ * no repetir lo ya hecho). Pensado para dejar el proceso 100% desatendido -- ver
+ * specs/021-scraper-tivit-hardening/spec.md.
+ */
+async function ejecutarConReintentosDeSesion() {
+  const maxCiclos = parseInt(process.env.MP_MAX_CICLOS_SESION || '10', 10);
+  const esperaEntreSesionesMs = parseInt(process.env.MP_ESPERA_ENTRE_SESIONES_MS || String(20 * 60 * 1000), 10);
+
+  for (let ciclo = 1; ciclo <= maxCiclos; ciclo++) {
+    console.log(`\n${'='.repeat(70)}\n[SESION] Ciclo ${ciclo}/${maxCiclos}\n${'='.repeat(70)}`);
+    const resultado = await executeCycle();
+
+    if (!resultado || !resultado.detenidoPorFallos) {
+      console.log('[SESION] Ciclo completado sin cortarse por cupo agotado -- no hacen falta mas sesiones.');
+      return;
+    }
+
+    if (ciclo < maxCiclos) {
+      console.log(`[SESION] Cupo agotado. Esperando ${esperaEntreSesionesMs}ms antes de abrir una sesion nueva...`);
+      await esperarConDelay(esperaEntreSesionesMs);
+    } else {
+      console.log(`[SESION] Se alcanzo el maximo de ${maxCiclos} ciclos de sesion sin terminar. Deteniendo por ahora.`);
+    }
+  }
+}
+
 if (isDaemonMode()) {
   if (checkExistingProcess()) {
     process.exit(0);
@@ -280,9 +382,21 @@ if (isDaemonMode()) {
     removePidFile();
   });
 
-  startDaemon(executeCycle, () => intervalMs);
-} else {
+  startDaemon(ejecutarConReintentosDeSesion, () => intervalMs);
+} else if (process.env.MP_LIMIT || process.env.MP_OFFSET) {
+  // Modo de prueba acotado (MP_LIMIT/MP_OFFSET): un solo ciclo, sin loop de reintento de
+  // sesiones -- para pruebas puntuales no queremos que el proceso quede esperando 20 minutos.
   executeCycle().catch(async (e) => {
+    console.error('[AGENTE] Error fatal:', e);
+    await closeDB().catch(() => {});
+    process.exit(1);
+  });
+} else {
+  // Modo por defecto (sin --daemon, sin MP_LIMIT/MP_OFFSET): corre con el orquestador de
+  // sesiones -- si el cupo de "Ver Adjuntos" se agota, espera un enfriamiento largo real y
+  // continua solo con una sesion/login nuevos, hasta cubrir todo lo pendiente. Este es el
+  // modo pensado para dejar el proceso desatendido.
+  ejecutarConReintentosDeSesion().catch(async (e) => {
     console.error('[AGENTE] Error fatal:', e);
     await closeDB().catch(() => {});
     process.exit(1);

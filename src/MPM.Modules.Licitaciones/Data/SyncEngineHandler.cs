@@ -1,4 +1,5 @@
 using Dapper;
+using Microsoft.Extensions.Logging;
 using MPM.Core.Data;
 using MPM.Modules.Licitaciones.Services;
 using System.Data;
@@ -8,7 +9,7 @@ using System.Threading.Tasks;
 
 namespace MPM.Modules.Licitaciones.Data;
 
-public class SyncEngineHandler(DbConnectionFactory dbFactory)
+public class SyncEngineHandler(DbConnectionFactory dbFactory, ILogger<SyncEngineHandler> logger)
 {
     private readonly DbConnectionFactory _dbFactory = dbFactory;
 
@@ -28,9 +29,11 @@ public class SyncEngineHandler(DbConnectionFactory dbFactory)
             param: p,
             commandType: CommandType.Text);
 
+        // El procedimiento captura errores por item (uno invalido no debe perder el resto del
+        // lote); se loguean como advertencia en vez de abortar el dia completo del sync.
         var error = p.Get<string>("p_error_msg");
         if (!string.IsNullOrEmpty(error))
-            throw new InvalidOperationException($"Error en MergeLicitaciones: {error}");
+            logger.LogWarning("MergeLicitaciones: algunos items del lote fallaron: {Error}", error);
 
         return (p.Get<int>("p_creados"), p.Get<int>("p_actualizados"));
     }

@@ -78,6 +78,13 @@ export function apiPut<T>(url: string, body?: unknown): Promise<T> {
   });
 }
 
+export function apiPatch<T>(url: string, body?: unknown): Promise<T> {
+  return apiFetch<T>(url, {
+    method: 'PATCH',
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+  });
+}
+
 export function apiDelete<T>(url: string): Promise<T> {
   return apiFetch<T>(url, { method: 'DELETE' });
 }

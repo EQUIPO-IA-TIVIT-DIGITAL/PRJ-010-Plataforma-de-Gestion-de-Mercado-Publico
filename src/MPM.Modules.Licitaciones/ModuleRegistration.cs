@@ -15,8 +15,22 @@ public static class ModuleRegistration
         services.AddScoped<LicitacionService>();
         services.AddScoped<SyncService>();
         services.AddHttpClient<ApiMpService>();
-        services.AddHostedService<SyncEngineService>();
-        services.AddHostedService<ScraperBackgroundService>();
+
+        // 016-extraccion-documentos-api: extracción de documentos vía HTTP directo,
+        // con fallback al scraper Node/Playwright existente (Extraccion:Modo).
+        services.AddScoped<ExtraccionLogHandler>();
+        services.AddScoped<MpSessionProvider>();
+        services.AddScoped<WebFormsParser>();
+        services.AddScoped<AdjuntosHttpExtractor>();
+        services.AddScoped<DocumentExtractionService>();
+
+        // Registrados también como singleton de su propio tipo (no solo IHostedService) para
+        // poder resolverlos directamente desde el "modo worker" de Program.cs y llamar
+        // EjecutarCicloUnaVezAsync() sin depender del Timer del BackgroundService.
+        services.AddSingleton<SyncEngineService>();
+        services.AddHostedService(sp => sp.GetRequiredService<SyncEngineService>());
+        services.AddSingleton<ScraperBackgroundService>();
+        services.AddHostedService(sp => sp.GetRequiredService<ScraperBackgroundService>());
         services.AddHostedService<AclaracionMonitorService>();
         return services;
     }

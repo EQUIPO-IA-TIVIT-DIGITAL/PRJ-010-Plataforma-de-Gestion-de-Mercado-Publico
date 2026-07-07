@@ -2,12 +2,14 @@
 
 **Feature Branch**: `003-fase6-alertas-keywords`
 **Created**: 2026-06-24
-**Updated**: 2026-07-03 (ampliación de alcance tras reunión de repriorización)
+**Updated**: 2026-07-06 (agregada User Story 5 — notificación por Telegram — tras reunión interna "[EQUIPO-IA] Reunión General")
 **Status**: Planned
 **Semana estimada**: Semana 2 (Julio 2026)
 **Impacto**: Alto | **Complejidad**: Media-Alta | **Depende de**: Fase 5
 
 **Actualización 2026-07-03**: Reunión "[CU010] - Revisión de Alcance" (2026-07-01) confirmó este módulo como la siguiente prioridad inmediata tras cerrar el módulo de Análisis histórico (`017-ajustes-urgentes-cliente`, ya implementado), y amplió el alcance original de dos maneras pedidas explícitamente por Francisco Lopez Balart: (1) el matching debe usar sinónimos vía IA, no solo la palabra literal — *"la inteligencia artificial puede ir consultando por sinónimos de la palabra hasta encontrar licitaciones que capaz la persona humana no puede encontrar"*; (2) cada alerta debe enviarse con información enriquecida (requisitos, competidores, presupuesto, forma de pago, multas, si es renovación y quién es el proveedor actual) directamente a los dos account managers de gobierno, no solo un link a la licitación.
+
+**Actualización 2026-07-06** (reunión interna "[EQUIPO-IA] Reunión General"): Manuel Aliaga instruyó explícitamente integrar las alertas con un **bot de Telegram** para notificación inmediata, además del canal in-app ya planeado ("Intégralo con un bot de Telegram" — repetido dos veces en la reunión, con precedente interno ya usado en otro proyecto de TIVIT). Se agrega como User Story 5. También se marcó como pendiente reforzar la explicabilidad del análisis histórico (`017-ajustes-urgentes-cliente`, ya implementado) para que el equipo pueda justificar cada campo ante preguntas de los stakeholders — no es una historia nueva de esta spec, es una mejora de calidad sobre una feature ya entregada, se registra en `ROADMAP.md`. Deadline confirmado en la misma reunión: **jueves 9 de julio 2026, 7:59 a.m.**, todo el sistema (incluyendo Fase 5 y este módulo) debe estar operativo.
 
 ---
 
@@ -78,6 +80,22 @@ Cuando se detecta una licitación relevante, el sistema debe entregar a los dos 
 
 ---
 
+### User Story 5 — Notificación inmediata por Telegram (Priority: P2) — nuevo 2026-07-06
+
+Además de la notificación in-app (User Story 1), el sistema envía la misma alerta a un bot de Telegram para que los account managers la vean de inmediato sin tener que estar con la app abierta — pedido explícito de Manuel Aliaga en la reunión interna del 2026-07-06.
+
+**Why this priority**: no es un pedido del cliente (Francisco) sino una instrucción interna de gerencia para mejorar la inmediatez de la notificación; se prioriza P2 (no bloquea el "go/no-go" del cliente, que ya está cubierto por User Story 1 y 4) pero se pide explícitamente para la demo del jueves.
+
+**Independent Test**: Configurar el bot de Telegram con el chat ID de un account manager de prueba, disparar una alerta y confirmar que el mensaje llega a Telegram con el mismo resumen enriquecido que la notificación in-app, en menos de 1 minuto.
+
+**Acceptance Scenarios**:
+1. **Given** una alerta configurada con notificación por Telegram activada, **When** se dispara la alerta, **Then** el bot envía un mensaje a Telegram con el resumen enriquecido (o al menos keyword + link, si el resumen enriquecido no está disponible aún) al chat configurado para ese account manager.
+2. **Given** el bot de Telegram no está configurado o el envío falla, **When** se dispara la alerta, **Then** la notificación in-app se genera igual (Telegram es un canal adicional, no reemplaza al in-app — un fallo de Telegram no debe bloquear ni perder la alerta).
+3. **Given** que se necesita demostrar el sistema en una fecha fija sin depender de que llegue una licitación real nueva, **When** se usa una función de "disparar alerta de prueba" (a definir en el plan), **Then** se genera y envía una notificación de ejemplo por ambos canales (in-app y Telegram) para fines de demo.
+4. **Given** una alerta disparada, **When** se enruta la notificación, **Then** llega a los usuarios configurados como account managers de gobierno (no solo al creador de la regla).
+
+---
+
 ## Funcionalidades principales
 
 - Página `/alertas` con tabla de reglas activas/pausadas
@@ -87,6 +105,8 @@ Cuando se detecta una licitación relevante, el sistema debe entregar a los dos 
 - Generación de resumen enriquecido por licitación disparada (requisitos, competidores, presupuesto, forma de pago, multas, señal de renovación/proveedor actual), reutilizando en lo posible el análisis ya producido por `MPM.Modules.Analisis` cuando exista
 - Enrutamiento de la notificación a los account managers configurados para el rubro/organismo, no solo al creador de la regla
 - Integración con módulo de Notificaciones existente
+- **Nuevo 2026-07-06**: Bot de Telegram como canal adicional de notificación inmediata (User Story 5) — no reemplaza el in-app, es paralelo
+- **Nuevo 2026-07-06**: función de "disparar alerta de prueba" para poder demostrar el sistema sin depender de que llegue una licitación real nueva
 - Nuevo módulo `MPM.Modules.Alertas`
 
 ## Definición de Hecho
@@ -98,3 +118,5 @@ Cuando se detecta una licitación relevante, el sistema debe entregar a los dos 
 - [ ] Notificación enrutada a los account managers de gobierno configurados
 - [ ] Deduplicación correcta (no spam)
 - [ ] Panel muestra historial de alertas disparadas
+- [ ] Notificación adicional enviada por bot de Telegram, sin bloquear el in-app si Telegram falla
+- [ ] Función de "disparar alerta de prueba" disponible para demo

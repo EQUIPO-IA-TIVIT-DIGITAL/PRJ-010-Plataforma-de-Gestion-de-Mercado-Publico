@@ -250,53 +250,112 @@ async function extraerResultados(page, context) {
     licitaciones.push(...filas);
     console.log(`[BUSQUEDA] ${licitaciones.length} licitaciones extraidas de la pagina actual`);
 
-    const hayPaginacion = await page.locator('#wucPager__TblPages, a:has-text(">")').count();
-    if (hayPaginacion > 0) {
-      console.log('[BUSQUEDA] Se detecto paginacion, iterando paginas...');
-      let pagina = 2;
+    // El paginador de esta pagina (#wucPager__TblPages) NO usa <a href>, usa <div onclick="
+    // javascript:fnMovePage(N,'wucPager')"> -- un postback de ASP.NET WebForms. El codigo
+    // anterior buscaba <a> (nunca los encontraba) y por eso SIEMPRE se quedaba solo en la
+    // pagina 1, sin reportar error ni aviso. Se detecto el 2026-07-07 al inspeccionar el HTML
+    // real del paginador (mostraba paginas 1,2,3,4 para la busqueda "licitaciones ofertadas
+    // por TIVIT", nunca visitadas).
+    const numerosPagina = await page.evaluate(() => {
+      const el = document.getElementById('wucPager__TblPages');
+      if (!el) return [];
+      const divs = el.querySelectorAll('div[onclick*="fnMovePage"]');
+      const nums = [];
+      for (const d of divs) {
+        const m = (d.getAttribute('onclick') || '').match(/fnMovePage\((\d+)/);
+        if (m) nums.push(parseInt(m[1], 10));
+      }
+      return nums;
+    });
 
-      while (pagina <= 50) {
+    if (numerosPagina.length > 0) {
+      const maxPagina = Math.max(...numerosPagina);
+      console.log(`[BUSQUEDA] Paginacion detectada: ${maxPagina} paginas en total`);
+
+      for (let pagina = 2; pagina <= maxPagina; pagina++) {
         try {
-          const btnSiguiente = page.locator('#wucPager__TblPages a:last-child')
-            .or(page.locator('a[href*="Page$Next"], a:has-text(">")'))
-            .first();
+          const primerCodigoAntes = await page.evaluate(() => {
+            const a = document.querySelector('a[onclick*="OpenGlobalPopup"]');
+            return a ? a.textContent.trim() : null;
+          });
 
-          if (await btnSiguiente.count() === 0) break;
-          if (await btnSiguiente.isVisible({ timeout: 2000 }).catch(() => false)) {
-            const isDisabled = await btnSiguiente.evaluate(el => el.classList.contains('disabled') || el.getAttribute('disabled') !== null).catch(() => true);
-            if (isDisabled) break;
-
-            await btnSiguiente.click();
-            await esperarConDelay(3000);
-
-            const filasPagina = await page.evaluate(() => {
-              const anchors = document.querySelectorAll('a[onclick*="OpenGlobalPopup"]');
-              const res = [];
-              for (const anchor of anchors) {
-                const onclick = anchor.getAttribute('onclick') || '';
-                const match = onclick.match(/OpenGlobalPopup\('([^']+)'\)/);
-                const urlFicha = match ? match[1] : '';
-                const codigo = anchor.textContent.trim();
-                if (codigo && urlFicha) {
-                  res.push({
-                    codigo,
-                    urlFicha: urlFicha.startsWith('/') ? 'https://www.mercadopublico.cl' + urlFicha : urlFicha,
-                    onclick,
-                  });
-                }
+          const clickeado = await page.evaluate((n) => {
+            const el = document.getElementById('wucPager__TblPages');
+            if (!el) return false;
+            const divs = el.querySelectorAll('div[onclick*="fnMovePage"]');
+            for (const d of divs) {
+              if ((d.getAttribute('onclick') || '').includes(`fnMovePage(${n},`)) {
+                d.click();
+                return true;
               }
-              return res;
-            });
+            }
+            return false;
+          }, pagina);
 
-            if (filasPagina.length === 0) break;
-            licitaciones.push(...filasPagina);
-            console.log(`[BUSQUEDA] Pagina ${pagina}: ${filasPagina.length} licitaciones`);
-            pagina++;
-          } else {
+          if (!clickeado) {
+            console.log(`[BUSQUEDA] No se encontro el control de pagina ${pagina}, deteniendo paginacion`);
             break;
           }
+
+          // Postback de WebForms: esperar a que cambie la primera fila (no solo un delay fijo)
+          await page.waitForFunction(
+            (codigoAnterior) => {
+              const a = document.querySelector('a[onclick*="OpenGlobalPopup"]');
+              return a && a.textContent.trim() !== codigoAnterior;
+            },
+            primerCodigoAntes,
+            { timeout: 15000 }
+          ).catch(() => {});
+          await esperarConDelay(2000);
+
+          const filasPagina = await page.evaluate(() => {
+            const anchors = document.querySelectorAll('a[onclick*="OpenGlobalPopup"]');
+            const resultados = [];
+            for (const anchor of anchors) {
+              const onclick = anchor.getAttribute('onclick') || '';
+              const match = onclick.match(/OpenGlobalPopup\('([^']+)'\)/);
+              const urlFicha = match ? match[1] : '';
+              const codigo = anchor.textContent.trim();
+              if (!codigo || !urlFicha) continue;
+
+              const parentTable = anchor.closest('table');
+              let nombre = '', descripcion = '', demandante = '', fechaPublicacion = '', fechaCierre = '';
+              if (parentTable) {
+                const allText = parentTable.innerText || '';
+                const lines = allText.split('\n').map(l => l.trim()).filter(Boolean);
+                const codigoIdx = lines.indexOf(codigo);
+                if (codigoIdx >= 0) {
+                  nombre = lines[codigoIdx + 1] || '';
+                  descripcion = lines[codigoIdx + 2] || '';
+                  demandante = lines[codigoIdx + 3] || '';
+                  fechaPublicacion = lines[codigoIdx + 4] || '';
+                  fechaCierre = lines[codigoIdx + 5] || '';
+                }
+              }
+
+              const baseUrl = 'https://www.mercadopublico.cl';
+              resultados.push({
+                codigo,
+                nombre: nombre.substring(0, 200),
+                descripcion: descripcion.substring(0, 300),
+                demandante,
+                fechaPublicacion,
+                fechaCierre,
+                urlFicha: urlFicha.startsWith('/') ? baseUrl + urlFicha : urlFicha,
+                onclick,
+              });
+            }
+            return resultados;
+          });
+
+          if (filasPagina.length === 0) {
+            console.log(`[BUSQUEDA] Pagina ${pagina}: sin filas, deteniendo paginacion`);
+            break;
+          }
+          licitaciones.push(...filasPagina);
+          console.log(`[BUSQUEDA] Pagina ${pagina}: ${filasPagina.length} licitaciones`);
         } catch (e) {
-          console.log(`[BUSQUEDA] Fin de paginacion: ${e.message}`);
+          console.log(`[BUSQUEDA] Error en pagina ${pagina}: ${e.message}`);
           break;
         }
       }

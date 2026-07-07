@@ -5,9 +5,13 @@
 **Updated**: 2026-07-03 (retargeteado de On-Premise + Huawei Cloud a Google Cloud Platform, y elevado a prioridad N1)
 **Status**: Planned
 **Semana estimada**: N1 — inmediata (Julio 2026, antes que cualquier otro ítem del roadmap)
-**Impacto**: Alto | **Complejidad**: Alta | **Depende de**: —
+**Impacto**: Alto | **Complejidad**: Alta | **Depende de**: — (016-extraccion-documentos-api ya no es bloqueante, ver "Actualización 2026-07-06")
 
 **Actualización 2026-07-03**: El cliente repriorizó el roadmap y ubicó el despliegue en producción como la prioridad N1 — "lo que haremos ahora", por delante incluso de Alertas. Esta versión reemplaza el enfoque anterior (servidor on-premise + Huawei OBS) por **Google Cloud Platform**, alineado con trabajo ya iniciado en el repositorio: el proyecto GCP `tivit-cu010` y el bucket `tivit-cu010-mpm-adjuntos` ya existen y se usaron en un commit reciente (`fix(env): centralize config in .env and migrate storage to GCS`), y `GcsStorageService` ya está implementado en `MPM.Shared`/`IStorageService`. Esta fase termina de dejar el sistema corriendo en GCP de forma estable, no empieza desde cero.
+
+**Actualización 2026-07-06 — pivote a Cloud Run + Cloud Run Jobs**: Se descarta Compute Engine como target de cómputo. Motivo: el equipo de infraestructura de TIVIT (Nicolás Valdivia) bloqueó IP pública tanto en la VM como en Cloud SQL y exigió VPC custom por ambiente (ver hallazgos en `research.md` secciones 5/5b), lo que ya obligaba a introducir un Load Balancer de todos modos; evaluando el esfuerzo real de exponer una VM sin IP pública frente al de ir directo a un modelo administrado, se decide migrar a **Cloud Run** (servicio web) + **Cloud Run Jobs** (para los background services), que ya no requiere gestionar el Load Balancer/TLS manualmente (Cloud Run expone HTTPS gestionado por defecto) ni una VM que administrar.
+
+**Dependencia con `016-extraccion-documentos-api` — revisada 2026-07-06 tras ejecutar el spike en vivo**: se había planteado como dependencia dura (implementar 016 antes de poder desplegar) asumiendo que reduciría el uso de Chromium a una renovación de sesión corta. El spike de descubrimiento (con credenciales reales) encontró que el listado de adjuntos está protegido por **reCAPTCHA Enterprise**, resoluble solo por navegador — 016 no logra ese objetivo (ver `specs/016-extraccion-documentos-api/contracts/internal-api.md`). **Esto en realidad DEJA DE SER un bloqueante**: Cloud Run Jobs (a diferencia de Cloud Run Services) no throttlean CPU por inactividad de requests, así que `scraper-job` puede correr el ciclo completo con Chromium igual de largo que hoy, sin necesitar 016 primero. 016 sigue siendo código válido y ya implementado para la parte que sí es HTTP puro (resolución de ficha por código), pero ya no es prerequisito de esta fase.
 
 ---
 
@@ -79,6 +83,8 @@ El equipo de desarrollo necesita poder desplegar nuevas versiones (nuevas fases 
 - **FR-005**: El sistema MUST permitir desplegar una nueva versión de código sin exponer credenciales (JWT secret, API keys, credenciales de BD) en el repositorio.
 - **FR-006**: El sistema MUST mantener un certificado TLS válido con renovación automática.
 - **FR-007**: El proceso de despliegue MUST quedar documentado en un runbook que cualquier persona del equipo pueda seguir sin conocimiento previo del entorno.
+- **FR-008** (nuevo 2026-07-06): Los background services de larga duración (`SyncEngineService`, `ScraperBackgroundService`, `AnalisisBackgroundService`) MUST ejecutarse como Cloud Run Jobs independientes, disparados por Cloud Scheduler o Pub/Sub — no como `IHostedService` embebidos en el proceso del servicio web, dado que Cloud Run throttlea el CPU fuera de un request activo.
+- **FR-009** (nuevo 2026-07-06): Ni la VM (si en algún punto existiera un componente en Compute Engine) ni Cloud SQL MUST tener IP pública. Toda la red vive en una VPC custom por ambiente (no la VPC default del proyecto).
 
 ## Success Criteria
 
@@ -92,7 +98,9 @@ El equipo de desarrollo necesita poder desplegar nuevas versiones (nuevas fases 
 ## Assumptions
 
 - El proyecto GCP `tivit-cu010` y el bucket `tivit-cu010-mpm-adjuntos` ya existen (evidenciado en el historial de commits) y se reutilizan tal cual — no se crean desde cero.
-- Dado que el sistema depende de background services de larga duración (`SyncEngineService`, `ScraperBackgroundService`, `AnalisisBackgroundService`) y de SignalR con backplane Redis, se asume que el cómputo corre sobre una instancia persistente (Compute Engine) más que sobre un modelo serverless de request/response (Cloud Run), salvo que `/speckit-plan` determine lo contrario tras evaluar costos y complejidad.
-- La base de datos usa Cloud SQL para PostgreSQL como servicio gestionado, evitando administrar backups manuales de un Postgres self-hosted — a confirmar en `/speckit-plan` frente al costo de mantener el Postgres actual en contenedor con backup a GCS.
-- Redis puede mantenerse como contenedor junto a la aplicación (no es dato crítico de negocio, es cache/backplane) en vez de usar Memorystore, salvo que la disponibilidad lo justifique.
-- Fuera de alcance en esta fase: autoescalado horizontal, multi-región, y CI/CD completamente automatizado (el deploy puede ser un script ejecutado manualmente por el equipo, no un pipeline con gates).
+- ~~Se asume que el cómputo corre sobre una instancia persistente (Compute Engine)~~ **Revisado 2026-07-06**: el cómputo corre en **Cloud Run** (servicio web con el API + frontend) y **Cloud Run Jobs** (para `SyncEngineService`, `ScraperBackgroundService`, `AnalisisBackgroundService`, disparados por Cloud Scheduler/Pub-Sub en vez de correr como `IHostedService` embebidos en el proceso del API). SignalR se mantiene en el servicio Cloud Run del API, con `min-instances >= 1` para evitar que un cold-start corte sesiones de chat activas; el backplane Redis ya soporta múltiples instancias, por lo que no depende de session affinity para el broadcast.
+- ~~Nueva dependencia dura: requiere completar 016 antes de poder desplegar~~ **Revertido 2026-07-06**: `scraper-job` no necesita 016 — Cloud Run Jobs no sufren el throttling de CPU que sí aplica a Cloud Run Services, así que puede correr Chromium por toda su duración sin problema, igual que hoy.
+- La base de datos usa Cloud SQL para PostgreSQL como servicio gestionado, con **Private IP obligatorio** (sin IP pública, sin `authorizedNetworks`) — requisito de infraestructura TIVIT (Nicolás Valdivia, 2026-07-06), no solo preferencia de costo. Cloud Run necesita un Serverless VPC Access Connector para alcanzar esa IP privada.
+- Redis puede mantenerse como contenedor (ej. junto a un servicio siempre activo) o migrar a Memorystore — a definir en `/speckit-plan` dado que Cloud Run no sostiene un contenedor Redis persistente de la misma forma que una VM; Memorystore es la opción más natural en este modelo.
+- Red: VPC custom por ambiente (no la VPC default del proyecto), con subnets dedicados — requisito de infraestructura TIVIT, ver `research.md` sección 5b.
+- Fuera de alcance en esta fase: autoescalado horizontal más allá de lo que Cloud Run ya provee por defecto, multi-región, y CI/CD completamente automatizado (el deploy puede ser un script ejecutado manualmente por el equipo, no un pipeline con gates).

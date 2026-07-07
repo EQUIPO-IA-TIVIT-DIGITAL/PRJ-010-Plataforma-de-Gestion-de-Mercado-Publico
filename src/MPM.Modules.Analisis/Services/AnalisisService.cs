@@ -74,7 +74,7 @@ public class AnalisisService(
     }
 
     public async Task<(AnalisisResumenDto? Resultado, string? Error)> AnalizarAsync(
-        long workspaceId, long? documentoId, string geminiApiKey, CancellationToken ct = default)
+        long workspaceId, long? documentoId, CancellationToken ct = default)
     {
         var ws = await _handler.ObtenerWorkspaceAsync(workspaceId, ct);
         if (ws == null) return (null, "ANA_001:Workspace no encontrado");
@@ -99,7 +99,7 @@ public class AnalisisService(
         var estadoError = await _handler.ActualizarEstadoAsync(workspaceId, "analizando", ct);
         if (estadoError != null) return (null, estadoError);
 
-        _backgroundService.EnqueueAnalisis(workspaceId, doc!.Id, doc.NombreArchivo, doc.RutaStorage, geminiApiKey);
+        _backgroundService.EnqueueAnalisis(workspaceId, doc!.Id, doc.NombreArchivo, doc.RutaStorage);
 
         return (new AnalisisResumenDto
         {
@@ -122,7 +122,7 @@ public class AnalisisService(
     }
 
     public async Task<(ChatResponseDto? Response, string? Error)> ChatAsync(
-        long workspaceId, string mensaje, string geminiApiKey, CancellationToken ct = default)
+        long workspaceId, string mensaje, CancellationToken ct = default)
     {
         var resultado = await _handler.ObtenerResultadoPorWorkspaceAsync(workspaceId, ct);
         if (resultado == null) return (null, "ANA_004:No hay análisis completado para este workspace");
@@ -140,7 +140,7 @@ public class AnalisisService(
             .Select(h => new ChatHistoryItem { Rol = h.Rol, Contenido = h.Contenido })
             .ToList();
 
-        var chatResponse = await _geminiService.ChatAsync(mensaje, resultado.ContenidoJson ?? "{}", chatHistory, geminiApiKey, ct);
+        var chatResponse = await _geminiService.ChatAsync(mensaje, resultado.ContenidoJson ?? "{}", chatHistory, ct);
 
         var (_, respError) = await _handler.CrearMensajeChatAsync(convId, "assistant", chatResponse.Text, ct);
         if (respError != null) return (null, respError);
@@ -196,7 +196,7 @@ public class AnalisisService(
             double? puntajeTivit = null, puntajeGanador = null, puntajeMaximo = null;
             decimal? montoTivit = null;
 
-            if (root.TryGetProperty("analisis_tivit", out var at))
+            if (root.TryGetProperty("analisis_tivit", out var at) && at.ValueKind == JsonValueKind.Object)
             {
                 tivitGano = at.TryGetProperty("es_ganador", out var eg) && eg.ValueKind == JsonValueKind.True;
                 resultadoTivit = at.TryGetProperty("resultado", out var rt) ? rt.GetString() ?? "Desconocido" : "Desconocido";
@@ -214,9 +214,13 @@ public class AnalisisService(
             decimal? montoAdj = null;
             var competidoresNombres = new List<string>();
 
-            if (root.TryGetProperty("adjudicacion", out var adj))
+            if (root.TryGetProperty("adjudicacion", out var adj) && adj.ValueKind == JsonValueKind.Object)
             {
-                if (adj.TryGetProperty("adjudicatario", out var adjt))
+                // "adjudicatario" puede existir en el JSON con valor null (licitacion sin un
+                // unico adjudicatario claro) en vez de estar ausente -- TryGetProperty sobre
+                // ese elemento Null revienta con "requires an element of type Object" si no se
+                // valida el ValueKind primero.
+                if (adj.TryGetProperty("adjudicatario", out var adjt) && adjt.ValueKind == JsonValueKind.Object)
                 {
                     adjudicatarioNombre = adjt.TryGetProperty("nombre", out var an) ? an.GetString() : null;
                     adjudicatarioRut = adjt.TryGetProperty("rut", out var ar) ? ar.GetString() : null;
@@ -227,6 +231,8 @@ public class AnalisisService(
                 {
                     foreach (var of in ofs.EnumerateArray())
                     {
+                        if (of.ValueKind != JsonValueKind.Object) continue;
+
                         var nombre = of.TryGetProperty("nombre", out var on) ? on.GetString() ?? "" : "";
                         var rut = of.TryGetProperty("rut", out var or) ? or.GetString() ?? "" : "";
                         var resultado = of.TryGetProperty("resultado", out var ores) ? ores.GetString() ?? "" : "";

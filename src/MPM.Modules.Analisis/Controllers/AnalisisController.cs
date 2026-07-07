@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Configuration;
 using MPM.Modules.Analisis.Models;
 using MPM.Modules.Analisis.Services;
 using MPM.Shared.Models;
@@ -11,12 +10,9 @@ namespace MPM.Modules.Analisis.Controllers;
 [ApiController]
 [Route("api/v1/analisis")]
 [Authorize]
-public class AnalisisController(AnalisisService analisisService, IConfiguration config) : ControllerBase
+public class AnalisisController(AnalisisService analisisService) : ControllerBase
 {
     private readonly AnalisisService _analisisService = analisisService;
-    private readonly IConfiguration _config = config;
-
-    private string GeminiApiKey => _config.GetValue<string>("Gemini:ApiKey") ?? throw new InvalidOperationException("Gemini:ApiKey no configurada");
 
     private TenantContext? GetTenant()
     {
@@ -150,7 +146,7 @@ public class AnalisisController(AnalisisService analisisService, IConfiguration 
         var tenant = GetTenant();
         if (tenant == null) return Unauthorized();
 
-        var (resultado, error) = await _analisisService.AnalizarAsync(id, request?.DocumentoId, GeminiApiKey, ct);
+        var (resultado, error) = await _analisisService.AnalizarAsync(id, request?.DocumentoId, ct);
 
         if (error != null)
         {
@@ -190,7 +186,7 @@ public class AnalisisController(AnalisisService analisisService, IConfiguration 
         if (string.IsNullOrWhiteSpace(request.Mensaje))
             return BadRequest(ApiResponse<object>.Fail("mensaje es requerido", [new ErrorDetail { Code = "VAL_001", Field = "mensaje", Message = "mensaje es requerido" }]));
 
-        var (response, error) = await _analisisService.ChatAsync(id, request.Mensaje, GeminiApiKey, ct);
+        var (response, error) = await _analisisService.ChatAsync(id, request.Mensaje, ct);
 
         if (error != null)
         {

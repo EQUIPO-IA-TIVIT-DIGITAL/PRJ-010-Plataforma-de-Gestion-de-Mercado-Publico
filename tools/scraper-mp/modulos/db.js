@@ -256,6 +256,21 @@ export async function finalizarSyncLog(syncId, stats) {
   }
 }
 
+export async function tieneAnalisisCompletado(licitacionId) {
+  if (!licitacionId) return false;
+  const p = initDB();
+  try {
+    const result = await p.query(
+      `SELECT 1 FROM analisis_workspaces WHERE licitacion_id = $1 AND estado = 'completado' LIMIT 1`,
+      [licitacionId]
+    );
+    return result.rows.length > 0;
+  } catch (e) {
+    console.log(`[DB] Error verificando analisis existente: ${e.message}`);
+    return false;
+  }
+}
+
 export async function licitacionYaExiste(codigoExterno) {
   const p = initDB();
   try {

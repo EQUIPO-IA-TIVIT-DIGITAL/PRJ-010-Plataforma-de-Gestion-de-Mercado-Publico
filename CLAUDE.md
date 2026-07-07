@@ -101,7 +101,7 @@ MPM.Modules.Xxx/
 
 **Real-time**: `useSignalR` hook wraps `@microsoft/signalr` for the messaging hub.
 
-**Dev proxy**: Vite proxies `/api` → `http://localhost:5000` and `/hubs` → `http://localhost:5000` (with WebSocket support).
+**Dev proxy**: Vite proxies `/api` → `http://localhost:5001` and `/hubs` → `http://localhost:5001` (con soporte WebSocket) — corregido 2026-07-07, apuntaba a `:5000`, un puerto que no coincidía ni con el mapeo de Docker (`5001:80`) ni con `dotnet run` (`launchSettings.json`: 5147/7059); el login del frontend fallaba silenciosamente contra ese puerto.
 
 **UI library**: Ant Design 5 (`antd`) with `@ant-design/icons`.
 
@@ -133,17 +133,20 @@ For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan at:
 `specs/002-fase5-deploy-gcp/plan.md`
 
-Current feature: Fase 5 — Despliegue en GCP (N1, prioridad inmediata: llevar MPM a producción en Google Cloud reutilizando el proyecto `tivit-cu010` y el bucket GCS `tivit-cu010-mpm-adjuntos` ya existentes)
-Spec: `specs/002-fase5-deploy-gcp/spec.md`
-Plan: `specs/002-fase5-deploy-gcp/plan.md` — research.md y quickstart.md ya generados (Compute Engine + Cloud SQL + Redis en contenedor + GCS ya existente + certbot delante de nginx). Falta `/speckit-tasks`, bloqueado hasta confirmar región, presupuesto y dominio.
+Current features (dos en paralelo, ambas con deadline jueves 9 de julio 2026, 7:59 a.m.):
 
-> Repriorización 2026-07-03 (ver `specs/ROADMAP.md`, incluye export `specs/roadmap.csv`): orden vigente de fases activas —
-> **N1** Fase 5 — Despliegue en GCP (`002-fase5-deploy-gcp`, este feature, "lo que haremos ahora") →
-> **N2** Fase 6 — Alertas Inteligentes (`003-fase6-alertas-keywords`) →
+1. **Fase 5 — Despliegue en GCP** (N1): `specs/002-fase5-deploy-gcp/plan.md` — pivote de Compute Engine a **Cloud Run + Cloud Run Jobs**. `016-extraccion-documentos-api` ya NO es bloqueante (Cloud Run Jobs no throttlean CPU, corren el scraper con Chromium igual de largo que hoy). Bloqueado por infraestructura pendiente de Nicolás Valdivia (VPC custom, mover Cloud SQL, Memorystore, roles de IAM) — ver `specs/002-fase5-deploy-gcp/solicitud-recursos-cloud-run.md`. Código de la app (modo worker, deploy.sh, setup-secrets.sh) ya listo, ver `docs/runbook-produccion.md`.
+2. **Fase 6 — Alertas Inteligentes** (N2): `specs/003-fase6-alertas-keywords/plan.md` — es la entrega a demostrar el jueves (cadencia semanal de demos). Incluye User Story 5 nueva (bot de Telegram, instrucción interna de Manuel) y endpoint de "disparar alerta de prueba" para demo. `tasks.md` pendiente de generar con `/speckit-tasks`.
+
+> Repriorización 2026-07-03, ajustada 2026-07-06 (ver `specs/ROADMAP.md`, incluye export `specs/roadmap.csv`): orden vigente de fases activas —
+> **N1** Fase 5 — Despliegue en GCP (`002-fase5-deploy-gcp`) →
+> **N2** Fase 6 — Alertas Inteligentes (`003-fase6-alertas-keywords`, este es el entregable de la demo del jueves) →
 > **N3** Buscador Inteligente NL (`018-buscador-inteligente-nl`) →
 > **N4** Fase 7 — Pipeline de Oportunidades (`004-fase7-pipeline-oportunidades`, incluye el motor de validación de completitud pedido por el cliente).
 > En paralelo o después de N4, sin fecha fija y sin desplazar las anteriores: Rediseño Frontend (`019-rediseno-frontend`).
 > Las Fases 8-18 (`005` a `015`) quedan **pausadas** — no son punto de dolor del cliente por ahora.
 >
-> Nota: el feature 017 (Ajustes Urgentes del Cliente) ya fue implementado; su spec sigue en `specs/017-ajustes-urgentes-cliente/`. La migración más alta aplicada es V077 — la siguiente libre es V078.
+> Nota: el feature 017 (Ajustes Urgentes del Cliente) ya fue implementado; su spec sigue en `specs/017-ajustes-urgentes-cliente/`. La migración más alta aplicada es **V088** — V079 fue tomada por `003-fase6-alertas-keywords` (`usp_Alertas_*`); V080-V088 corrigen bugs reales del pipeline de sync/backfill de licitaciones (migraciones duplicadas, tipos Npgsql, catálogo de estados, matching de Alertas — ver `specs/021-scraper-tivit-hardening/spec.md` y el historial de `src/MPM.Api/Database/Scripts/`). La siguiente libre es **V089**.
+>
+> Nota (2026-07-07): se agregó `specs/021-scraper-tivit-hardening/` — hardening del scraper de TIVIT (`tools/scraper-mp/`) para identificar y analizar con Gemini **todas** las licitaciones donde TIVIT participó (33 confirmadas en 2025-2026, no solo 10 — había un bug de paginación). Incluye un orquestador de sesiones que reintenta automáticamente cuando Mercado Público agota el cupo de la acción "Ver Adjuntos" (~15 usos por ventana de tiempo), sin intervención manual. Pendiente: hornear `Xvfb`+`xauth` en el Dockerfile para que esto funcione igual en Cloud Run Jobs (ver también `specs/002-fase5-deploy-gcp/research.md` §1b, riesgo de reCAPTCHA en modo headless).
 <!-- SPECKIT END -->

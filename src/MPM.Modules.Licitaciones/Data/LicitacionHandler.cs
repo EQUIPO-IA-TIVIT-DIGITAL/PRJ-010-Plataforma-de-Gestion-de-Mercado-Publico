@@ -42,6 +42,35 @@ public class LicitacionHandler(DbConnectionFactory dbFactory)
         return (list, totalCount);
     }
 
+    /// <summary>
+    /// Licitaciones publicadas desde <paramref name="fechaDesde"/>, con los campos mínimos
+    /// que necesita el motor de matching de Alertas (003-fase6-alertas-keywords) — separado
+    /// de <see cref="ListarAsync"/> para no acoplar ese caso de uso al del frontend.
+    /// </summary>
+    public async Task<IEnumerable<MPM.Modules.Alertas.Models.LicitacionParaMatching>> ListarParaMatchingAsync(
+        DateTime fechaDesde, CancellationToken ct = default)
+    {
+        await using var conn = _dbFactory.Create();
+        var rows = await conn.QueryAsync<MatchingRow>(
+            LicitacionStoredProcedures.ListarParaMatching,
+            new { p_fecha_desde = fechaDesde },
+            commandType: CommandType.Text);
+
+        return rows.Select(r => new MPM.Modules.Alertas.Models.LicitacionParaMatching(
+            r.p_id, r.p_codigo_externo, r.p_nombre, r.p_descripcion, r.p_monto_estimado, r.p_tipo, r.p_organismo));
+    }
+
+    private class MatchingRow
+    {
+        public long p_id { get; set; }
+        public string p_codigo_externo { get; set; } = "";
+        public string p_nombre { get; set; } = "";
+        public string? p_descripcion { get; set; }
+        public decimal? p_monto_estimado { get; set; }
+        public string? p_tipo { get; set; }
+        public string? p_organismo { get; set; }
+    }
+
     public async Task<LicitacionDetalleDto?> ObtenerPorCodigoAsync(string codigoExterno, CancellationToken ct = default)
     {
         await using var conn = _dbFactory.Create();
@@ -123,6 +152,28 @@ public class LicitacionHandler(DbConnectionFactory dbFactory)
 
     public async Task ActualizarDetalleAsync(string codigoExterno, LicitacionDetalleDto dto, CancellationToken ct = default)
     {
+        // DynamicParameters con DbType explicito por parametro: el binding via objeto anonimo
+        // dejaba parametros con valor null (unidad_tecnica, monto_estimado, fechas) sin
+        // sustituir en el texto SQL enviado a Postgres -- "operator does not exist: @
+        // character varying", porque Npgsql no podia inferir el tipo de un valor null sin
+        // tipo explicito.
+        var p = new DynamicParameters();
+        p.Add("codigo_externo", codigoExterno, DbType.String);
+        p.Add("descripcion", dto.Descripcion, DbType.String);
+        p.Add("organismo", dto.Organismo, DbType.String);
+        p.Add("unidad_tecnica", dto.UnidadTecnica, DbType.String);
+        p.Add("moneda", dto.Moneda, DbType.String);
+        p.Add("monto_estimado", dto.MontoEstimado, DbType.Decimal);
+        // DbType.DateTime2 (no DateTime) porque en Npgsql moderno DbType.DateTime apunta a
+        // "timestamp with time zone" y estas columnas son "timestamp without time zone";
+        // con DateTime.Kind=Unspecified (que es lo que trae la API de MP) eso revienta con
+        // "Cannot write DateTime with Kind=Unspecified to ... timestamp with time zone".
+        p.Add("fecha_publicacion", dto.FechaPublicacion, DbType.DateTime2);
+        p.Add("fecha_adjudicacion", dto.FechaAdjudicacion, DbType.DateTime2);
+        p.Add("fecha_estimada_adjudicacion", dto.FechaEstimadaAdjudicacion, DbType.DateTime2);
+        p.Add("link", dto.Link, DbType.String);
+        p.Add("tipo", dto.Tipo, DbType.String);
+
         await using var conn = _dbFactory.Create();
         await conn.ExecuteAsync(@"
             UPDATE licitaciones SET
@@ -138,20 +189,7 @@ public class LicitacionHandler(DbConnectionFactory dbFactory)
                 tipo = @tipo,
                 updated_at = CURRENT_TIMESTAMP
             WHERE codigo_externo = @codigo_externo AND deleted_at IS NULL",
-            new
-            {
-                codigo_externo = codigoExterno,
-                dto.Descripcion,
-                dto.Organismo,
-                dto.UnidadTecnica,
-                dto.Moneda,
-                dto.MontoEstimado,
-                dto.FechaPublicacion,
-                dto.FechaAdjudicacion,
-                dto.FechaEstimadaAdjudicacion,
-                dto.Link,
-                dto.Tipo
-            });
+            p);
     }
 
     public async Task<(List<LicitacionNaturalSearchResult> Items, long TotalCount)> BuscarNaturalAsync(

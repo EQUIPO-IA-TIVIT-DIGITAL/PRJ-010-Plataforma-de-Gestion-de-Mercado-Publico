@@ -31,7 +31,21 @@ export async function descargarActaEvaluacion(fichaPage, context, datosLicitacio
       }
 
       adjuntosPage = pagesAfter[pagesAfter.length - 1];
-      const adjUrl = adjuntosPage.url();
+
+      // El popup puede pasar por una redireccion intermedia a 403.html antes de llegar a la
+      // URL real de ViewAttachment.aspx -- leer adjuntosPage.url() justo despues del delay fijo
+      // de 3s a veces captura ese estado intermedio. Se espera a que la navegacion se asiente
+      // (networkidle) y se vuelve a chequear la URL una vez mas antes de declarar error.
+      await adjuntosPage.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => {});
+      let adjUrl = adjuntosPage.url();
+
+      if (adjUrl.includes('403')) {
+        console.log(`[ADJUNTOS] URL intermedia 403, esperando posible redireccion final...`);
+        await esperarConDelay(4000);
+        await adjuntosPage.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => {});
+        adjUrl = adjuntosPage.url();
+      }
+
       console.log(`[ADJUNTOS] Ventana: ${adjUrl.substring(0, 120)}`);
 
       if (adjUrl.includes('403') || adjUrl.includes('.html') || adjUrl.includes('error')) {
@@ -39,7 +53,7 @@ export async function descargarActaEvaluacion(fichaPage, context, datosLicitacio
         await adjuntosPage.close().catch(() => {});
 
         if (intento < MAX_REINTENTOS) {
-          await esperarConDelay(3000);
+          await esperarConDelay(5000);
           continue;
         }
         return { actaEvaluacion: null, actaDescargada: false, error: 'Maximos reintentos excedido', todosAdjuntos: [] };

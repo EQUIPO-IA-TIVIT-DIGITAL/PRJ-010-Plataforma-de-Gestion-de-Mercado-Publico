@@ -50,6 +50,15 @@ public class ScraperBackgroundService(
         await Task.Delay(Timeout.Infinite, stoppingToken);
     }
 
+    /// <summary>
+    /// Ejecuta un solo ciclo del scraper y retorna (sin Timer). Pensado para invocarse desde
+    /// el "modo worker" de <c>Program.cs</c> (Cloud Run Job <c>scraper-job</c>, ver
+    /// 002-fase5-deploy-gcp plan.md T008/T010) — requiere que 016-extraccion-documentos-api
+    /// ya haya reducido el uso de Chromium a una renovación de sesión corta; de lo contrario
+    /// esta ejecución puede tardar tanto como el ciclo completo del daemon Node actual.
+    /// </summary>
+    public Task EjecutarCicloUnaVezAsync(CancellationToken ct = default) => EjecutarScraperAsync(ct);
+
     private async Task EjecutarScraperAsync(CancellationToken ct)
     {
         var exitCode = -1;

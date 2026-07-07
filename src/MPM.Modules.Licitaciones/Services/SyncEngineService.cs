@@ -2,6 +2,8 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using MPM.Modules.Alertas.Services;
+using MPM.Modules.Licitaciones.Data;
 
 namespace MPM.Modules.Licitaciones.Services;
 
@@ -31,6 +33,14 @@ public class SyncEngineService(
 
         await Task.Delay(Timeout.Infinite, stoppingToken);
     }
+
+    /// <summary>
+    /// Ejecuta un solo ciclo de sync y retorna (sin Timer, sin loop infinito). Pensado para
+    /// invocarse desde el "modo worker" de <c>Program.cs</c> (Cloud Run Job <c>sync-job</c>,
+    /// ver 002-fase5-deploy-gcp plan.md T008-T009) — la lógica es la misma que usa el
+    /// <see cref="BackgroundService"/> en desarrollo/Docker Compose local.
+    /// </summary>
+    public Task EjecutarCicloUnaVezAsync(CancellationToken ct = default) => DoWorkAsync(ct);
 
     private async void DoWorkAsync(object? state)
     {
@@ -74,7 +84,24 @@ public class SyncEngineService(
             // Incremental: ventana con 1 dia de solapamiento para no perder
             // licitaciones publicadas en el borde del ciclo anterior
             var windowDays = config.GetValue("Sync:WindowDays", 8);
-            await syncService.ExecuteSyncAsync(DateTime.UtcNow.AddDays(-windowDays), stoppingToken, "AUTO");
+            var desde = DateTime.UtcNow.AddDays(-windowDays);
+            await syncService.ExecuteSyncAsync(desde, stoppingToken, "AUTO");
+
+            // Motor de matching de Alertas (003-fase6-alertas-keywords): evalúa las
+            // licitaciones de esta misma ventana contra las reglas activas. Solo en el ciclo
+            // incremental — el backfill histórico (arriba) no debe disparar un aluvión de
+            // alertas por licitaciones viejas.
+            try
+            {
+                var licitacionHandler = scope.ServiceProvider.GetRequiredService<LicitacionHandler>();
+                var alertasMatching = scope.ServiceProvider.GetRequiredService<AlertasMatchingService>();
+                var licitaciones = await licitacionHandler.ListarParaMatchingAsync(desde, stoppingToken);
+                await alertasMatching.EvaluarLicitacionesAsync(licitaciones, stoppingToken);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Fallo evaluando alertas tras el ciclo de sync (el sync en sí ya se completó)");
+            }
         }
         catch (Exception ex)
         {

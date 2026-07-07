@@ -46,7 +46,15 @@ services:
       - MP_TICKET=${MP_TICKET}
       - Storage__Provider=local
       - Storage__LocalPath=/app/uploads
-      - Gemini__ApiKey=${GEMINI_API_KEY}
+      # Gemini vía Vertex AI + ADC (020-migracion-gemini-adc) — ya no API key.
+      # GOOGLE_APPLICATION_CREDENTIALS apunta al archivo de ADC del desarrollador, montado
+      # como volumen abajo. Generar una vez con: gcloud auth application-default login
+      - GOOGLE_CLOUD_PROJECT=${GOOGLE_CLOUD_PROJECT:-tivit-cu010}
+      - Vertex__Region=${VERTEX_REGION:-us-central1}
+      - GOOGLE_APPLICATION_CREDENTIALS=/app/adc-credentials.json
+      - Telegram__BotToken=${TELEGRAM_BOT_TOKEN:-}
+      - Telegram__BotUsername=${TELEGRAM_BOT_USERNAME:-CU010_bot}
+      - Telegram__WebhookSecret=${TELEGRAM_WEBHOOK_SECRET:-}
       # Scraper
       - MP_RUT=${MP_RUT:-}
       - MP_PASSWORD=${MP_PASSWORD:-}
@@ -54,6 +62,10 @@ services:
       - Scraper__Enabled=${SCRAPER_ENABLED:-false}
       - Scraper__IntervalHours=${SCRAPER_INTERVAL_HOURS:-12}
       - Scraper__ScriptPath=/app/tools/agente-mp.js
+      # Extracción de documentos vía HTTP directo (016-extraccion-documentos-api)
+      - Extraccion__Modo=${EXTRACCION_MODO:-solo_navegador}
+      - Extraccion__SesionTtlHoras=${EXTRACCION_SESION_TTL_HORAS:-6}
+      - Extraccion__ExportarSesionScriptPath=/app/tools/exportar-sesion.js
       - MP_ANALISIS_IA=${MP_ANALISIS_IA:-true}
       - MP_HEADLESS=true
       - MP_FECHA_DESDE=${MP_FECHA_DESDE:-01-01-2025}
@@ -72,6 +84,7 @@ services:
       - "5001:80"
     volumes:
       - api_uploads:/app/uploads
+      - ${ADC_CREDENTIALS_PATH}:/app/adc-credentials.json:ro
 
   web:
     build:

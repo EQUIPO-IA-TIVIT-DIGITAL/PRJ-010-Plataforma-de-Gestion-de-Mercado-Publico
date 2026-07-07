@@ -1,0 +1,49 @@
+# Spec: Hardening del scraper de TIVIT (extracción + análisis sin gasto duplicado)
+
+**Fecha**: 2026-07-06/07
+**Estado**: ✅ Completado (objetivo local) 2026-07-07 — las 33 licitaciones donde TIVIT participó en 2025-2026 están identificadas y analizadas con Gemini, con un orquestador que corre sin supervisión. Queda pendiente únicamente el hardening para Cloud Run (hornear Xvfb en el Dockerfile), bloqueado por la misma infraestructura pendiente que el resto de Fase 5.
+**Relacionado**: `016-extraccion-documentos-api` (mecanismo de extracción), `002-fase5-deploy-gcp` §1b (riesgo de reCAPTCHA en Cloud Run Jobs, ya documentado ahí con más detalle técnico)
+
+## Objetivo
+
+Que el scraper de `tools/scraper-mp` (login con la cuenta real de TIVIT, filtro "licitaciones en las que he ofertado", descarga de acta de evaluación, envío a Gemini para análisis) pueda correr de forma confiable — incluyendo eventualmente sin supervisión, como Cloud Run Job — sobre **todas** las licitaciones en las que TIVIT participó, sin gastar tokens de Gemini en licitaciones ya analizadas.
+
+**Alcance explícito**: esto NO toca ni reemplaza la sincronización general de licitaciones (`SyncEngineService`, las ~120k del buscador público en `/licitaciones`) — es exclusivamente sobre el subconjunto de licitaciones donde TIVIT ofertó, para el módulo de Análisis con Gemini.
+
+## Hallazgos (2026-07-06)
+
+1. **`MP_FECHA_DESDE` estaba en `01-01-2026`** en `.env`, no `01-01-2025` — el scraper nunca había buscado la participación de TIVIT en 2025, solo 2026. **Corregido** el 2026-07-06 (vuelto a `01-01-2025`, que es lo que pidió el cliente — ver `info/transcript.md:248`, "Francisco quiere desde el 2025").
+2. **El paso "Ver Adjuntos" falla con 403 sistemáticamente en modo headless** (`MP_HEADLESS=true`), pero funciona en modo "headed" (`MP_HEADLESS=false`), tanto con pantalla real como con `Xvfb` (framebuffer virtual, sin pantalla real — probado dentro del contenedor `mpm-api`). Hipótesis de trabajo: Mercado Público penaliza el fingerprint de Chromium headless con reCAPTCHA/fricción adicional. Detalle técnico completo y mitigación en `specs/002-fase5-deploy-gcp/research.md` sección 1b.
+3. **El scraper no chequeaba si una licitación ya tenía un análisis de Gemini completado** antes de volver a mandarla al pipeline de IA — correr el scraper dos veces sobre la misma licitación gastaba tokens duplicados. **Corregido** el 2026-07-06 (`tools/scraper-mp/modulos/db.js:tieneAnalisisCompletado`, chequeado en `agente-mp.js` antes de invocar `pipelineAnalisisCompleto`).
+4. **10 licitaciones de TIVIT identificadas y analizadas exitosamente** el 2026-07-06 (rango 2026 únicamente, por el bug del punto 1) — workspaces 42-52 (una duplicada por el bug del punto 3, corregido después). Costo real observado: ~3.289 tokens de entrada + ~2.696 de salida por documento con `gemini-2.5-pro` (~$0.03 USD c/u con pricing público aproximado).
+5. **Bug de paginación — el más importante**: la búsqueda "licitaciones en las que he ofertado" **paginaba resultados (4 páginas)**, pero el código de paginación buscaba elementos `<a href>` cuando el paginador real usa `<div onclick="fnMovePage(N,'wucPager')">` (postback de ASP.NET WebForms, no un link). El código nunca encontraba el botón "siguiente", asumía silenciosamente que no había más páginas, y se quedaba solo con los 10 resultados de la página 1. **El total real de licitaciones donde TIVIT participó es 33, no 10** (10+10+10+3 en las 4 páginas). Corregido el 2026-07-07 en `tools/scraper-mp/modulos/buscar.js` (lee los `div[onclick*="fnMovePage"]` del paginador, hace click programático por número de página, espera a que cambie la primera fila de la tabla antes de extraer). Validado en vivo: la búsqueda ahora reporta correctamente "33 licitaciones encontradas".
+6. **El 403 en "Ver Adjuntos" reaparece tras ~15 interacciones seguidas en la misma sesión, incluso en modo visible/Xvfb** (que hasta ese punto no había fallado en todo el día): al correr las 33 licitaciones en una sola sesión, los items 1-15 funcionaron perfecto (11 saltadas por ya-analizadas + 4 análisis nuevos reales, workspaces 53-56), pero desde el item 16 en adelante fallaron con 403 de forma consistente y ya no se recuperaron por el resto de la sesión (se detuvo manualmente en el item 30/33 para no seguir insistiendo contra el portal real). Esto sugiere un **límite de volumen por sesión** además del efecto headless-vs-headed ya documentado en `002-fase5-deploy-gcp` — no se pudo aislar del todo si es 100% esto o interacción con las muchas sesiones ya corridas ese mismo día.
+
+## Ya corregido (2026-07-06/07)
+
+- [x] `.env`: `MP_FECHA_DESDE=01-01-2025` (era `01-01-2026`)
+- [x] `tools/scraper-mp/modulos/db.js`: nueva función `tieneAnalisisCompletado(licitacionId)`
+- [x] `tools/scraper-mp/agente-mp.js`: chequeo de análisis existente antes de invocar Gemini
+- [x] `tools/scraper-mp/agente-mp.js`: soporte para `MP_LIMIT` (testing acotado, evita gasto de tokens en pruebas)
+- [x] `tools/scraper-mp/modulos/adjuntos.js`: espera de `networkidle` + reintento adicional antes de declarar 403 terminal (mitigación parcial, no resuelve el problema de fondo — ese es Xvfb)
+- [x] `tools/scraper-mp/modulos/buscar.js`: **fix de paginación** (punto 5 arriba) — sin esto, cualquier backfill futuro seguiría reportando solo 10 de 33.
+- [x] `tools/scraper-mp/agente-mp.js`: enfriamiento largo configurable cada N licitaciones (`MP_ENFRIAMIENTO_CADA`, default 8; `MP_ENFRIAMIENTO_MS`, default 60000) — **probado en vivo el mismo día, resultado: NO resuelve el problema** (ver punto 7).
+
+7. **El límite es de volumen acumulado (cuenta/IP), no de ritmo dentro de la sesión — confirmado con dos corridas independientes**. Se reintentaron las licitaciones 16-33 ~15-20 minutos después de la corrida anterior, con: (a) un proceso de Node y navegador completamente nuevos (sin ningún estado de sesión compartido con la corrida anterior) y (b) el enfriamiento largo de 60s activo. Resultado: **falló exactamente en el mismo ítem, 16/33**, tras completar las mismas 15 primeras licitaciones sin problema. Esto descarta que sea un límite de "ritmo" (pausas cortas dentro de la sesión) y apunta a un **límite de volumen acumulado por ventana de tiempo (probablemente por hora), a nivel de cuenta o de IP** — un navegador/sesión nueva no lo resetea, pero esperar ~15-20 minutos sí recupera aproximadamente el mismo cupo (~15 usos) antes de volver a agotarse.
+8. **Descartada la hipótesis de "es esta licitación específica, no un cupo"**: se probó la licitación #16 (`1351461-5-LR25`) en aislamiento total, como única acción de una sesión/navegador nuevos, inmediatamente después del fallo — funcionó perfecto (intento 2/3, acta descargada, análisis disparado). Confirma que no hay nada especial en esa licitación puntual; el conteo de interacciones es lo que importa.
+9. **Investigada una alternativa pública (`Adjudicacion.UrlActa` de la API pública de licitaciones.json) para evitar el login por completo** — la página (`PreviewAwardAct.aspx`) es accesible sin autenticación y trae datos ricos (tabla completa de oferentes con RUT/monto/estado, comisión evaluadora, resolución) que podrían alimentar análisis complementarios sin gastar cupo. Sin embargo, **descargar el PDF adjunto desde esa página requiere resolver un captcha de imagen** (`Captcha.aspx`) — no es un reemplazo completo del flujo actual, solo una fuente de datos adicional a futuro (no implementada).
+
+## Resuelto — Automatización completa (2026-07-07)
+
+Se implementó un orquestador de sesiones en `agente-mp.js` (`ejecutarConReintentosDeSesion`) que corre sin supervisión:
+- Pre-filtra licitaciones ya analizadas por `codigo_externo` **antes** de abrir su ficha (ya no gasta cupo de "Ver Adjuntos" en ellas).
+- Detecta cupo agotado por conteo de fallos consecutivos (`MP_MAX_FALLOS_CONSECUTIVOS`, default 2) y corta la sesión en vez de agotar todos los reintentos contra un límite ya gastado.
+- Espera un enfriamiento largo real (`MP_ESPERA_ENTRE_SESIONES_MS`, default 20 min) y abre una sesión/login/navegador completamente nuevos, repitiendo hasta cubrir todo lo pendiente o alcanzar `MP_MAX_CICLOS_SESION` (default 10).
+
+**Validado en vivo de punta a punta el 2026-07-07**: 33 licitaciones encontradas → 16 pre-filtradas (ya analizadas) → ciclo 1 procesó 17 pendientes (15 éxito, 2 fallos → cortó sola) → esperó 20 min sola → ciclo 2 procesó las 2 restantes (éxito) → se detuvo sola al no quedar pendientes. **Resultado final: 33/33 licitaciones de TIVIT (2025-2026) con análisis completo de Gemini, sin ninguna intervención manual entre el ciclo 1 y el 2.**
+
+## Pendiente (solo para producción/Cloud Run)
+
+- [ ] Hornear `Xvfb` + `xauth` en el Dockerfile de la imagen `api` de forma permanente, y cambiar la invocación del scraper (`ScraperBackgroundService.cs`, hoy `node <script>`) para envolverla con `xvfb-run --auto-servernum --` (o el arranque manual de `Xvfb :99` + `DISPLAY=:99` ya validado como workaround). Sin esto, el scraper sigue dependiendo de intervención manual para evitar el 403 en modo headless — bloqueante solo para el despliegue en Cloud Run, no para el uso local actual.
+- [ ] Confirmar que `ScraperBackgroundService` (el `BackgroundService` de producción, hoy con `SCRAPER_ENABLED=false`) invoca `ejecutarConReintentosDeSesion` (o su equivalente) en vez del ciclo simple, y que el `SCRAPER_INTERVAL_HOURS` de producción es compatible con el límite de volumen por hora descubierto (importante para dimensionar la cadencia de `Cloud Scheduler` en `002-fase5-deploy-gcp`).
+- [ ] (Opcional, no bloqueante) Evaluar usar `Adjudicacion.UrlActa` (hallazgo 9) como fuente de datos complementaria sin login para reducir la dependencia del cupo de "Ver Adjuntos".
