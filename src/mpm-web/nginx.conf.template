@@ -5,9 +5,15 @@ server {
     root /usr/share/nginx/html;
     index index.html;
 
+    # proxy_set_header Host $proxy_host (no $host): Cloud Run rutea por Host header a nivel de
+    # su frontend (GFE) -- cuando mpm-web y mpm-api son dos servicios *.run.app distintos,
+    # reenviar el Host original del cliente (el dominio de mpm-web) hace que el GFE no
+    # reconozca a qué servicio va la petición, y devuelve una respuesta de error con headers
+    # inusualmente grandes -- nginx lo ve como "upstream sent too big header" (502). $proxy_host
+    # envía el host real del destino de proxy_pass (mpm-api), que es lo que Cloud Run espera.
     location /api/ {
         proxy_pass ${API_URL}/api/;
-        proxy_set_header Host $host;
+        proxy_set_header Host $proxy_host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
@@ -18,7 +24,7 @@ server {
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";
-        proxy_set_header Host $host;
+        proxy_set_header Host $proxy_host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
@@ -28,7 +34,7 @@ server {
 
     location /swagger {
         proxy_pass ${API_URL};
-        proxy_set_header Host $host;
+        proxy_set_header Host $proxy_host;
         proxy_set_header X-Real-IP $remote_addr;
     }
 

@@ -40,6 +40,11 @@ require_var CLOUDSQL_PRIVATE_IP
 # TELEGRAM_BOT_TOKEN es opcional — si no se define, Telegram simplemente no envía (ver
 # TelegramNotificationService, falla de forma aislada sin bloquear la notificación in-app)
 TELEGRAM_BOT_TOKEN="${TELEGRAM_BOT_TOKEN:-}"
+# TELEGRAM_WEBHOOK_SECRET: requerido para que "Conectar con Telegram" (deep-link) funcione en
+# prod -- el webhook es fail-closed (QA BUG-009), sin este secreto el endpoint rechaza todo con
+# 401 y el linking automático nunca completa (el fallback manual de Chat ID sigue funcionando
+# igual). Generarlo random si no se pasa.
+TELEGRAM_WEBHOOK_SECRET="${TELEGRAM_WEBHOOK_SECRET:-}"
 
 CONNSTRING="Host=${CLOUDSQL_PRIVATE_IP};Port=5432;Database=${DB_NAME};Username=${DB_USER};Password=${DB_PASSWORD}"
 
@@ -60,6 +65,18 @@ upsert_secret "postgresql-connection-string" "$CONNSTRING"
 if [ -n "$TELEGRAM_BOT_TOKEN" ]; then
   upsert_secret "telegram-bot-token" "$TELEGRAM_BOT_TOKEN"
 fi
+if [ -n "$TELEGRAM_WEBHOOK_SECRET" ]; then
+  upsert_secret "telegram-webhook-secret" "$TELEGRAM_WEBHOOK_SECRET"
+fi
+
+# El subproceso Node del scraper (tools/scraper-mp/) no lee ConnectionStrings__PostgreSQL —
+# necesita host/puerto/usuario/password sueltos (QA BUG-005: antes DB_HOST venía hardcodeado
+# a "db", el nombre del servicio de Docker Compose local, que no resuelve en Cloud Run).
+upsert_secret "db-host" "$CLOUDSQL_PRIVATE_IP"
+upsert_secret "db-port" "5432"
+upsert_secret "db-name" "$DB_NAME"
+upsert_secret "db-user" "$DB_USER"
+upsert_secret "db-password" "$DB_PASSWORD"
 
 echo "✅ Secretos listos. Confirmar que mpm-api-sa y mpm-jobs-sa tengan roles/secretmanager.secretAccessor"
 echo "   (bloqueado por permisos hoy — ver specs/002-fase5-deploy-gcp/solicitud-recursos-cloud-run.md)."

@@ -47,18 +47,24 @@ builder.Services.AddSwaggerGen(c =>
     }
 });
 
+// Allow-list de orígenes en vez de SetIsOriginAllowed(_ => true) — cualquier sitio podía hacer
+// peticiones autenticadas (con credenciales) contra la API (QA BUG-011). Cors:AllowedOrigins es
+// una lista separada por comas; sin configurar, el default cubre solo el frontend local.
+var allowedOrigins = (builder.Configuration["Cors:AllowedOrigins"] ?? "http://localhost:3000,http://localhost:8181")
+    .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
 builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(policy =>
     {
-        policy.SetIsOriginAllowed(_ => true)
+        policy.WithOrigins(allowedOrigins)
               .AllowAnyMethod()
               .AllowAnyHeader()
               .AllowCredentials();
     });
     options.AddPolicy("SignalR", policy =>
     {
-        policy.SetIsOriginAllowed(_ => true)
+        policy.WithOrigins(allowedOrigins)
               .AllowAnyMethod()
               .AllowAnyHeader()
               .AllowCredentials();
@@ -93,13 +99,22 @@ else
 builder.Services.AddAuthModule();
 builder.Services.AddNotificacionesModule();
 builder.Services.AddAlertasModule();
-builder.Services.AddLicitacionModule();
+builder.Services.AddLicitacionModule(builder.Configuration);
 builder.Services.AddCatalogoModule();
 builder.Services.AddMensajeriaModule();
 builder.Services.AddAnalisisModule();
 
 var jwtSection = builder.Configuration.GetSection("JWT");
-var jwtSecret = jwtSection["Secret"] ?? "default-secret-change-this-in-production-min-32-chars";
+var jwtSecret = jwtSection["Secret"];
+if (string.IsNullOrWhiteSpace(jwtSecret) || jwtSecret.Length < 32)
+{
+    // Antes: fallback embebido en el binario ("default-secret-change-this-in-producion...")
+    // si faltaba la config — cualquiera que conociera ese valor podía falsificar sesiones
+    // (QA BUG-011). El arranque debe fallar de forma visible, no continuar con un secreto
+    // conocido.
+    throw new InvalidOperationException(
+        "JWT:Secret no está configurado o tiene menos de 32 caracteres. El servicio no puede arrancar sin un secreto de sesión real.");
+}
 var jwtIssuer = jwtSection["Issuer"] ?? "TIVIT.MPM";
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -193,7 +208,7 @@ static async Task<int> EjecutarWorkerAsync(string workerMode, string[] args)
 
     builder.Services.AddNotificacionesModule();
     builder.Services.AddAlertasModule();
-    builder.Services.AddLicitacionModule();
+    builder.Services.AddLicitacionModule(builder.Configuration);
     builder.Services.AddCatalogoModule();
     builder.Services.AddAnalisisModule();
 

@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using MPM.Modules.Licitaciones.Data;
 using MPM.Modules.Licitaciones.Services;
@@ -6,7 +7,7 @@ namespace MPM.Modules.Licitaciones;
 
 public static class ModuleRegistration
 {
-    public static IServiceCollection AddLicitacionModule(this IServiceCollection services)
+    public static IServiceCollection AddLicitacionModule(this IServiceCollection services, IConfiguration configuration)
     {
         services.AddScoped<LicitacionHandler>();
         services.AddScoped<SyncLogHandler>();
@@ -28,10 +29,19 @@ public static class ModuleRegistration
         // poder resolverlos directamente desde el "modo worker" de Program.cs y llamar
         // EjecutarCicloUnaVezAsync() sin depender del Timer del BackgroundService.
         services.AddSingleton<SyncEngineService>();
-        services.AddHostedService(sp => sp.GetRequiredService<SyncEngineService>());
         services.AddSingleton<ScraperBackgroundService>();
-        services.AddHostedService(sp => sp.GetRequiredService<ScraperBackgroundService>());
-        services.AddHostedService<AclaracionMonitorService>();
+
+        // RUN_INPROCESS_WORKERS=false en Cloud Run: SyncEngineService/ScraperBackgroundService/
+        // AclaracionMonitorService NO deben correr dentro del servicio web — ya corren como
+        // Cloud Run Jobs dedicados (sync-job, scraper-job), y dejarlos activos acá duplicaba
+        // la sincronización (QA BUG-004). Default true para no romper Docker Compose local.
+        var runInProcessWorkers = configuration.GetValue<bool?>("RUN_INPROCESS_WORKERS") ?? true;
+        if (runInProcessWorkers)
+        {
+            services.AddHostedService(sp => sp.GetRequiredService<SyncEngineService>());
+            services.AddHostedService(sp => sp.GetRequiredService<ScraperBackgroundService>());
+            services.AddHostedService<AclaracionMonitorService>();
+        }
         return services;
     }
 }

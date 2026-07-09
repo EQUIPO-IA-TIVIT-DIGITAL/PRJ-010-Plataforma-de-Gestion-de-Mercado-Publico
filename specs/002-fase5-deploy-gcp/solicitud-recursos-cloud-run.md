@@ -21,18 +21,11 @@ exactamente lo que falta y requiere a Nicolás (Owner del proyecto).
 - **Memorystore**: instancia `redis-cu010` (`REDIS_7_2`) creada en `vpc-cu010`.
 - **IAM**: `roles/cloudsql.client` y `roles/secretmanager.secretAccessor` otorgados a `mpm-api-sa` y `mpm-jobs-sa`; `roles/run.invoker` otorgado a `mpm-jobs-sa`.
 
-## ❌ Todavía pendiente — un solo punto real para el siguiente correo a Nicolás
+## ✅ Cerrado 2026-07-07: `roles/aiplatform.user` otorgado
 
-**Falta `roles/aiplatform.user` en `mpm-api-sa` y `mpm-jobs-sa`** (verificado vía `gcloud projects get-iam-policy` — no está en ninguna de las dos). Este rol es el que reemplazó la API key de Gemini (`020-migracion-gemini-adc`): sin él, todo el análisis de documentos con IA responde 403 en producción.
-
-```bash
-PROJECT=tivit-cu010
-for SA in mpm-api-sa mpm-jobs-sa; do
-  gcloud projects add-iam-policy-binding $PROJECT --member="serviceAccount:${SA}@${PROJECT}.iam.gserviceaccount.com" --role="roles/aiplatform.user"
-done
-```
-
-Confirmado (`gcloud projects get-iam-policy`, `gcloud beta resourcemanager` vía REST `testIamPermissions`): `matias.mendez@tivit.com` no tiene permisos para asignar roles de proyecto ni para crear/modificar instancias de Memorystore — ambas cosas requieren a Nicolás.
+Nicolás asignó `roles/aiplatform.user` a `mpm-api-sa` y `mpm-jobs-sa` — verificado vía
+`gcloud projects get-iam-policy`, ambas SA lo tienen junto con el resto de los roles.
+**No quedan pendientes de IAM.** Ya se puede intentar el primer `scripts/deploy.sh prod api up`.
 
 ## ✅ Memorystore — tier `BASIC`, no requiere cambio
 

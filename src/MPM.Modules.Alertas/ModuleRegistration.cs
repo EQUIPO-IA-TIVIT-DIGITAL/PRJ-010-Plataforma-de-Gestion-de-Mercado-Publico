@@ -13,7 +13,9 @@ public static class ModuleRegistration
         services.AddScoped<AlertaEnriquecimientoService>();
         services.AddScoped<AlertasMatchingService>();
         services.AddHttpClient<SinonimosIaService>();
-        services.AddHttpClient<TelegramNotificationService>();
+        // Timeout explícito (default de HttpClient es 100s) — un Telegram lento no debe colgar
+        // el resto del ciclo de matching (QA BUG-013).
+        services.AddHttpClient<TelegramNotificationService>(c => c.Timeout = TimeSpan.FromSeconds(10));
         return services;
     }
 }

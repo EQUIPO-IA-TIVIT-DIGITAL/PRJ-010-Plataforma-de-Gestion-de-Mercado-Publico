@@ -62,9 +62,18 @@ export async function descargarActaEvaluacion(fichaPage, context, datosLicitacio
       await adjuntosPage.waitForLoadState('domcontentloaded', { timeout: 20000 }).catch(() => {});
       await esperarConDelay(2000);
 
-      const actaInfo = await adjuntosPage.evaluate(() => {
+      const evalResult = await adjuntosPage.evaluate(() => {
         const table = document.getElementById('DWNL_grdId');
-        if (!table) return null;
+
+        // Canary: la palabra "adjunto" aparece en el chrome de la pagina (titulo, breadcrumb,
+        // encabezado) incluso cuando la licitacion no tiene archivos que mostrar. Si el canary
+        // esta presente pero el grid #DWNL_grdId no, es senal de que Mercado Publico cambio el
+        // id/estructura de la tabla -- no de que se agoto el cupo (QA BUG-003). Si el canary
+        // tampoco esta, no podemos distinguir con certeza: se mantiene el comportamiento previo
+        // (tratarlo como "tabla vacia") para no generar falsos positivos de "cambio de sitio".
+        const canary = document.body.innerText.toLowerCase().includes('adjunto');
+
+        if (!table) return { table: false, canary, rows: null };
 
         const rows = table.querySelectorAll('tr');
         const resultados = [];
@@ -84,8 +93,19 @@ export async function descargarActaEvaluacion(fichaPage, context, datosLicitacio
           resultados.push({ nombre, tipo, descripcion, tamanio, fecha, btnId, esActa: tipo === 'Acta de Evaluaci\u00f3n' });
         }
 
-        return resultados;
+        return { table: true, canary, rows: resultados };
       });
+
+      if (!evalResult.table && evalResult.canary) {
+        console.log('[ADJUNTOS] Canary presente pero #DWNL_grdId ausente: posible cambio de estructura del sitio, no cupo agotado');
+        await screenshotOnError(adjuntosPage, carpetaDestino, 'adjuntos-posible-cambio-estructura');
+        await adjuntosPage.close().catch(() => {});
+        const err = new Error('Estructura de la pagina de adjuntos cambio (grid #DWNL_grdId ausente con canary presente)');
+        err.isStructureChange = true;
+        throw err;
+      }
+
+      const actaInfo = evalResult.rows;
 
       if (!actaInfo || actaInfo.length === 0) {
         console.log('[ADJUNTOS] No se encontraron adjuntos en la tabla');
@@ -154,6 +174,12 @@ export async function descargarActaEvaluacion(fichaPage, context, datosLicitacio
       if (adjuntosPage && !adjuntosPage.isClosed()) {
         await screenshotOnError(adjuntosPage, carpetaDestino, `adjuntos-error-${Date.now()}`);
         await adjuntosPage.close().catch(() => {});
+      }
+      // Cambio de estructura del sitio: no tiene sentido reintentar (no se va a arreglar solo
+      // en unos segundos) — se corta de inmediato y se marca de forma distinguible para que
+      // agente-mp.js NO lo cuente como "cupo agotado" (QA BUG-003).
+      if (e.isStructureChange) {
+        return { actaEvaluacion: null, actaDescargada: false, error: e.message, todosAdjuntos: [], estructuraCambio: true };
       }
       if (intento < MAX_REINTENTOS) {
         await esperarConDelay(3000);

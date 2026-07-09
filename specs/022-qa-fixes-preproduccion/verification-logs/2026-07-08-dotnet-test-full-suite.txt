@@ -1,0 +1,23 @@
+Fecha: 2026-07-08T18:52:45Z
+dotnet test — todos los proyectos del repo (MPM.sln no registra 3: se corren aparte)
+
+=== tests/MPM.Core.Tests/MPM.Core.Tests.csproj ===
+Correctas! - Con error:     0, Superado:     8, Omitido:     0, Total:     8, Duración: 52 ms - MPM.Core.Tests.dll (net8.0)
+=== tests/MPM.Modules.Auth.Tests/MPM.Modules.Auth.Tests.csproj ===
+Correctas! - Con error:     0, Superado:    38, Omitido:     0, Total:    38, Duración: 148 ms - MPM.Modules.Auth.Tests.dll (net8.0)
+=== tests/MPM.Modules.Analisis.Tests/MPM.Modules.Analisis.Tests.csproj ===
+Correctas! - Con error:     0, Superado:    47, Omitido:     0, Total:    47, Duración: 346 ms - MPM.Modules.Analisis.Tests.dll (net8.0)
+=== tests/MPM.Modules.Catalogo.Tests/MPM.Modules.Catalogo.Tests.csproj ===
+Correctas! - Con error:     0, Superado:    24, Omitido:     0, Total:    24, Duración: 41 ms - MPM.Modules.Catalogo.Tests.dll (net8.0)
+=== tests/MPM.Modules.Alertas.Tests/MPM.Modules.Alertas.Tests.csproj ===
+Correctas! - Con error:     0, Superado:    25, Omitido:     0, Total:    25, Duración: 832 ms - MPM.Modules.Alertas.Tests.dll (net8.0)
+=== tests/MPM.Modules.Notificaciones.Tests/MPM.Modules.Notificaciones.Tests.csproj ===
+Correctas! - Con error:     0, Superado:     6, Omitido:     0, Total:     6, Duración: 5 ms - MPM.Modules.Notificaciones.Tests.dll (net8.0)
+=== tests/MPM.Shared.Tests/MPM.Shared.Tests.csproj ===
+Correctas! - Con error:     0, Superado:    17, Omitido:     0, Total:    17, Duración: 51 ms - MPM.Shared.Tests.dll (net8.0)
+=== tests/MPM.Modules.Licitaciones.Tests/MPM.Modules.Licitaciones.Tests.csproj ===
+Correctas! - Con error:     0, Superado:    39, Omitido:     0, Total:    39, Duración: 414 ms - MPM.Modules.Licitaciones.Tests.dll (net8.0)
+=== tests/MPM.Modules.Mensajeria.Tests/MPM.Modules.Mensajeria.Tests.csproj ===
+Correctas! - Con error:     0, Superado:    23, Omitido:     0, Total:    23, Duración: 22 ms - MPM.Modules.Mensajeria.Tests.dll (net8.0)
+=== tests/MPM.Tests/MPM.Tests.csproj ===
+Con error! - Con error:    22, Superado:    23, Omitido:     0, Total:    45, Duración: 1 s - MPM.Tests.dll (net8.0)

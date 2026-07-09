@@ -21,8 +21,13 @@ FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime
 WORKDIR /app
 
 # Install Node.js 20 LTS (required by ScraperBackgroundService to run agente-mp.js)
+# + Xvfb + xauth: framebuffer virtual para que Chromium corra en modo "headed" dentro de
+#   Cloud Run (sin pantalla física). Mercado Público penaliza el fingerprint de Chromium
+#   headless con reCAPTCHA en el paso "Ver Adjuntos" (403 sistemático en vivo, 2026-07-06).
+#   Xvfb da el mismo perfil de renderizado que un navegador visible sin necesitar monitor.
+#   Ver specs/002-fase5-deploy-gcp/research.md §1b, specs/021-scraper-tivit-hardening/spec.md.
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends curl ca-certificates && \
+    apt-get install -y --no-install-recommends curl ca-certificates xvfb xauth && \
     curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
     apt-get install -y --no-install-recommends nodejs && \
     apt-get clean && rm -rf /var/lib/apt/lists/*

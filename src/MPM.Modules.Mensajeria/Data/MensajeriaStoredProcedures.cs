@@ -2,7 +2,9 @@ namespace MPM.Modules.Mensajeria.Data;
 
 public static class MensajeriaStoredProcedures
 {
-    public const string CrearConversacion = "CALL usp_Conversaciones_Crear(@p_tipo, @p_asunto, @p_licitacion_id, @p_participante_ids, @p_creador_id, @p_id, @p_error_msg)";
+    // ::jsonb explicito -- sin el cast, Npgsql manda p_participante_ids como texto/unknown y
+    // Postgres no encuentra ninguna sobrecarga de usp_Conversaciones_Crear que matchee (QA BUG-014).
+    public const string CrearConversacion = "CALL usp_Conversaciones_Crear(@p_tipo, @p_asunto, @p_licitacion_id, @p_participante_ids::jsonb, @p_creador_id, @p_id, @p_error_msg)";
     public const string ListarConversaciones = "SELECT * FROM usp_Conversaciones_Listar(@p_user_id, @p_page, @p_page_size, @p_search, @p_sort_by, @p_sort_dir)";
     public const string ObtenerConversacion = "SELECT * FROM usp_Conversaciones_Obtener(@p_id, @p_user_id)";
     public const string ActualizarConversacion = "CALL usp_Conversaciones_Actualizar(@p_id, @p_asunto, @p_user_id, @p_error_msg)";

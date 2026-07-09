@@ -61,6 +61,8 @@ Resuelve las decisiones técnicas marcadas como abiertas en `plan.md`. Cada deci
 
 **Para producción falta**: hornear esto en el Dockerfile/entrypoint de `scraper-job` de forma permanente (`apt-get install -y xvfb xauth` — la prueba en vivo encontró que `xvfb-run` requiere `xauth`, que no viene instalado por defecto aunque `Xvfb` sí; se usó el enfoque manual `Xvfb :99 & DISPLAY=:99 node ...` como workaround, pero para producción conviene instalar `xauth` y usar `xvfb-run --auto-servernum --` que maneja el ciclo de vida del proceso Xvfb automáticamente). Complejidad real, confirmada: baja. Sin cambios de lógica de negocio, solo Dockerfile + como se invoca el proceso Node. Alternativas descartadas: reutilización de cookies de sesión pre-autenticada (frágil, requiere refresco manual periódico) y servicios de resolución de CAPTCHA de terceros (riesgo de términos de servicio, costo recurrente, complejidad de integración mayor) — ya no hacen falta dado que Xvfb funcionó.
 
+**✅ Completado 2026-07-08**: `src/MPM.Api/Dockerfile` ahora instala `xvfb xauth` en la capa de runtime. `ScraperBackgroundService.cs` detecta `xvfb-run` en el PATH automáticamente (`IsXvfbAvailable()`): si está disponible (Cloud Run), envuelve la invocación con `xvfb-run --auto-servernum -- node ...` y setea `MP_HEADLESS=false`; si no (local), cae al flujo headless tradicional sin cambios. `dotnet build` pasa con 0 errores. Ver `specs/021-scraper-tivit-hardening/spec.md`.
+
 ---
 
 ## 2. Base de datos: Cloud SQL vs. PostgreSQL en contenedor

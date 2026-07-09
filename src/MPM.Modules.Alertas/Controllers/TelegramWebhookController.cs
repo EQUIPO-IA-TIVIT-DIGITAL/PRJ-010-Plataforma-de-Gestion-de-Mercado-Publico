@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -22,13 +24,14 @@ public class TelegramWebhookController(AlertasService service, IConfiguration co
     [HttpPost("webhook")]
     public async Task<IActionResult> Webhook([FromBody] JsonElement update)
     {
+        // Fail-closed: si el secret no está configurado, la petición se rechaza en vez de
+        // procesarse sin validar — antes, un Telegram:WebhookSecret vacío omitía la validación
+        // por completo y cualquiera que conociera la URL podía vincular chats arbitrarios
+        // (QA BUG-009). Comparación en tiempo constante para evitar timing attacks sobre el
+        // secreto.
         var secretEsperado = config["Telegram:WebhookSecret"];
-        if (!string.IsNullOrEmpty(secretEsperado))
-        {
-            var secretRecibido = Request.Headers["X-Telegram-Bot-Api-Secret-Token"].ToString();
-            if (secretRecibido != secretEsperado)
-                return Unauthorized();
-        }
+        if (string.IsNullOrEmpty(secretEsperado) || !SecretCoincide(Request.Headers["X-Telegram-Bot-Api-Secret-Token"].ToString(), secretEsperado))
+            return Unauthorized();
 
         if (!update.TryGetProperty("message", out var message) || message.ValueKind != JsonValueKind.Object)
             return Ok();
@@ -54,5 +57,14 @@ public class TelegramWebhookController(AlertasService service, IConfiguration co
 
         // Telegram solo requiere 200 OK; el resultado de la vinculación no se le reporta al bot.
         return Ok();
+    }
+
+    private static bool SecretCoincide(string recibido, string esperado)
+    {
+        var recibidoBytes = Encoding.UTF8.GetBytes(recibido);
+        var esperadoBytes = Encoding.UTF8.GetBytes(esperado);
+        // FixedTimeEquals exige igual longitud; si difiere, ya no coinciden (sin filtrar
+        // cuánto tarda la comparación según la longitud, que no es el secreto en sí).
+        return recibidoBytes.Length == esperadoBytes.Length && CryptographicOperations.FixedTimeEquals(recibidoBytes, esperadoBytes);
     }
 }

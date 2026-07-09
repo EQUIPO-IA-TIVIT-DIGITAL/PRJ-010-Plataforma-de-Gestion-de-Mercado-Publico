@@ -72,7 +72,13 @@ async function executeCycle() {
 
     if (licitaciones.length === 0) {
       console.log('\n[CICLO] No se encontraron licitaciones.');
-      await cerrarYGenerar(browser, context, page, resultados, CARPETA_BASE, syncId, horaInicio);
+      // Antes se pasaba CARPETA_BASE directo a cerrarYGenerar (sin crear la carpeta del lote),
+      // y guardarResumen fallaba con ENOENT al intentar escribir resumen.json en una carpeta
+      // que nunca se creó -- el ciclo de 0 resultados quedaba con un stack trace en los logs
+      // aunque igual terminara "exitosamente". Se alinea con el camino normal (línea ~107),
+      // que sí llama crearCarpetaLote() antes de generar el resumen.
+      const carpetaLoteVacio = crearCarpetaLote(CARPETA_BASE);
+      await cerrarYGenerar(browser, context, page, resultados, carpetaLoteVacio, syncId, horaInicio);
       return;
     }
 
@@ -110,6 +116,7 @@ async function executeCycle() {
     const maxFallosConsecutivos = parseInt(process.env.MP_MAX_FALLOS_CONSECUTIVOS || '2', 10);
     let fallosConsecutivos = 0;
     let detenidoPorFallos = false;
+    let estructuraCambioDetectada = false;
 
     for (let i = 0; i < licitacionesAProcesar.length; i++) {
       const lic = licitacionesAProcesar[i];
@@ -152,6 +159,14 @@ async function executeCycle() {
           datos.actaDescargada = resultAdjuntos.actaDescargada;
           datos.errorActa = resultAdjuntos.error;
           datos.todosAdjuntos = resultAdjuntos.todosAdjuntos;
+
+          if (resultAdjuntos.estructuraCambio) {
+            // Marcador parseable: si este proceso corre como subproceso de
+            // ScraperBackgroundService.cs (.NET), NotificarResultadoAsync lo detecta en stdout
+            // y dispara una alerta a Telegram distinta de "cupo agotado" (QA BUG-003).
+            console.log('[CICLO] ESTRUCTURA_CAMBIO_DETECTADA: true -- cortando ciclo de inmediato, no es cupo agotado');
+            estructuraCambioDetectada = true;
+          }
 
           if (licitacionDbId && resultAdjuntos.todosAdjuntos) {
             for (const adj of resultAdjuntos.todosAdjuntos) {
@@ -232,6 +247,11 @@ async function executeCycle() {
         fallosConsecutivos++;
       }
 
+      if (estructuraCambioDetectada) {
+        console.log('\n[CICLO] Cambio de estructura detectado -- cortando sesion de inmediato (sin esperar el umbral de fallos consecutivos).');
+        break;
+      }
+
       // Deteccion de cupo agotado: el 2026-07-07 se confirmo con dos corridas independientes
       // (sesion/navegador/login nuevos en ambas) que el 403 en "Ver Adjuntos" es un limite de
       // VOLUMEN acumulado (cuenta o IP) por ventana de tiempo -- no se resuelve con pausas
@@ -262,6 +282,12 @@ async function executeCycle() {
     console.log('\n[CICLO] Paso 5/5: Generando reporte...');
     await cerrarYGenerar(browser, context, page, resultados, carpetaLote, syncId, horaInicio);
 
+    if (estructuraCambioDetectada) {
+      // A diferencia de "cupo agotado", reintentar con una sesion nueva no arregla un cambio
+      // real de estructura del sitio -- se corta el orquestador y se deja la alerta a cargo
+      // del wrapper .NET (ver ESTRUCTURA_CAMBIO_DETECTADA arriba).
+      return { detenidoPorFallos: false, estructuraCambio: true };
+    }
     if (detenidoPorFallos) {
       // Senal para el orquestador de sesiones (ejecutarConReintentosDeSesion): hay que
       // esperar un enfriamiento largo real y reintentar con una sesion/login nuevos.
@@ -354,6 +380,11 @@ async function ejecutarConReintentosDeSesion() {
   for (let ciclo = 1; ciclo <= maxCiclos; ciclo++) {
     console.log(`\n${'='.repeat(70)}\n[SESION] Ciclo ${ciclo}/${maxCiclos}\n${'='.repeat(70)}`);
     const resultado = await executeCycle();
+
+    if (resultado && resultado.estructuraCambio) {
+      console.log('[SESION] Cambio de estructura del sitio detectado -- no se reintenta con una sesion nueva (no se va a arreglar solo). Deteniendo orquestador.');
+      return;
+    }
 
     if (!resultado || !resultado.detenidoPorFallos) {
       console.log('[SESION] Ciclo completado sin cortarse por cupo agotado -- no hacen falta mas sesiones.');

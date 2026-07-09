@@ -23,6 +23,7 @@ public class AuthController(
     ILogger<AuthController> logger,
     DbConnectionFactory dbFactory,
     AuthHandler authHandler,
+    AuthEventoHandler authEventoHandler,
     IEmailService emailService,
     IHostEnvironment env) : ControllerBase
 {
@@ -64,7 +65,9 @@ public class AuthController(
         var tenantId = parameters.Get<string?>("p_tenant_id") ?? Guid.NewGuid().ToString();
         var tenantNombre = parameters.Get<string?>("p_tenant_nombre") ?? "TIVIT Chile";
 
-        var jwtSecret = config["JWT:Secret"] ?? "CHANGE-THIS-IN-PRODUCTION-MIN-32-CHARS";
+        // Sin fallback embebido (QA BUG-011): Program.cs ya falla el arranque si JWT:Secret no
+        // está configurado, así que en tiempo de ejecución siempre debe existir.
+        var jwtSecret = config["JWT:Secret"] ?? throw new InvalidOperationException("JWT:Secret no configurado");
         var jwtIssuer = config["JWT:Issuer"] ?? "TIVIT.MPM";
 
         var claims = new[]
@@ -89,6 +92,23 @@ public class AuthController(
             signingCredentials: creds);
 
         var tokenString = new JwtSecurityTokenHandler().WriteToken(token);
+
+        // Auditoría de adopción (QA BUG-010): best effort, nunca debe bloquear ni fallar el
+        // login — un problema registrando el evento no es motivo para negarle el acceso a un
+        // usuario que sí se autenticó correctamente.
+        try
+        {
+            await authEventoHandler.RegistrarAsync(
+                userId.ToString(),
+                tenantId,
+                request.Email.ToLower().Trim(),
+                HttpContext.Connection.RemoteIpAddress?.ToString(),
+                Request.Headers.UserAgent.ToString());
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "No se pudo registrar el evento de auditoría de login para {Email}", request.Email);
+        }
 
         return Ok(ApiResponse<object>.Ok(new
         {

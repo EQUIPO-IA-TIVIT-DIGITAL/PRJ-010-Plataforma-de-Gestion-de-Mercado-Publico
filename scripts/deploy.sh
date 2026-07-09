@@ -79,6 +79,9 @@ GCS_BUCKET="${GCS_BUCKET:-tivit-cu010-mpm-adjuntos}"
 SECRET_JWT="${SECRET_JWT:-jwt-secret}"
 SECRET_MP_TICKET="${SECRET_MP_TICKET:-mp-ticket}"
 SECRET_DB_CONNSTRING="${SECRET_DB_CONNSTRING:-postgresql-connection-string}"
+SECRET_TELEGRAM_BOT_TOKEN="${SECRET_TELEGRAM_BOT_TOKEN:-telegram-bot-token}"
+SECRET_TELEGRAM_WEBHOOK_SECRET="${SECRET_TELEGRAM_WEBHOOK_SECRET:-telegram-webhook-secret}"
+TELEGRAM_BOT_USERNAME="${TELEGRAM_BOT_USERNAME:-CU010_bot}"
 # Gemini ya NO usa API key (020-migracion-gemini-adc) — se autentica vía ADC con la identidad
 # de mpm-api-sa/mpm-jobs-sa (roles/aiplatform.user), automático en Cloud Run, sin secreto.
 
@@ -124,7 +127,19 @@ require_var() {
 build_and_push() {
   local dockerfile="$1" image="$2" context="$3"
   echo "→ Build + push de imagen: $image"
-  gcloud builds submit --project="$GCP_PROJECT" --tag "$image" -f "$dockerfile" "$context"
+  # gcloud builds submit --tag solo soporta un Dockerfile en la raíz del contexto ("docker build
+  # -t $TAG ." fijo, sin -f). Como el Dockerfile de la API vive en src/MPM.Api/Dockerfile (no en
+  # la raíz del repo), armamos un cloudbuild.yaml efímero que sí permite pasar -f.
+  local cloudbuild_config
+  cloudbuild_config="$(mktemp -t mpm-cloudbuild-XXXXXX.yaml)"
+  cat > "$cloudbuild_config" <<EOF
+steps:
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-f', '${dockerfile}', '-t', '${image}', '.']
+images: ['${image}']
+EOF
+  gcloud builds submit --project="$GCP_PROJECT" --config="$cloudbuild_config" "$context"
+  rm -f "$cloudbuild_config"
 }
 
 # App envs comunes a api y a los jobs (comparten el mismo binario MPM.Api, ver Program.cs modo worker).
@@ -133,16 +148,42 @@ build_and_push() {
 # (SECRET_DB_CONNSTRING, ver common_app_secrets), armado por scripts/setup-secrets.sh.
 common_app_env_vars() {
   require_var REDIS_HOST
-  echo "ASPNETCORE_URLS=http://+:80,ConnectionStrings__Redis=${REDIS_HOST}:${REDIS_PORT},Storage__Provider=gcs,Storage__Bucket=${GCS_BUCKET},GOOGLE_CLOUD_PROJECT=${GCP_PROJECT},Vertex__Region=${GCP_REGION},JWT__Issuer=TIVIT.MPM,JWT__Audience=MPM.Users"
+  # CORS_ALLOWED_ORIGINS (QA BUG-011): dominio real de mpm-web en Cloud Run (o el dominio
+  # custom, si se configura uno). Sin setear, cae al default de Program.cs
+  # (http://localhost:3000,http://localhost:8181) — el frontend de producción quedaría
+  # bloqueado por CORS. Se conoce recién después del primer `deploy_web`; en el primer
+  # despliegue, correr `deploy_api` de nuevo una vez que `deploy_web` imprima la URL final.
+  local cors_origins="${CORS_ALLOWED_ORIGINS:-http://localhost:3000,http://localhost:8181}"
+  echo "ASPNETCORE_URLS=http://+:80,ConnectionStrings__Redis=${REDIS_HOST}:${REDIS_PORT},Storage__Provider=gcs,Storage__Bucket=${GCS_BUCKET},GOOGLE_CLOUD_PROJECT=${GCP_PROJECT},Vertex__Region=${GCP_REGION},JWT__Issuer=TIVIT.MPM,JWT__Audience=MPM.Users,Cors__AllowedOrigins=${cors_origins},Telegram__BotUsername=${TELEGRAM_BOT_USERNAME}"
 }
 
+# Telegram__BotToken/WebhookSecret opcionales -- si no existen todavía en Secret Manager (p.ej.
+# el primer deploy antes de correr setup-secrets.sh con esos valores), no se agregan al
+# --set-secrets para no romper el deploy; Alertas simplemente no manda a Telegram hasta que
+# existan (ver TelegramNotificationService, falla aislada; TelegramWebhookController fail-closed).
 common_app_secrets() {
-  echo "JWT__Secret=${SECRET_JWT}:latest,MP_TICKET=${SECRET_MP_TICKET}:latest,ConnectionStrings__PostgreSQL=${SECRET_DB_CONNSTRING}:latest"
+  local secrets="JWT__Secret=${SECRET_JWT}:latest,MP_TICKET=${SECRET_MP_TICKET}:latest,ConnectionStrings__PostgreSQL=${SECRET_DB_CONNSTRING}:latest,DB_HOST=db-host:latest,DB_PORT=db-port:latest,DB_NAME=db-name:latest,DB_USER=db-user:latest,DB_PASSWORD=db-password:latest"
+  if gcloud secrets describe "$SECRET_TELEGRAM_BOT_TOKEN" --project="$GCP_PROJECT" >/dev/null 2>&1; then
+    secrets="${secrets},Telegram__BotToken=${SECRET_TELEGRAM_BOT_TOKEN}:latest"
+  fi
+  if gcloud secrets describe "$SECRET_TELEGRAM_WEBHOOK_SECRET" --project="$GCP_PROJECT" >/dev/null 2>&1; then
+    secrets="${secrets},Telegram__WebhookSecret=${SECRET_TELEGRAM_WEBHOOK_SECRET}:latest"
+  fi
+  echo "$secrets"
 }
 
 deploy_api() {
   build_and_push src/MPM.Api/Dockerfile "$API_IMAGE" .
   echo "→ gcloud run deploy $RUN_API_SERVICE"
+  # --no-cpu-throttling: mitigación de piso para BUG-002 (QA) — Cloud Run por defecto retira
+  # la CPU a una instancia entre peticiones, matando el Task.Run fire-and-forget del análisis
+  # IA. El fix estructural es AnalisisRecoveryWorker (ver research.md R2); este flag evita que
+  # la mayoría de los análisis normales dependan de que el worker de recuperación los reintente.
+  # RUN_INPROCESS_WORKERS=false: el servicio web NO debe correr SyncEngineService/
+  # ScraperBackgroundService/AclaracionMonitorService por su cuenta — esos ya corren como
+  # Cloud Run Jobs dedicados (sync-job, scraper-job); dejarlos activos acá duplicaba el
+  # trabajo (QA BUG-004). En Docker Compose local la variable queda sin setear y el default
+  # (true) preserva el comportamiento actual.
   gcloud run deploy "$RUN_API_SERVICE" \
     --project="$GCP_PROJECT" \
     --region="$GCP_REGION" \
@@ -152,9 +193,10 @@ deploy_api() {
     --subnet="$VPC_SUBNET" \
     --vpc-egress=private-ranges-only \
     --min-instances=1 \
+    --no-cpu-throttling \
     --allow-unauthenticated \
     --port=80 \
-    --set-env-vars="$(common_app_env_vars)" \
+    --set-env-vars="RUN_INPROCESS_WORKERS=false,$(common_app_env_vars)" \
     --set-secrets="$(common_app_secrets)"
 }
 

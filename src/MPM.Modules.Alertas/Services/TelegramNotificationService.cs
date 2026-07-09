@@ -20,7 +20,7 @@ public class TelegramNotificationService(HttpClient httpClient, IConfiguration c
 
         try
         {
-            var payload = new { chat_id = chatId, text = mensaje, parse_mode = "Markdown" };
+            var payload = new { chat_id = chatId, text = mensaje, parse_mode = "MarkdownV2" };
             var content = new StringContent(JsonSerializer.Serialize(payload), System.Text.Encoding.UTF8, "application/json");
 
             var response = await httpClient.PostAsync(
@@ -42,15 +42,35 @@ public class TelegramNotificationService(HttpClient httpClient, IConfiguration c
 
     public static string FormatearMensaje(string keyword, string nombreLicitacion, string codigoExterno, MPM.Modules.Alertas.Models.ResumenEnriquecido? resumen)
     {
+        // El nombre/código de la licitación es texto libre proveniente de Mercado Público —
+        // puede traer '_', '*', '.', etc., que MarkdownV2 interpreta como sintaxis de formato.
+        // Sin escapar, Telegram respondía 400 y el mensaje nunca se entregaba (QA BUG-013).
         var lineas = new List<string>
         {
-            $"🔔 *Nueva alerta: {keyword}*",
-            $"{nombreLicitacion} ({codigoExterno})",
+            $"🔔 *Nueva alerta: {EscaparMarkdownV2(keyword)}*",
+            $"{EscaparMarkdownV2(nombreLicitacion)} \\({EscaparMarkdownV2(codigoExterno)}\\)",
         };
 
-        if (resumen?.Presupuesto != null) lineas.Add($"Presupuesto: {resumen.Presupuesto}");
+        if (resumen?.Presupuesto != null) lineas.Add($"Presupuesto: {EscaparMarkdownV2(resumen.Presupuesto)}");
         if (resumen?.EsRenovacion == true) lineas.Add("⚠️ Posible renovación de contrato existente");
 
         return string.Join("\n", lineas);
+    }
+
+    /// <summary>
+    /// Escapa los caracteres reservados de MarkdownV2 (spec de Telegram Bot API) en texto libre
+    /// que se interpola dentro de un mensaje — nunca aplicar sobre la sintaxis de formato que
+    /// se agrega a propósito (los `*` de negrita, por ejemplo).
+    /// </summary>
+    public static string EscaparMarkdownV2(string texto)
+    {
+        Span<char> reservados = ['_', '*', '[', ']', '(', ')', '~', '`', '>', '#', '+', '-', '=', '|', '{', '}', '.', '!'];
+        var sb = new System.Text.StringBuilder(texto.Length);
+        foreach (var c in texto)
+        {
+            if (reservados.Contains(c)) sb.Append('\\');
+            sb.Append(c);
+        }
+        return sb.ToString();
     }
 }

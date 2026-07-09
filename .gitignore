@@ -24,6 +24,9 @@ dist/
 **/appsettings.Local.json
 db-exports/
 
+# Notas internas de reuniones (contienen correos del equipo, no se versionan)
+info/
+
 # IDE
 .vscode/
 .idea/

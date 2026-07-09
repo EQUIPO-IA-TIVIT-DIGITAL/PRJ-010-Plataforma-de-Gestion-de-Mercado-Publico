@@ -110,12 +110,17 @@ public class ConversacionHandler(DbConnectionFactory dbFactory)
     {
         await using var conn = _dbFactory.Create();
         
+        // Sin dbType explicito, un asunto/licitacionId NULL viaja como parametro "unknown" y
+        // Postgres no puede resolver la sobrecarga del procedure ("does not exist" 42883, QA
+        // BUG-014) -- CALL es mas estricto que una funcion normal con casts implicitos. Mismo
+        // motivo para forzar el cast a jsonb de participante_ids en el SQL (ver
+        // MensajeriaStoredProcedures.CrearConversacion).
         var parameters = new DynamicParameters();
-        parameters.Add("p_tipo", tipo);
-        parameters.Add("p_asunto", asunto);
-        parameters.Add("p_licitacion_id", licitacionId);
-        parameters.Add("p_participante_ids", JsonSerializer.Serialize(participanteIds));
-        parameters.Add("p_creador_id", creadorId);
+        parameters.Add("p_tipo", tipo, dbType: DbType.String, size: 10);
+        parameters.Add("p_asunto", asunto, dbType: DbType.String, size: 200);
+        parameters.Add("p_licitacion_id", licitacionId, dbType: DbType.Int64);
+        parameters.Add("p_participante_ids", JsonSerializer.Serialize(participanteIds), dbType: DbType.String);
+        parameters.Add("p_creador_id", creadorId, dbType: DbType.String, size: 100);
         parameters.Add("p_id", dbType: DbType.Int64, direction: ParameterDirection.InputOutput);
         parameters.Add("p_error_msg", dbType: DbType.String, size: 1000, direction: ParameterDirection.InputOutput);
 

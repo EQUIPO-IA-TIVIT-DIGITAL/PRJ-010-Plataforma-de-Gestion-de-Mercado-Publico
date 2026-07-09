@@ -70,8 +70,18 @@ scripts/deploy.sh prod api up
 
 Internamente: build de la imagen (`gcloud builds submit`), push a Artifact Registry, y
 `gcloud run deploy mpm-api` con `--min-instances=1` (necesario para que SignalR no pierda
-sesiones activas de chat por cold-start) y `--network`/`--subnet` (Direct VPC egress) apuntando
-a `vpc-cu010`/`sn-cu010-prd` para llegar a Cloud SQL/Memorystore por IP privada.
+sesiones activas de chat por cold-start), `--no-cpu-throttling` (mitigación de piso para que el
+análisis IA no muera cuando Cloud Run retira la CPU entre peticiones — ver
+`specs/022-qa-fixes-preproduccion/`, BUG-002) y `--network`/`--subnet` (Direct VPC egress)
+apuntando a `vpc-cu010`/`sn-cu010-prd` para llegar a Cloud SQL/Memorystore por IP privada.
+
+El servicio web arranca con `RUN_INPROCESS_WORKERS=false`: `SyncEngineService`,
+`ScraperBackgroundService` y `AclaracionMonitorService` NO corren dentro de este proceso (ya
+corren como los Cloud Run Jobs de abajo) — evita la sincronización duplicada de BUG-004. En
+Docker Compose local esta variable no se setea y el default (`true`) preserva el comportamiento
+actual. `Cors:AllowedOrigins` también debe apuntar al dominio real de `mpm-web` una vez
+desplegado (ver `CORS_ALLOWED_ORIGINS` en `scripts/deploy.sh`) — sin esto, el frontend de
+producción queda bloqueado por CORS.
 
 ## Deploy de los background services (Cloud Run Jobs)
 
@@ -86,11 +96,18 @@ del background service correspondiente en vez de levantar Kestrel (ver
 `SyncEngineService.EjecutarCicloUnaVezAsync()` / `ScraperBackgroundService.EjecutarCicloUnaVezAsync()`).
 
 **`analisis-job` no existe todavía.** `AnalisisBackgroundService` no es un ciclo periódico —
-hoy dispara `Task.Run` fire-and-forget dentro del proceso web cuando se sube un documento
-(`EnqueueAnalisis`). Eso es un riesgo en Cloud Run: si el CPU se throttlea apenas termina la
-respuesta HTTP que lo disparó, el análisis puede cortarse a medias. Rediseñarlo como Job
-requiere un mecanismo de cola real (Pub/Sub) en vez de `Task.Run` — no es solo exponer un
-"ejecutar una vez" como se hizo con Sync/Scraper. **Pendiente, no implementado en esta pasada.**
+sigue disparando `Task.Run` fire-and-forget dentro del proceso web cuando se sube un documento
+(`EnqueueAnalisis`). Rediseñarlo como Job requiere un mecanismo de cola real (Pub/Sub) en vez de
+`Task.Run` — no es solo exponer un "ejecutar una vez" como se hizo con Sync/Scraper. **Pendiente,
+no implementado en esta pasada.**
+
+**Mitigación agregada (2026-07-08, `specs/022-qa-fixes-preproduccion`, BUG-002)**: como piso de
+seguridad mientras no existe el rediseño completo, se agregó `AnalisisRecoveryWorker` — un
+`IHostedService` que corre cada ~60s dentro del propio servicio web y reencola cualquier
+análisis que quedó en estado `analizando` sin resultado por más de `Analisis:RecoveryThresholdMinutes`
+(default 5 min), reutilizando el mismo `estado` que ya se persistía. Sumado a
+`--no-cpu-throttling` (arriba), esto reduce drásticamente el caso de "queda procesando para
+siempre", sin requerir el rediseño a Pub/Sub todavía.
 
 ## Estado de `016-extraccion-documentos-api` — spike ejecutado, resultado: bloqueado por reCAPTCHA
 

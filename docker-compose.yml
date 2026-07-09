@@ -75,6 +75,17 @@ services:
       - MONITOR_INTERVAL_MINUTES=${MONITOR_INTERVAL_MINUTES:-30}
       - Monitor__Enabled=${MONITOR_ENABLED:-true}
       - Monitor__IntervalMinutes=${MONITOR_INTERVAL_MINUTES:-30}
+      # Corrección QA pre-producción (specs/022-qa-fixes-preproduccion) — sin setear acá, cada
+      # una toma su default local seguro (true/permisivo); en Cloud Run se sobreescriben vía
+      # scripts/deploy.sh (RUN_INPROCESS_WORKERS=false, DB_HOST/DB_PORT desde Secret Manager).
+      # - RUN_INPROCESS_WORKERS=true (default): si es false, el servicio web NO corre
+      #   SyncEngineService/ScraperBackgroundService/AclaracionMonitorService in-process
+      #   (evita duplicar los Cloud Run Jobs dedicados — BUG-004).
+      # - Cors__AllowedOrigins=http://localhost:3000,http://localhost:8181 (allow-list de CORS,
+      #   sin valor por defecto embebido en el código — BUG-011).
+      # - Analisis__RecoveryThresholdMinutes=5 (default): minutos de inactividad antes de que
+      #   AnalisisRecoveryWorker reintente un análisis huérfano — BUG-002.
+      - Cors__AllowedOrigins=${CORS_ALLOWED_ORIGINS:-http://localhost:3000,http://localhost:8181}
     depends_on:
       db:
         condition: service_healthy

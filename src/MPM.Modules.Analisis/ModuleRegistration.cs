@@ -15,6 +15,7 @@ public static class ModuleRegistration
         });
         services.AddScoped<AnalisisService>();
         services.AddSingleton<IAnalisisBackgroundService, AnalisisBackgroundService>();
+        services.AddHostedService<AnalisisRecoveryWorker>();
         return services;
     }
 }

@@ -1,0 +1,29 @@
+Fecha: 2026-07-08T18:52:28Z
+Entorno: docker-compose local (mpm-api reconstruido con los cambios de 022-qa-fixes-preproduccion)
+
+════════════════════════════════════════════════════════════
+ Verificación en vivo — specs/022-qa-fixes-preproduccion
+════════════════════════════════════════════════════════════
+
+US1 (BUG-001) — arranque / migraciones
+  ✅ GET /health -> 200
+  ✅ Migraciones V092 (auth_eventos) y V093 (fix búsqueda) aplicadas
+
+US5 (BUG-011) — CORS allow-list
+  ✅ Origen no autorizado NO recibe Access-Control-Allow-Origin
+  ✅ Origen autorizado (localhost:8181) SÍ recibe CORS
+
+US6 (BUG-009) — webhook Telegram fail-closed
+  ✅ POST /telegram/webhook sin cabecera -> 401
+
+US7 (BUG-010) — auditoría de login
+  ✅ POST /auth/login con credenciales demo -> 200
+  ✅ Login quedó registrado en auth_eventos (2026-07-08 18:52:29.317899)
+
+US8 (BUG-008) — búsqueda con índice
+  ✅ GET /licitaciones?search=construccion -> 200
+  ✅ Plan de ejecución usa idx_licitaciones_search_vector (Bitmap Index Scan)
+
+════════════════════════════════════════════════════════════
+ Resultado: 9 OK / 0 fallidos
+════════════════════════════════════════════════════════════

@@ -93,4 +93,52 @@ public class AlertasMatchingServiceTests
 
         resultado.Should().BeNull();
     }
+
+    // ── BUG-012: ListarAccountManagersAsync una sola vez por ciclo, no por licitación ──
+    // AlertasHandler/AlertaEnriquecimientoService/TelegramNotificationService/
+    // NotificacionesService son clases concretas sin interfaz (no mockeables con Moq sin
+    // refactor); se verifica en el código fuente que la consulta ya no vive dentro del método
+    // por-licitación (ProcesarGrupoAsync) sino en los puntos de entrada por ciclo
+    // (EvaluarLicitacionesAsync/ProbarAsync).
+
+    [Fact]
+    public void SourceCode_ListarAccountManagersAsync_YaNoSeLlamaDentroDeProcesarGrupoAsync()
+    {
+        var source = File.ReadAllText(FindSourceFile("AlertasMatchingService.cs")).Replace("\r\n", "\n");
+
+        var inicioMetodo = source.IndexOf("private async Task<ProbarAlertaResponse> ProcesarGrupoAsync(", StringComparison.Ordinal);
+        inicioMetodo.Should().BeGreaterThanOrEqualTo(0);
+        var finMetodo = source.IndexOf("\n    private", inicioMetodo + 1, StringComparison.Ordinal);
+        if (finMetodo < 0) finMetodo = source.IndexOf("\n    internal", inicioMetodo + 1, StringComparison.Ordinal);
+        var cuerpoMetodo = source[inicioMetodo..finMetodo];
+
+        cuerpoMetodo.Should().NotContain("ListarAccountManagersAsync",
+            "la consulta de destinatarios no debe repetirse por cada licitación con match (QA BUG-012)");
+    }
+
+    [Fact]
+    public void SourceCode_EvaluarLicitacionesAsync_ConsultaDestinatariosUnaVezPorCiclo()
+    {
+        var source = File.ReadAllText(FindSourceFile("AlertasMatchingService.cs")).Replace("\r\n", "\n");
+
+        var inicioMetodo = source.IndexOf("public async Task EvaluarLicitacionesAsync(", StringComparison.Ordinal);
+        inicioMetodo.Should().BeGreaterThanOrEqualTo(0);
+        var finMetodo = source.IndexOf("\n    public async Task<ProbarAlertaResponse> ProbarAsync", inicioMetodo + 1, StringComparison.Ordinal);
+        var cuerpoMetodo = source[inicioMetodo..finMetodo];
+
+        cuerpoMetodo.Should().Contain("ListarAccountManagersAsync",
+            "la consulta debe ocurrir una vez, antes del foreach de licitaciones");
+    }
+
+    private static string FindSourceFile(string fileName)
+    {
+        var dir = new DirectoryInfo(AppContext.BaseDirectory);
+        while (dir != null && !File.Exists(Path.Combine(dir.FullName, "MPM.sln")))
+            dir = dir.Parent;
+
+        if (dir == null) throw new FileNotFoundException("No se encontró MPM.sln subiendo desde el directorio de test.");
+
+        return Directory.GetFiles(dir.FullName, fileName, SearchOption.AllDirectories)
+            .Single(p => !p.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}") && !p.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}"));
+    }
 }

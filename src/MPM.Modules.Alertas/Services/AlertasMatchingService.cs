@@ -26,11 +26,16 @@ public class AlertasMatchingService(
         var reglas = (await handler.ListarActivasAsync(ct)).ToList();
         if (reglas.Count == 0) return;
 
+        // BUG-012 (QA): antes se consultaba una vez POR LICITACIÓN CON MATCH dentro de
+        // ProcesarGrupoAsync; se sube al nivel de ciclo y se pasa como parámetro, sin cambiar
+        // el resultado — solo el número de consultas a la BD.
+        var destinatarios = (await handler.ListarAccountManagersAsync(ct)).ToList();
+
         foreach (var licitacion in licitaciones)
         {
             try
             {
-                await EvaluarUnaLicitacionAsync(licitacion, reglas, esPrueba: false, ct);
+                await EvaluarUnaLicitacionAsync(licitacion, reglas, destinatarios, esPrueba: false, ct);
             }
             catch (Exception ex)
             {
@@ -49,12 +54,13 @@ public class AlertasMatchingService(
         if (reglas.Count == 0)
             return new ProbarAlertaResponse(0, true, false, false, "Regla no encontrada, no pertenece al usuario, o está pausada");
 
-        var resultado = await EvaluarUnaLicitacionAsync(licitacion, reglas, esPrueba: true, ct, forzarMatch: true);
+        var destinatarios = (await handler.ListarAccountManagersAsync(ct)).ToList();
+        var resultado = await EvaluarUnaLicitacionAsync(licitacion, reglas, destinatarios, esPrueba: true, ct, forzarMatch: true);
         return resultado ?? new ProbarAlertaResponse(0, true, false, false, "No se pudo generar la alerta de prueba");
     }
 
     private async Task<ProbarAlertaResponse?> EvaluarUnaLicitacionAsync(
-        LicitacionParaMatching licitacion, List<ReglaActivaRow> reglas, bool esPrueba, CancellationToken ct, bool forzarMatch = false)
+        LicitacionParaMatching licitacion, List<ReglaActivaRow> reglas, List<(string UsuarioId, string? TelegramChatId)> destinatarios, bool esPrueba, CancellationToken ct, bool forzarMatch = false)
     {
         var matches = new List<(ReglaActivaRow Regla, string Termino)>();
 
@@ -78,7 +84,7 @@ public class AlertasMatchingService(
 
         foreach (var grupoUsuario in matches.GroupBy(m => m.Regla.p_usuario_id))
         {
-            var resultado = await ProcesarGrupoAsync(grupoUsuario.Key, grupoUsuario.ToList(), licitacion, esPrueba, ct);
+            var resultado = await ProcesarGrupoAsync(grupoUsuario.Key, grupoUsuario.ToList(), licitacion, destinatarios, esPrueba, ct);
             if (esPrueba) respuestaPrueba = resultado;
         }
 
@@ -87,7 +93,7 @@ public class AlertasMatchingService(
 
     private async Task<ProbarAlertaResponse> ProcesarGrupoAsync(
         string usuarioId, List<(ReglaActivaRow Regla, string Termino)> grupo, LicitacionParaMatching licitacion,
-        bool esPrueba, CancellationToken ct)
+        List<(string UsuarioId, string? TelegramChatId)> destinatarios, bool esPrueba, CancellationToken ct)
     {
         var resumen = await enriquecimiento.GenerarAsync(licitacion, ct);
 
@@ -114,9 +120,8 @@ public class AlertasMatchingService(
 
         // T032: ademas del dueno de la regla, notificar a TODOS los account managers de
         // gobierno configurados en alertas_destinatarios (pedido explicito de Francisco,
-        // 2026-07-01) -- antes solo llegaba al creador de la regla.
-        var destinatarios = (await handler.ListarAccountManagersAsync(ct)).ToList();
-
+        // 2026-07-01) -- antes solo llegaba al creador de la regla. `destinatarios` ahora se
+        // recibe como parámetro (una sola consulta por ciclo, no una por licitación — BUG-012).
         foreach (var destinatario in destinatarios.Where(d => d.UsuarioId != usuarioId))
         {
             await notificaciones.CrearAsync(
