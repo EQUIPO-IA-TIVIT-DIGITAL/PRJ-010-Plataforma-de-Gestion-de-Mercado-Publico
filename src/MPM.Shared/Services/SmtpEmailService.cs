@@ -1,7 +1,8 @@
-using System.Net;
-using System.Net.Mail;
+using MailKit.Net.Smtp;
+using MailKit.Security;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using MimeKit;
 
 namespace MPM.Shared.Services;
 
@@ -90,31 +91,57 @@ public class SmtpEmailService : IEmailService
             return;
         }
 
-        try
-        {
-            using var client = new SmtpClient(smtpHost, smtpPort)
-            {
-                EnableSsl = enableSsl,
-                Credentials = new NetworkCredential(smtpUser, smtpPass)
-            };
+        var message = new MimeMessage();
+        message.From.Add(new MailboxAddress(fromName, fromEmail));
+        message.To.Add(MailboxAddress.Parse(toEmail));
+        message.Subject = subject;
+        message.Body = new TextPart("html") { Text = htmlBody };
 
-            var message = new MailMessage
-            {
-                From = new MailAddress(fromEmail, fromName),
-                Subject = subject,
-                Body = htmlBody,
-                IsBodyHtml = true
-            };
-            message.To.Add(toEmail);
+        var secureSocketOptions = enableSsl ? SecureSocketOptions.StartTls : SecureSocketOptions.None;
 
-            await client.SendMailAsync(message);
-            _logger.LogInformation("Email enviado a {To}: {Subject}", toEmail, subject);
-        }
-        catch (Exception ex)
+        // Brevo (relay SMTP usado en 024-inteligencia-competencia-alertas / US3) reparte
+        // smtp-relay.brevo.com entre varios nodos backend detrás de balanceo -- al menos uno
+        // observado en pruebas todavía sirve un certificado viejo de sendinblue.com sin
+        // brevo.com en el SAN (RemoteCertificateNameMismatch), de forma intermitente y no
+        // reproducible con un solo intento. 3 reintentos con backoff corto absorben ese nodo
+        // problemático sin bloquear el flujo de alertas (que ya es best-effort).
+        const int maxIntentos = 3;
+        for (var intento = 1; intento <= maxIntentos; intento++)
         {
-            _logger.LogError(ex, "Error enviando email a {To}: {Subject}", toEmail, subject);
-            // No lanzar excepción para no afectar el flujo principal
-            // En producción, considerar reintentos o cola de emails
+            try
+            {
+                // System.Net.Mail.SmtpClient (legacy) no manda SNI en el ClientHello de TLS, lo
+                // que rompe contra hosts SMTP detrás de un balanceador ruteado por SNI. MailKit
+                // sí implementa SNI correctamente -- reemplazo directo, mismo comportamiento
+                // hacia afuera (IEmailService no cambia).
+                using var client = new SmtpClient();
+                await client.ConnectAsync(smtpHost, smtpPort, secureSocketOptions);
+                if (!string.IsNullOrEmpty(smtpUser))
+                    await client.AuthenticateAsync(smtpUser, smtpPass);
+
+                await client.SendAsync(message);
+                await client.DisconnectAsync(true);
+
+                _logger.LogInformation("Email enviado a {To}: {Subject} (intento {Intento})", toEmail, subject, intento);
+                return;
+            }
+            catch (AuthenticationException ex)
+            {
+                // Credenciales rechazadas: no es transitorio, reintentar no cambia el resultado.
+                _logger.LogError(ex, "Error enviando email a {To}: {Subject} (autenticación rechazada, sin reintentos)", toEmail, subject);
+                return;
+            }
+            catch (Exception ex) when (intento < maxIntentos)
+            {
+                _logger.LogWarning(ex, "Fallo transitorio enviando email a {To} (intento {Intento}/{Max}), reintentando", toEmail, intento, maxIntentos);
+                await Task.Delay(TimeSpan.FromSeconds(intento));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error enviando email a {To}: {Subject} (agotados {Max} intentos)", toEmail, subject, maxIntentos);
+                // No lanzar excepción para no afectar el flujo principal (FR-011: el fallo del
+                // canal de correo no debe bloquear el resto del ciclo de alertas).
+            }
         }
     }
 }

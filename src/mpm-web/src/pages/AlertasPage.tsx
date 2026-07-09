@@ -4,7 +4,7 @@ import {
   App as AntApp, Popconfirm, Empty,
 } from 'antd';
 import { BellOutlined, PlusOutlined, ExperimentOutlined, DeleteOutlined, SendOutlined } from '@ant-design/icons';
-import { useAlertas, useCrearAlerta, useToggleAlerta, useEliminarAlerta, useProbarAlerta, useGuardarMiTelegram, useGenerarLinkTelegram } from '../hooks/useAlertas';
+import { useAlertas, useCrearAlerta, useToggleAlerta, useEliminarAlerta, useProbarAlerta, useGuardarMiTelegram, useGenerarLinkTelegram, useGuardarMiEmail } from '../hooks/useAlertas';
 import { useLicitaciones } from '../hooks/useLicitaciones';
 import type { ReglaAlerta, CrearReglaRequest } from '../types/alertas';
 
@@ -41,6 +41,19 @@ export function AlertasPage() {
       window.open(data.url, '_blank', 'noopener,noreferrer');
     } catch (e) {
       message.error(e instanceof Error ? e.message : 'No se pudo generar el link de Telegram');
+    }
+  };
+
+  const [formEmail] = Form.useForm<{ emailAlertas: string }>();
+  const guardarEmail = useGuardarMiEmail();
+
+  const handleGuardarEmail = async (values: { emailAlertas: string }) => {
+    try {
+      await guardarEmail.mutateAsync(values.emailAlertas);
+      message.success('Correo guardado — ya podés recibir alertas ahí');
+      formEmail.resetFields();
+    } catch (e) {
+      message.error(e instanceof Error ? e.message : 'No se pudo guardar el correo');
     }
   };
 
@@ -195,7 +208,7 @@ export function AlertasPage() {
         </div>
         <Space>
           <Button icon={<SendOutlined />} onClick={() => setModalTelegram(true)}>
-            Mi Telegram
+            Mis canales de alerta
           </Button>
           <Button type="primary" icon={<PlusOutlined />} onClick={() => setModalCrear(true)}>
             Nueva alerta
@@ -264,7 +277,7 @@ export function AlertasPage() {
       </Modal>
 
       <Modal
-        title="Mi Telegram"
+        title="Mis canales de alerta"
         open={modalTelegram}
         onCancel={() => setModalTelegram(false)}
         footer={null}
@@ -288,6 +301,22 @@ export function AlertasPage() {
             <Input placeholder="ej. 123456789" />
           </Form.Item>
           <Button htmlType="submit" loading={guardarTelegram.isPending}>Guardar Chat ID manualmente</Button>
+        </Form>
+
+        <div style={{ borderTop: '1px solid #e2e8f0', margin: '20px 0 16px' }} />
+
+        <p style={{ color: '#64748b', fontSize: 13, marginBottom: 12 }}>
+          También podés recibir las alertas por correo, adicional a Telegram:
+        </p>
+        <Form form={formEmail} layout="vertical" onFinish={handleGuardarEmail}>
+          <Form.Item
+            name="emailAlertas"
+            label="Correo para alertas"
+            rules={[{ required: true, type: 'email', message: 'Ingresá un correo válido' }]}
+          >
+            <Input placeholder="ej. tu-correo@tivit.cl" />
+          </Form.Item>
+          <Button htmlType="submit" loading={guardarEmail.isPending}>Guardar correo</Button>
         </Form>
       </Modal>
     </Space>

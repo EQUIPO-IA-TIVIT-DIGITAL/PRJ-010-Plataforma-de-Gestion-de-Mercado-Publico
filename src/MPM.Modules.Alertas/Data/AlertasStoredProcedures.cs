@@ -20,6 +20,7 @@ public static class AlertasStoredProcedures
     // Destinatarios
     public const string ListarAccountManagers = "SELECT * FROM usp_AlertasDestinatarios_ListarAccountManagers()";
     public const string GuardarChatId = "SELECT usp_AlertasDestinatarios_GuardarChatId(@p_usuario_id, @p_telegram_chat_id)";
+    public const string GuardarEmail = "SELECT usp_AlertasDestinatarios_GuardarEmail(@p_usuario_id, @p_email_alertas)";
 
     // Vinculación Telegram vía deep link (token de un solo uso)
     public const string CrearLinkToken = "SELECT usp_TelegramLinkTokens_Crear(@p_usuario_id, @p_token, @p_ttl_minutos)";

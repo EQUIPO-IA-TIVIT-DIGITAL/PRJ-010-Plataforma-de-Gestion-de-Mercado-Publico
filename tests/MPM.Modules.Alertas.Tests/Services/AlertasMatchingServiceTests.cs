@@ -130,6 +130,42 @@ public class AlertasMatchingServiceTests
             "la consulta debe ocurrir una vez, antes del foreach de licitaciones");
     }
 
+    // ── US3 (024-inteligencia-competencia-alertas): canal de correo independiente de Telegram ──
+    // FR-011: el fallo o ausencia de un canal no debe impedir el intento en el otro. Se verifica
+    // en el codigo fuente que el bloque de envio de correo NO esta anidado dentro del
+    // `if (grupo.Any(g => g.Regla.p_notificar_telegram))` que gatea el envio de Telegram.
+
+    [Fact]
+    public void SourceCode_EnvioDeEmail_NoEstaGateadoPorNotificarTelegram()
+    {
+        var source = File.ReadAllText(FindSourceFile("AlertasMatchingService.cs")).Replace("\r\n", "\n");
+
+        var inicioMetodo = source.IndexOf("private async Task<ProbarAlertaResponse> ProcesarGrupoAsync(", StringComparison.Ordinal);
+        inicioMetodo.Should().BeGreaterThanOrEqualTo(0);
+        var finMetodo = source.IndexOf("\n    /// <summary>", inicioMetodo + 1, StringComparison.Ordinal);
+        var cuerpoMetodo = source[inicioMetodo..finMetodo];
+
+        var inicioBloqueTelegram = cuerpoMetodo.IndexOf("if (grupo.Any(g => g.Regla.p_notificar_telegram))", StringComparison.Ordinal);
+        inicioBloqueTelegram.Should().BeGreaterThanOrEqualTo(0);
+        var finBloqueTelegram = cuerpoMetodo.IndexOf("\n        }", inicioBloqueTelegram, StringComparison.Ordinal);
+        var bloqueTelegram = cuerpoMetodo[inicioBloqueTelegram..finBloqueTelegram];
+
+        bloqueTelegram.Should().NotContain("email.EnviarAsync",
+            "el envio de correo debe vivir fuera del if de Telegram para que un destinatario " +
+            "sin telegramChatId (o con notificarTelegram=false) igual reciba el correo si lo configuro");
+        cuerpoMetodo.Should().Contain("email.EnviarAsync",
+            "el metodo debe intentar el envio de correo en algun punto");
+    }
+
+    [Fact]
+    public void SourceCode_EnvioDeEmail_SoloParaDestinatariosConEmailConfigurado()
+    {
+        var source = File.ReadAllText(FindSourceFile("AlertasMatchingService.cs")).Replace("\r\n", "\n");
+
+        source.Should().Contain("string.IsNullOrEmpty(destinatario.EmailAlertas)",
+            "debe saltar destinatarios sin correo configurado, igual que se hace con TelegramChatId");
+    }
+
     private static string FindSourceFile(string fileName)
     {
         var dir = new DirectoryInfo(AppContext.BaseDirectory);

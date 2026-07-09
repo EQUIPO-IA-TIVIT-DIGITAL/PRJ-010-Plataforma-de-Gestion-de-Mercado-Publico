@@ -16,6 +16,7 @@ public class AlertasMatchingService(
     AlertasHandler handler,
     AlertaEnriquecimientoService enriquecimiento,
     TelegramNotificationService telegram,
+    EmailNotificationService email,
     NotificacionesService notificaciones,
     ILogger<AlertasMatchingService> logger)
 {
@@ -60,7 +61,7 @@ public class AlertasMatchingService(
     }
 
     private async Task<ProbarAlertaResponse?> EvaluarUnaLicitacionAsync(
-        LicitacionParaMatching licitacion, List<ReglaActivaRow> reglas, List<(string UsuarioId, string? TelegramChatId)> destinatarios, bool esPrueba, CancellationToken ct, bool forzarMatch = false)
+        LicitacionParaMatching licitacion, List<ReglaActivaRow> reglas, List<(string UsuarioId, string? TelegramChatId, string? EmailAlertas)> destinatarios, bool esPrueba, CancellationToken ct, bool forzarMatch = false)
     {
         var matches = new List<(ReglaActivaRow Regla, string Termino)>();
 
@@ -93,7 +94,7 @@ public class AlertasMatchingService(
 
     private async Task<ProbarAlertaResponse> ProcesarGrupoAsync(
         string usuarioId, List<(ReglaActivaRow Regla, string Termino)> grupo, LicitacionParaMatching licitacion,
-        List<(string UsuarioId, string? TelegramChatId)> destinatarios, bool esPrueba, CancellationToken ct)
+        List<(string UsuarioId, string? TelegramChatId, string? EmailAlertas)> destinatarios, bool esPrueba, CancellationToken ct)
     {
         var resumen = await enriquecimiento.GenerarAsync(licitacion, ct);
 
@@ -140,13 +141,25 @@ public class AlertasMatchingService(
             {
                 if (string.IsNullOrEmpty(destinatario.TelegramChatId)) continue;
 
-                var (enviada, error) = await telegram.EnviarAsync(destinatario.TelegramChatId, mensajeTelegram, ct);
+                var (enviada, error) = await telegram.EnviarAsync(destinatario.TelegramChatId, mensajeTelegram, licitacion.LicitacionId, ct);
                 telegramEnviada = telegramEnviada || enviada;
                 telegramError ??= error;
             }
 
             if (primerDisparoId.HasValue)
                 await handler.MarcarTelegramAsync(primerDisparoId.Value, telegramEnviada, telegramError, ct);
+        }
+
+        // US3 (024-inteligencia-competencia-alertas): canal de correo, independiente del de
+        // Telegram — FR-011: el fallo o ausencia de un canal no debe impedir el intento en el
+        // otro. No se gatea por p_notificar_telegram (ese flag es específico de Telegram).
+        foreach (var destinatario in destinatarios)
+        {
+            if (string.IsNullOrEmpty(destinatario.EmailAlertas)) continue;
+
+            await email.EnviarAsync(
+                destinatario.EmailAlertas, terminos, licitacion.Nombre, licitacion.CodigoExterno,
+                licitacion.Monto?.ToString("N0"), ct);
         }
 
         return new ProbarAlertaResponse(primerDisparoId ?? 0, esPrueba, notificacionCreada, telegramEnviada, telegramError);

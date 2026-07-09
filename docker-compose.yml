@@ -55,6 +55,14 @@ services:
       - Telegram__BotToken=${TELEGRAM_BOT_TOKEN:-}
       - Telegram__BotUsername=${TELEGRAM_BOT_USERNAME:-CU010_bot}
       - Telegram__WebhookSecret=${TELEGRAM_WEBHOOK_SECRET:-}
+      # Correo (024-inteligencia-competencia-alertas / US3) — Brevo SMTP relay
+      - Smtp__Host=${SMTP_HOST:-}
+      - Smtp__Port=${SMTP_PORT:-587}
+      - Smtp__Username=${SMTP_USERNAME:-}
+      - Smtp__Password=${SMTP_PASSWORD:-}
+      - Smtp__FromEmail=${SMTP_FROM_EMAIL:-}
+      - Smtp__FromName=${SMTP_FROM_NAME:-TIVIT Mercado Público}
+      - Smtp__EnableSsl=${SMTP_ENABLE_SSL:-true}
       # Scraper
       - MP_RUT=${MP_RUT:-}
       - MP_PASSWORD=${MP_PASSWORD:-}

@@ -16,9 +16,10 @@ import { login } from './modulos/login.js';
 import { buscarLicitaciones } from './modulos/buscar.js';
 import { extraerDatosLicitacion, cerrarFicha } from './modulos/licitacion.js';
 import { descargarActaEvaluacion } from './modulos/adjuntos.js';
+import { extraerCuadroOfertas } from './modulos/cuadroOfertas.js';
 import { crearCarpetaLote, crearCarpetaLicitacion, guardarDatosLicitacion, guardarResumen, guardarReporteTexto } from './modulos/storage.js';
 import { initDB, closeDB, upsertLicitacion, registrarAdjunto, obtenerUltimaSync, iniciarSyncLog, finalizarSyncLog, tieneAnalisisCompletado, licitacionYaExiste } from './modulos/db.js';
-import { pipelineAnalisisCompleto } from './modulos/api-client.js';
+import { pipelineAnalisisCompleto, guardarOfertasCompetidor } from './modulos/api-client.js';
 import { isDaemonMode, isIncrementalMode, checkExistingProcess, setupSignalHandlers, startDaemon, removePidFile } from './modulos/scheduler.js';
 
 const RUT = process.env.MP_RUT;
@@ -150,6 +151,18 @@ async function executeCycle() {
         }
 
         if (fichaPage) {
+          // 024-inteligencia-competencia-alertas / US1: se intenta siempre, en cualquier
+          // licitacion visitada -- cuadroOfertas.js ya maneja con gracia el caso de que el
+          // icono "Cuadro de ofertas" no exista para este tipo/estado de licitacion (Compra
+          // Agil, Trato Directo, o una licitacion que aun no cerro), sin frenar el resto del
+          // ciclo (research.md R3).
+          if (licitacionDbId) {
+            const resultCuadroOfertas = await extraerCuadroOfertas(fichaPage, datos, carpetaLicitacion);
+            if (resultCuadroOfertas.ofertas?.length > 0) {
+              await guardarOfertasCompetidor(licitacionDbId, resultCuadroOfertas.ofertas);
+            }
+          }
+
           console.log(`\n[CICLO] Buscando Acta de Evaluacion...`);
           const resultAdjuntos = await descargarActaEvaluacion(
             fichaPage, context, datos, carpetaLicitacion

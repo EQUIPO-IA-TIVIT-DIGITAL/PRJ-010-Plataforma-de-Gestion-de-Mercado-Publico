@@ -74,6 +74,9 @@ public class AlertasService(AlertasHandler handler, SinonimosIaService sinonimos
     public Task GuardarMiTelegramAsync(string usuarioId, string telegramChatId, CancellationToken ct = default) =>
         handler.GuardarChatIdAsync(usuarioId, telegramChatId, ct);
 
+    public Task GuardarMiEmailAsync(string usuarioId, string emailAlertas, CancellationToken ct = default) =>
+        handler.GuardarEmailAsync(usuarioId, emailAlertas, ct);
+
     /// <summary>
     /// Genera un deep link de un solo uso (https://t.me/{bot}?start={token}) para que el
     /// usuario conecte su Telegram con un solo clic, sin copiar/pegar el chat_id a mano.

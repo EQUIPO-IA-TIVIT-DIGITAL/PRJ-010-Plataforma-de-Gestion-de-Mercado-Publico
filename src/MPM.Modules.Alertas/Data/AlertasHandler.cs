@@ -172,14 +172,23 @@ public class AlertasHandler(DbConnectionFactory dbFactory)
             commandType: CommandType.Text);
     }
 
-    public async Task<IEnumerable<(string UsuarioId, string? TelegramChatId)>> ListarAccountManagersAsync(CancellationToken ct = default)
+    public async Task<IEnumerable<(string UsuarioId, string? TelegramChatId, string? EmailAlertas)>> ListarAccountManagersAsync(CancellationToken ct = default)
     {
         await using var conn = _dbFactory.Create();
         var result = await conn.QueryAsync<DestinatarioRow>(
             AlertasStoredProcedures.ListarAccountManagers,
             commandType: CommandType.Text);
 
-        return result.Select(r => (r.p_usuario_id, r.p_telegram_chat_id));
+        return result.Select(r => (r.p_usuario_id, r.p_telegram_chat_id, r.p_email_alertas));
+    }
+
+    public async Task GuardarEmailAsync(string usuarioId, string emailAlertas, CancellationToken ct = default)
+    {
+        await using var conn = _dbFactory.Create();
+        await conn.ExecuteAsync(
+            AlertasStoredProcedures.GuardarEmail,
+            new { p_usuario_id = usuarioId, p_email_alertas = emailAlertas },
+            commandType: CommandType.Text);
     }
 
     public async Task CrearLinkTokenAsync(string usuarioId, string token, int ttlMinutos, CancellationToken ct = default)
@@ -232,6 +241,7 @@ public class AlertasHandler(DbConnectionFactory dbFactory)
     {
         public string p_usuario_id { get; set; } = "";
         public string? p_telegram_chat_id { get; set; }
+        public string? p_email_alertas { get; set; }
     }
 }
 

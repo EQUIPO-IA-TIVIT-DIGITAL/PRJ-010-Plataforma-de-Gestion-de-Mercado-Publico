@@ -67,6 +67,30 @@ async function apiCall(method, path, bodyOrFile) {
   return response.json();
 }
 
+// 024-inteligencia-competencia-alertas / US1: persiste el listado de oferentes extraido por
+// cuadroOfertas.js. No lanza si falla -- una licitacion sin ofertas guardadas no debe frenar
+// el resto del ciclo del scraper (mismo criterio que el resto de las integraciones opcionales).
+export async function guardarOfertasCompetidor(licitacionId, ofertas) {
+  if (!licitacionId || !ofertas || ofertas.length === 0) return { guardadas: 0 };
+  try {
+    const data = await apiCall('POST', '/api/v1/competidores/ofertas', {
+      licitacionId,
+      ofertas: ofertas.map(o => ({
+        rutProveedor: o.rutProveedor,
+        nombreProveedor: o.nombreProveedor,
+        montoOferta: o.montoOferta,
+        estadoOferta: o.estadoOferta,
+      })),
+    });
+    const guardadas = data?.data?.guardadas ?? 0;
+    console.log(`[API] ${guardadas} ofertas de competencia guardadas para licitacion ${licitacionId}`);
+    return { guardadas };
+  } catch (e) {
+    console.log(`[API] Error guardando ofertas de competencia: ${e.message}`);
+    return { guardadas: 0, error: e.message };
+  }
+}
+
 export async function crearWorkspaceAnalisis(licitacionId, nombre) {
   try {
     console.log(`[API] Creando workspace de analisis para licitacion ${licitacionId}...`);

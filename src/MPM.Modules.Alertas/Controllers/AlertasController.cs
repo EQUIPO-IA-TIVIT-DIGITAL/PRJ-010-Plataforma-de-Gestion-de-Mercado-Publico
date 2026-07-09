@@ -94,6 +94,21 @@ public class AlertasController(AlertasService service, AlertasMatchingService ma
         return Ok(ApiResponse<object>.Ok(new { }));
     }
 
+    /// <summary>024-inteligencia-competencia-alertas / US3: canal de alertas por correo, adicional a Telegram.</summary>
+    [HttpPost("mi-email")]
+    [ProducesResponseType(typeof(ApiResponse<object>), 200)]
+    public async Task<ActionResult<ApiResponse<object>>> GuardarMiEmail([FromBody] GuardarEmailAlertasRequest request)
+    {
+        var tenant = GetTenant();
+        if (tenant == null) return Unauthorized(ApiResponse<object>.Fail("No autenticado"));
+
+        if (string.IsNullOrWhiteSpace(request.EmailAlertas) || !request.EmailAlertas.Contains('@'))
+            return BadRequest(ApiResponse<object>.Fail("ALT_005: emailAlertas es requerido y debe ser un correo válido"));
+
+        await service.GuardarMiEmailAsync(tenant.UserId, request.EmailAlertas.Trim());
+        return Ok(ApiResponse<object>.Ok(new { }));
+    }
+
     /// <summary>
     /// Genera un link de un solo clic para conectar Telegram sin copiar/pegar el chat_id
     /// a mano (requiere que el webhook de Telegram esté configurado — ver TelegramWebhookController).

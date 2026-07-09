@@ -13,6 +13,7 @@ import { AnalisisChatPage } from './pages/AnalisisChatPage';
 import EjecutivoDashboardPage from './pages/EjecutivoDashboardPage';
 import NotificacionesPage from './pages/NotificacionesPage';
 import { AlertasPage } from './pages/AlertasPage';
+import { CompetidoresPage } from './pages/CompetidoresPage';
 import { useAuth } from './hooks/useAuth';
 
 function ProtectedRoute() {
@@ -45,6 +46,7 @@ export default function App() {
           <Route path="/analisis/:id/chat" element={<AnalisisChatPage />} />
           <Route path="/notificaciones" element={<NotificacionesPage />} />
           <Route path="/alertas" element={<AlertasPage />} />
+          <Route path="/competidores" element={<CompetidoresPage />} />
         </Route>
       </Routes>
     </BrowserRouter>

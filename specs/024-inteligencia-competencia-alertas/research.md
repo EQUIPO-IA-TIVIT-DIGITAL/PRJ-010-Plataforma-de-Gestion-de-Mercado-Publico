@@ -24,7 +24,7 @@
 
 **Alternatives considered**: Usar un endpoint de API directo en vez de scraping — no se encontró ninguno documentado ni en uso hoy en el proyecto; queda como optimización futura si se descubre uno, no bloquea esta implementación.
 
-**Riesgo abierto (no bloqueante, documentar en quickstart)**: No se validó todavía si el "Cuadro de Ofertas" está disponible para el 100% de las licitaciones adjudicadas o si varía según el tipo/monto de licitación (ej. compras ágiles muy pequeñas). Se recomienda un spike corto de muestreo (ej. 20-30 licitaciones adjudicadas de distintos tipos) antes de comprometerse a recolectar las 126k completas.
+**Spike de muestreo (2026-07-09, T002)**: Verificado en vivo contra 2 licitaciones adjudicadas reales de códigos distintos (`622-12-LP26`, tipo LP, y `1057506-33-LE26`, tipo LE) — ambas exponen el mismo set de íconos en su ficha pública, incluyendo "Cuadro de ofertas", con datos completos de oferentes en el primer caso. **Confirmación parcial, no exhaustiva**: la estructura de la ficha es consistente entre estos dos tipos, pero no se verificó Compra Ágil ni Trato Directo (mecanismos con menos formalidad, podrían no generar "Cuadro de Ofertas" de la misma forma) ni un volumen estadísticamente representativo. **Riesgo residual, no bloqueante**: antes de correr el scraper sobre las 126k completas, correr una muestra más amplia (20-30 licitaciones, cubriendo Compra Ágil y Trato Directo) como parte de T008 (integración al ciclo del scraper) — si esos tipos no tienen Cuadro de Ofertas, el scraper debe simplemente omitirlos sin fallar, no bloquea el resto del alcance.
 
 ## R4 — Búsqueda de competidor por nombre con variaciones de formato
 

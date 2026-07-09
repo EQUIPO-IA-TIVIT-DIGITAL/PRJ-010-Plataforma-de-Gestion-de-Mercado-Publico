@@ -12,7 +12,13 @@ namespace MPM.Modules.Alertas.Services;
 /// </summary>
 public class TelegramNotificationService(HttpClient httpClient, IConfiguration config, ILogger<TelegramNotificationService> logger)
 {
-    public async Task<(bool Enviada, string? Error)> EnviarAsync(string chatId, string mensaje, CancellationToken ct = default)
+    /// <param name="licitacionId">
+    /// 024-inteligencia-competencia-alertas / US2: si se provee, el mensaje incluye un botón
+    /// inline "Me interesa" (callback_data = "interesa:{licitacionId}") que TelegramWebhookController
+    /// procesa para responder con un resumen rápido sin IA. Null para alertas operativas del
+    /// scraper que no están atadas a una licitación específica del usuario.
+    /// </param>
+    public async Task<(bool Enviada, string? Error)> EnviarAsync(string chatId, string mensaje, long? licitacionId = null, CancellationToken ct = default)
     {
         var botToken = config["Telegram:BotToken"];
         if (string.IsNullOrWhiteSpace(botToken))
@@ -20,7 +26,10 @@ public class TelegramNotificationService(HttpClient httpClient, IConfiguration c
 
         try
         {
-            var payload = new { chat_id = chatId, text = mensaje, parse_mode = "MarkdownV2" };
+            object? replyMarkup = licitacionId.HasValue
+                ? new { inline_keyboard = new[] { new[] { new { text = "Me interesa", callback_data = $"interesa:{licitacionId.Value}" } } } }
+                : null;
+            var payload = new { chat_id = chatId, text = mensaje, parse_mode = "MarkdownV2", reply_markup = replyMarkup };
             var content = new StringContent(JsonSerializer.Serialize(payload), System.Text.Encoding.UTF8, "application/json");
 
             var response = await httpClient.PostAsync(

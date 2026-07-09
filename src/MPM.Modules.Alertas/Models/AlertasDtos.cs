@@ -79,6 +79,8 @@ public record ProbarAlertaRequest(
 
 public record GuardarTelegramChatIdRequest(string TelegramChatId);
 
+public record GuardarEmailAlertasRequest(string EmailAlertas);
+
 public class HistorialAlertasDto
 {
     public List<AlertaDisparadaDto> Items { get; set; } = [];

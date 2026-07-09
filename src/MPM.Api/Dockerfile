@@ -11,6 +11,7 @@ COPY src/MPM.Modules.Auth/MPM.Modules.Auth.csproj src/MPM.Modules.Auth/
 COPY src/MPM.Modules.Analisis/MPM.Modules.Analisis.csproj src/MPM.Modules.Analisis/
 COPY src/MPM.Modules.Notificaciones/MPM.Modules.Notificaciones.csproj src/MPM.Modules.Notificaciones/
 COPY src/MPM.Modules.Alertas/MPM.Modules.Alertas.csproj src/MPM.Modules.Alertas/
+COPY src/MPM.Modules.Competidores/MPM.Modules.Competidores.csproj src/MPM.Modules.Competidores/
 COPY MPM.sln .
 RUN dotnet restore src/MPM.Api/MPM.Api.csproj
 

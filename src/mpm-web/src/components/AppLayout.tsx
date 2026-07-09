@@ -3,7 +3,7 @@ import { Layout, Avatar, Dropdown, Typography, Tooltip, Badge } from 'antd';
 import {
   FileTextOutlined, BarChartOutlined, BellOutlined, MessageOutlined,
   LogoutOutlined, DatabaseOutlined, MenuFoldOutlined, MenuUnfoldOutlined,
-  UserOutlined, SettingOutlined, DownOutlined, NotificationOutlined,
+  UserOutlined, SettingOutlined, DownOutlined, NotificationOutlined, TeamOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
@@ -20,6 +20,7 @@ const NAV_ITEMS = [
   { key: '/mensajes', icon: <MessageOutlined />, label: 'Mensajes', badge: null },
   { key: '/notificaciones', icon: <BellOutlined />, label: 'Notificaciones', disabled: false, badge: null },
   { key: '/alertas', icon: <NotificationOutlined />, label: 'Alertas', badge: null },
+  { key: '/competidores', icon: <TeamOutlined />, label: 'Competidores', badge: null },
 ];
 
 export function AppLayout({ children }: { children: React.ReactNode }) {

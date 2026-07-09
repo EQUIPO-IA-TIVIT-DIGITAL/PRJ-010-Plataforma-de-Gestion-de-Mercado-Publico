@@ -389,7 +389,7 @@ public class ScraperBackgroundService(
             foreach (var destinatario in destinatarios)
             {
                 if (string.IsNullOrWhiteSpace(destinatario.TelegramChatId)) continue;
-                var (enviada, error) = await telegram.EnviarAsync(destinatario.TelegramChatId, mensaje, ct);
+                var (enviada, error) = await telegram.EnviarAsync(destinatario.TelegramChatId, mensaje, ct: ct);
                 if (!enviada)
                     logger.LogWarning("No se pudo enviar alerta operativa del scraper a Telegram (chat {ChatId}): {Error}", destinatario.TelegramChatId, error);
             }

@@ -23,7 +23,7 @@ public class TelegramWebhookControllerTests
             ["Telegram:WebhookSecret"] = secretConfigurado,
         }).Build();
 
-        var controller = new TelegramWebhookController(null!, config, NullLogger<TelegramWebhookController>.Instance)
+        var controller = new TelegramWebhookController(null!, null!, null!, config, NullLogger<TelegramWebhookController>.Instance)
         {
             ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() },
         };
@@ -72,5 +72,18 @@ public class TelegramWebhookControllerTests
         var result = await controller.Webhook(JsonDocument.Parse("{}").RootElement);
 
         result.Should().BeOfType<OkResult>("con la credencial correcta, un update sin 'message' se ignora con 200 (contrato de Telegram), no se rechaza");
+    }
+
+    /// <summary>024-inteligencia-competencia-alertas / US2: el fail-closed de BUG-009 debe cubrir
+    /// también los updates de tipo callback_query (botón "Me interesa"), no solo los mensajes de texto.</summary>
+    [Fact]
+    public async Task Webhook_CallbackQuery_ConCabeceraIncorrecta_Rechaza()
+    {
+        var controller = CreateController(secretConfigurado: "el-secreto-real", secretRecibido: "otro-valor");
+
+        var payload = JsonDocument.Parse("""{"callback_query":{"data":"interesa:1","message":{"chat":{"id":123}}}}""").RootElement;
+        var result = await controller.Webhook(payload);
+
+        result.Should().BeOfType<UnauthorizedResult>("el fail-closed de BUG-009 debe aplicar por igual a callback_query, no solo a mensajes de texto");
     }
 }

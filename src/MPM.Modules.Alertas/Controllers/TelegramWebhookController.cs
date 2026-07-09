@@ -19,7 +19,12 @@ namespace MPM.Modules.Alertas.Controllers;
 [ApiController]
 [Route("api/v1/telegram")]
 [AllowAnonymous]
-public class TelegramWebhookController(AlertasService service, IConfiguration config, ILogger<TelegramWebhookController> logger) : ControllerBase
+public class TelegramWebhookController(
+    AlertasService service,
+    ResumenLicitacionService resumenService,
+    TelegramNotificationService telegram,
+    IConfiguration config,
+    ILogger<TelegramWebhookController> logger) : ControllerBase
 {
     [HttpPost("webhook")]
     public async Task<IActionResult> Webhook([FromBody] JsonElement update)
@@ -28,10 +33,18 @@ public class TelegramWebhookController(AlertasService service, IConfiguration co
         // procesarse sin validar — antes, un Telegram:WebhookSecret vacío omitía la validación
         // por completo y cualquiera que conociera la URL podía vincular chats arbitrarios
         // (QA BUG-009). Comparación en tiempo constante para evitar timing attacks sobre el
-        // secreto.
+        // secreto. Se aplica por igual a mensajes de texto y a callback_query (botones inline).
         var secretEsperado = config["Telegram:WebhookSecret"];
         if (string.IsNullOrEmpty(secretEsperado) || !SecretCoincide(Request.Headers["X-Telegram-Bot-Api-Secret-Token"].ToString(), secretEsperado))
             return Unauthorized();
+
+        // 024-inteligencia-competencia-alertas / US2: botón inline "Me interesa" -- Telegram
+        // manda esto como callback_query, no como message.
+        if (update.TryGetProperty("callback_query", out var callbackQuery) && callbackQuery.ValueKind == JsonValueKind.Object)
+        {
+            await ManejarCallbackQueryAsync(callbackQuery);
+            return Ok();
+        }
 
         if (!update.TryGetProperty("message", out var message) || message.ValueKind != JsonValueKind.Object)
             return Ok();
@@ -57,6 +70,44 @@ public class TelegramWebhookController(AlertasService service, IConfiguration co
 
         // Telegram solo requiere 200 OK; el resultado de la vinculación no se le reporta al bot.
         return Ok();
+    }
+
+    /// <summary>
+    /// FR-007/FR-008: procesa el click en "Me interesa" -- arma el resumen desde datos ya
+    /// sincronizados de Mercado Público (ResumenLicitacionService), SIN invocar IA, y lo responde
+    /// en el mismo chat. Un doble click sobre el mismo botón simplemente reenvía el mismo
+    /// resumen (idempotente, sin costo de IA de por medio) -- satisface el edge case del spec
+    /// sin necesitar lógica extra de deduplicación.
+    /// </summary>
+    private async Task ManejarCallbackQueryAsync(JsonElement callbackQuery)
+    {
+        if (!callbackQuery.TryGetProperty("data", out var dataEl) || dataEl.ValueKind != JsonValueKind.String)
+            return;
+
+        var data = dataEl.GetString() ?? "";
+        const string prefijo = "interesa:";
+        if (!data.StartsWith(prefijo, StringComparison.Ordinal))
+            return;
+
+        if (!long.TryParse(data[prefijo.Length..], out var licitacionId))
+        {
+            logger.LogWarning("callback_query 'interesa:' con licitacionId no numérico: {Data}", data);
+            return;
+        }
+
+        if (!callbackQuery.TryGetProperty("message", out var msg) || msg.ValueKind != JsonValueKind.Object ||
+            !msg.TryGetProperty("chat", out var chat) || chat.ValueKind != JsonValueKind.Object ||
+            !chat.TryGetProperty("id", out var chatIdEl))
+            return;
+
+        var chatId = chatIdEl.GetRawText();
+
+        var resumen = await resumenService.ObtenerResumenPorIdAsync(licitacionId);
+        var mensaje = resumen ?? "No se pudo obtener el resumen de esta licitación en este momento — puede que ya no esté disponible en Mercado Público.";
+
+        var (enviado, error) = await telegram.EnviarAsync(chatId, mensaje);
+        if (!enviado)
+            logger.LogWarning("No se pudo enviar el resumen de 'Me interesa' (licitación {Id}, chat {ChatId}): {Error}", licitacionId, chatId, error);
     }
 
     private static bool SecretCoincide(string recibido, string esperado)

@@ -57,6 +57,13 @@ export function useGenerarLinkTelegram() {
   });
 }
 
+export function useGuardarMiEmail() {
+  return useMutation({
+    mutationFn: (emailAlertas: string) =>
+      apiPost<{ data: unknown }>(`${BASE}/mi-email`, { emailAlertas }),
+  });
+}
+
 export function useProbarAlerta() {
   const queryClient = useQueryClient();
   return useMutation({
