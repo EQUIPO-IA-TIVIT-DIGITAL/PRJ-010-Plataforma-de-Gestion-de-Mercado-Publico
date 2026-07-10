@@ -50,7 +50,7 @@ public class TelegramNotificationService(HttpClient httpClient, IConfiguration c
                 return (true, null);
 
             var body = await response.Content.ReadAsStringAsync(ct);
-            logger.LogWarning("Telegram respondió {Status}: {Body}", response.StatusCode, body);
+            logger.LogWarning("Telegram respondió {Status} para chat {ChatId}: {Body}", response.StatusCode, chatId, body);
             return (false, $"Telegram respondió {(int)response.StatusCode}");
         }
         catch (Exception ex)
