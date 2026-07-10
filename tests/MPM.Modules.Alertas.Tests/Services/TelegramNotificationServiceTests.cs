@@ -41,6 +41,22 @@ public class TelegramNotificationServiceTests
     }
 
     [Fact]
+    public void SourceCode_ReplyMarkupNulo_SeOmiteDelJson_NoViajaComoNullLiteral()
+    {
+        // 024-inteligencia-competencia-alertas / US2: verificado en vivo contra un boton real
+        // "Me interesa" en Telegram -- el resumen (que no reenvia el boton, licitacionId=null)
+        // fallaba con "Bad Request: object expected as reply markup" porque
+        // JsonSerializer.Serialize por defecto escribe "reply_markup": null en vez de omitir la
+        // propiedad, y Telegram rechaza ese null literal.
+        var source = File.ReadAllText(FindSourceFile("TelegramNotificationService.cs"));
+        source.Should().Contain("JsonIgnoreCondition.WhenWritingNull",
+            "sin esto, un reply_markup nulo viaja como \"reply_markup\": null y Telegram responde 400 " +
+            "(\"object expected as reply markup\") -- rompe el resumen de 'Me interesa' en producción");
+        source.Should().Contain("JsonSerializer.Serialize(payload, _jsonOptions)",
+            "el serializado del payload de sendMessage debe usar las opciones con WhenWritingNull");
+    }
+
+    [Fact]
     public void SourceCode_HttpClientDeTelegram_TieneTimeoutExplicito()
     {
         var source = File.ReadAllText(FindSourceFile("ModuleRegistration.cs", mustContain: "TelegramNotificationService"));

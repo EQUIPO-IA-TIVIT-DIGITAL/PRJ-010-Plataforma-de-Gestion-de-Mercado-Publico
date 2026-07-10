@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
@@ -12,6 +13,16 @@ namespace MPM.Modules.Alertas.Services;
 /// </summary>
 public class TelegramNotificationService(HttpClient httpClient, IConfiguration config, ILogger<TelegramNotificationService> logger)
 {
+    // Corregido 2026-07-10: verificado en vivo (boton "Me interesa" real en Telegram) que
+    // Telegram rechaza "reply_markup": null con "Bad Request: object expected as reply markup" --
+    // System.Text.Json por defecto SI escribe la propiedad como null literal en vez de omitirla.
+    // Con WhenWritingNull, cuando licitacionId es null (el caso del resumen de "Me interesa",
+    // que no reenvia boton), reply_markup se omite del JSON en vez de viajar como null.
+    private static readonly JsonSerializerOptions _jsonOptions = new()
+    {
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+    };
+
     /// <param name="licitacionId">
     /// 024-inteligencia-competencia-alertas / US2: si se provee, el mensaje incluye un botón
     /// inline "Me interesa" (callback_data = "interesa:{licitacionId}") que TelegramWebhookController
@@ -30,7 +41,7 @@ public class TelegramNotificationService(HttpClient httpClient, IConfiguration c
                 ? new { inline_keyboard = new[] { new[] { new { text = "Me interesa", callback_data = $"interesa:{licitacionId.Value}" } } } }
                 : null;
             var payload = new { chat_id = chatId, text = mensaje, parse_mode = "MarkdownV2", reply_markup = replyMarkup };
-            var content = new StringContent(JsonSerializer.Serialize(payload), System.Text.Encoding.UTF8, "application/json");
+            var content = new StringContent(JsonSerializer.Serialize(payload, _jsonOptions), System.Text.Encoding.UTF8, "application/json");
 
             var response = await httpClient.PostAsync(
                 $"https://api.telegram.org/bot{botToken}/sendMessage", content, ct);
