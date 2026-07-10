@@ -55,6 +55,28 @@ public class CompetidorAnalysisServiceTests
             "la sobrecarga de la función por un parámetro de tipo ambiguo)");
     }
 
+    [Fact]
+    public void UspListarCompetidores_ExcluyeTivitDelListado()
+    {
+        var source = File.ReadAllText(FindSourceFile("V100__Create_usp_ListarCompetidores.sql")).Replace("\r\n", "\n");
+
+        source.Should().Contain("NOT ILIKE '%tivit%'",
+            "el dropdown de competidores no debe ofrecer a TIVIT como opción -- no tiene sentido comparar a TIVIT contra sí mismo");
+    }
+
+    [Fact]
+    public void CompetidoresController_ExponeEndpointListaAntesQueBuscarPorNombre()
+    {
+        var source = File.ReadAllText(FindSourceFile("CompetidoresController.cs")).Replace("\r\n", "\n");
+
+        var indiceLista = source.IndexOf("[HttpGet(\"lista\")]", StringComparison.Ordinal);
+        var indiceBuscarPorNombre = source.IndexOf("public async Task<ActionResult<ApiResponse<IEnumerable<OfertaDto>>>> BuscarPorNombre", StringComparison.Ordinal);
+
+        indiceLista.Should().BeGreaterThanOrEqualTo(0, "debe existir un endpoint GET /lista para poblar el dropdown del frontend");
+        indiceLista.Should().BeLessThan(indiceBuscarPorNombre,
+            "la ruta explícita \"lista\" debe declararse antes que la ruta raíz para evitar ambigüedad de routing");
+    }
+
     private static string FindSourceFile(string fileName)
     {
         var dir = new DirectoryInfo(AppContext.BaseDirectory);

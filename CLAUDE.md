@@ -70,6 +70,7 @@ Each domain is a separate class library with an `AddXxxModule()` extension metho
 | `MPM.Modules.Analisis` | Workspace for uploading PDF documents, Gemini AI analysis, chat Q&A |
 | `MPM.Modules.Notificaciones` | In-app notifications |
 | `MPM.Modules.Alertas` | Keyword-based tender alerts, delivery via Telegram bot (Fase 6) |
+| `MPM.Modules.Competidores` | Competitor intelligence — scrapes the public "Cuadro de Ofertas" (no login required), on-demand Gemini analysis per competitor + date range, cached by competitor+period |
 
 **Module structure** (consistent across all modules):
 ```
@@ -111,6 +112,7 @@ MPM.Modules.Xxx/
 - `/analisis` → `/analisis/:id` → `/analisis/:id/dashboard` — three-step analysis flow (list → workspace → results dashboard)
 - `/mensajes` — real-time chat with presence indicators
 - `/catalogos` — reference data management
+- `/competidores` — competitor intelligence panel (`CompetidoresPage.tsx`, `useCompetidores` hook)
 
 ### Environment variables (`.env`)
 

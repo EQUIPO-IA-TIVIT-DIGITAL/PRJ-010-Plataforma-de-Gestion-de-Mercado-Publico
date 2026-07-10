@@ -4,6 +4,7 @@ public static class CompetidoresStoredProcedures
 {
     public const string BuscarPorCompetidor = "SELECT * FROM usp_LicitacionesOfertas_BuscarPorCompetidor(@p_nombre)";
     public const string ContarPorCompetidorYRango = "SELECT usp_LicitacionesOfertas_ContarPorCompetidorYRango(@p_nombre, @p_fecha_desde, @p_fecha_hasta)";
+    public const string ListarCompetidores = "SELECT * FROM usp_LicitacionesOfertas_ListarCompetidores()";
 
     public const string AnalisisBuscar = "SELECT * FROM usp_CompetidoresAnalisis_Buscar(@p_nombre_competidor, @p_fecha_desde, @p_fecha_hasta)";
 

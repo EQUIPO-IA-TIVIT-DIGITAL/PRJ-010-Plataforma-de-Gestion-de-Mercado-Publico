@@ -7,6 +7,14 @@ namespace MPM.Modules.Competidores.Data;
 
 public class OfertasHandler(DbConnectionFactory dbFactory)
 {
+    public async Task<IEnumerable<string>> ListarCompetidoresAsync(CancellationToken ct = default)
+    {
+        await using var conn = dbFactory.Create();
+        return await conn.QueryAsync<string>(
+            CompetidoresStoredProcedures.ListarCompetidores,
+            commandType: CommandType.Text);
+    }
+
     public async Task<IEnumerable<OfertaDto>> BuscarPorCompetidorAsync(string nombre, CancellationToken ct = default)
     {
         await using var conn = dbFactory.Create();

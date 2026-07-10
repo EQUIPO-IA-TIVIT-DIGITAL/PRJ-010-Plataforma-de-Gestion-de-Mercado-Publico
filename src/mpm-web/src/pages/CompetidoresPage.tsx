@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { Space, Table, Input, DatePicker, Button, Tag, Empty, App as AntApp, Card, Typography, Tooltip } from 'antd';
+import { Space, Table, AutoComplete, DatePicker, Button, Tag, Empty, App as AntApp, Card, Typography, Tooltip } from 'antd';
 import { TeamOutlined, ExperimentOutlined, BulbOutlined } from '@ant-design/icons';
 import dayjs, { type Dayjs } from 'dayjs';
-import { useBuscarCompetidor, useAnalizarCompetidor } from '../hooks/useCompetidores';
+import { useBuscarCompetidor, useAnalizarCompetidor, useListarCompetidores } from '../hooks/useCompetidores';
 import type { OfertaCompetidor, AnalisisCompetidorResponse } from '../types/competidores';
 
 const { Text } = Typography;
@@ -11,17 +11,22 @@ const { RangePicker } = DatePicker;
 export function CompetidoresPage() {
   const { message } = AntApp.useApp();
   const [nombreBuscado, setNombreBuscado] = useState('');
-  const [inputNombre, setInputNombre] = useState('');
+  const [textoEscrito, setTextoEscrito] = useState('');
   const [rango, setRango] = useState<[Dayjs, Dayjs] | null>(null);
   const [ultimoResultado, setUltimoResultado] = useState<AnalisisCompetidorResponse | null>(null);
 
+  const { data: listaCompetidores, isLoading: cargandoLista } = useListarCompetidores();
   const { data, isLoading } = useBuscarCompetidor(nombreBuscado);
   const analizar = useAnalizarCompetidor();
 
   const ofertas = data?.data ?? [];
+  const sugerencias = (listaCompetidores?.data ?? [])
+    .filter((nombre) => nombre.toLowerCase().includes(textoEscrito.toLowerCase()))
+    .map((nombre) => ({ value: nombre }));
 
-  const handleBuscar = () => {
-    setNombreBuscado(inputNombre.trim());
+  const handleSeleccionar = (nombre: string) => {
+    setTextoEscrito(nombre);
+    setNombreBuscado(nombre);
     setUltimoResultado(null);
   };
 
@@ -108,14 +113,16 @@ export function CompetidoresPage() {
 
       <Card size="small">
         <Space wrap>
-          <Input
-            placeholder="Nombre del competidor (ej. Sonda)"
-            value={inputNombre}
-            onChange={(e) => setInputNombre(e.target.value)}
-            onPressEnter={handleBuscar}
-            style={{ width: 280 }}
+          <AutoComplete
+            allowClear
+            style={{ width: 320 }}
+            value={textoEscrito}
+            options={sugerencias}
+            onChange={setTextoEscrito}
+            onSelect={handleSeleccionar}
+            placeholder="Escribí el nombre de un competidor (ej. SON...)"
+            notFoundContent={cargandoLista ? 'Cargando...' : 'Sin competidores recolectados todavía'}
           />
-          <Button type="primary" onClick={handleBuscar}>Buscar</Button>
         </Space>
       </Card>
 

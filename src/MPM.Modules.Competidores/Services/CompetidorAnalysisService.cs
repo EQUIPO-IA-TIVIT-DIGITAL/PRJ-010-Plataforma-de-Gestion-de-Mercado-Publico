@@ -9,6 +9,9 @@ public class CompetidorAnalysisService(
     CompetidorAnalisisHandler analisisHandler,
     CompetidorGeminiService geminiService)
 {
+    public Task<IEnumerable<string>> ListarCompetidoresAsync(CancellationToken ct = default) =>
+        ofertasHandler.ListarCompetidoresAsync(ct);
+
     public Task<IEnumerable<OfertaDto>> BuscarOfertasAsync(string nombreCompetidor, CancellationToken ct = default) =>
         ofertasHandler.BuscarPorCompetidorAsync(nombreCompetidor, ct);
 

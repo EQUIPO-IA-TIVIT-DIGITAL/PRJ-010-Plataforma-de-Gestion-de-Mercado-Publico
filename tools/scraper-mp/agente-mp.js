@@ -157,7 +157,7 @@ async function executeCycle() {
           // Agil, Trato Directo, o una licitacion que aun no cerro), sin frenar el resto del
           // ciclo (research.md R3).
           if (licitacionDbId) {
-            const resultCuadroOfertas = await extraerCuadroOfertas(fichaPage, datos, carpetaLicitacion);
+            const resultCuadroOfertas = await extraerCuadroOfertas(fichaPage, context, datos, carpetaLicitacion);
             if (resultCuadroOfertas.ofertas?.length > 0) {
               await guardarOfertasCompetidor(licitacionDbId, resultCuadroOfertas.ofertas);
             }

@@ -4,6 +4,13 @@ import type { AnalisisCompetidorResponse, AnalizarCompetidorRequest, OfertaCompe
 
 const BASE = '/api/v1/competidores';
 
+export function useListarCompetidores() {
+  return useQuery({
+    queryKey: ['competidores', 'lista'],
+    queryFn: () => apiGet<{ data: string[] }>(`${BASE}/lista`),
+  });
+}
+
 export function useBuscarCompetidor(nombre: string) {
   return useQuery({
     queryKey: ['competidores', nombre],

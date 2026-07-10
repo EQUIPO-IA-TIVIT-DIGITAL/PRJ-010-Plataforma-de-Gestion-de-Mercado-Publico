@@ -13,6 +13,15 @@ public class CompetidoresController(CompetidorAnalysisService service) : Control
 {
     private TenantContext? GetTenant() => HttpContext.Items["TenantContext"] as TenantContext;
 
+    /// <summary>Lista los nombres de competidores ya recolectados (excluye TIVIT) para poblar el buscador con un dropdown en vez de texto libre.</summary>
+    [HttpGet("lista")]
+    [ProducesResponseType(typeof(ApiResponse<IEnumerable<string>>), 200)]
+    public async Task<ActionResult<ApiResponse<IEnumerable<string>>>> ListarCompetidores()
+    {
+        var nombres = await service.ListarCompetidoresAsync();
+        return Ok(ApiResponse<IEnumerable<string>>.Ok(nombres));
+    }
+
     /// <summary>Busca las ofertas de un competidor por nombre -- 100% datos ya recolectados, nunca dispara IA (FR-001/FR-002).</summary>
     [HttpGet]
     [ProducesResponseType(typeof(ApiResponse<IEnumerable<OfertaDto>>), 200)]
