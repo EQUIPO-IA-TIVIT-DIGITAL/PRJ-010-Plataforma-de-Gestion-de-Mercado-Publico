@@ -1,0 +1,27 @@
+# Feature Tasks: Robustez de Sincronización y Mapeo de Tipos Reales
+
+- [x] **Investigar Estructura de la API Masiva y de Detalle**
+  - [x] Identificar la ausencia de Comprador, Fechas y Tipo en el listado masivo diario.
+  - [x] Verificar que el detalle individual sí contiene Comprador y Fechas completas.
+  - [x] Confirmar que el Monto Estimado puede ser nulo si la institución pública lo oculta.
+- [x] **Implementar Parsing de Tipo Real y Fallback de Fechas en C#**
+  - [x] Desarrollar `ParseTipoDesdeCodigo` para extraer el tipo de la tercera sección del `CodigoExterno`.
+  - [x] Pasar la fecha de consulta diaria (`date`) a `MapToLicitacionRaw` y usarla como fallback para `fecha_publicacion`.
+- [x] **Resolver Error de Concurrencia de la API (10500)**
+  - [x] Agregar `ValidarRespuestaJson` en `ApiMpService.cs` para interceptar respuestas HTTP 200 con cuerpo de error 10500 y convertirlas en excepciones 429 para forzar reintentos.
+- [x] **Proteger los Datos Ricos del Scraper en PostgreSQL**
+  - [x] Diseñar y aplicar la migración de base de datos `V105` y `V106` para actualizar `usp_SyncEngine_MergeLicitaciones`.
+  - [x] Usar `COALESCE` en el `ON CONFLICT DO UPDATE` para proteger organismo, unidad_tecnica, monto_estimado y link.
+  - [x] Impedir la sobreescritura de `raw_data` si ya contiene información estructurada (objeto `"Comprador"`).
+- [x] **Enriquecer Licitaciones en Caliente en el Motor de Alertas**
+  - [x] Inyectar `IHttpClientFactory` e `IServiceProvider` en `AlertasMatchingService.cs`.
+  - [x] Agregar el método `ActualizarLicitacionEnCalienteAsync` a `AlertasHandler.cs` (módulo de Alertas) usando Dapper.
+  - [x] Implementar la llamada en caliente al detalle individual de la API de Mercado Público en `EvaluarUnaLicitacionAsync` si la licitación disparada tiene organismo nulo.
+  - [x] Actualizar PostgreSQL y propagar las propiedades del record posicional en memoria `licitacion` usando la sintaxis `with`.
+- [x] **Configurar Ejecución Diaria**
+  - [x] Ajustar la configuración en `appsettings.json` para definir un solapamiento de ventana deslizante diario óptimo de 3 días.
+- [x] **Validar e Iniciar Ejecución en Docker**
+  - [x] Compilar el backend y construir las imágenes de Docker.
+  - [x] Asegurar que las migraciones se apliquen y que los tipos reales se guarden con éxito en PostgreSQL.
+  - [x] Lanzar el worker de sincronización histórico del backfill desatendido en background.
+  - [x] Implementar la defensa de clave foránea (`codigo_estado`) en `V106` para evitar caídas ante estados no estándar reportados por Mercado Público.

@@ -4,7 +4,7 @@ export interface EstadoItem {
 }
 
 export interface TipoLicitacionItem {
-  codigo: number;
+  codigo: string;
   nombre: string;
   slug: string;
 }

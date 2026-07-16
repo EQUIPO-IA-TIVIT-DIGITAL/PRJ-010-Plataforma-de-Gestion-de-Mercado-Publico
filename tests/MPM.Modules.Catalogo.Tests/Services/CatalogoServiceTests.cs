@@ -41,7 +41,7 @@ public class CatalogoServiceTests
     {
         var expected = new List<TipoLicitacionItemDto>
         {
-            new() { Codigo = 1, Nombre = "Licitación Pública", Slug = "publica" }
+            new() { Codigo = "LE", Nombre = "Licitación Pública Menor", Slug = "le" }
         };
         _handlerMock.Setup(h => h.GetTiposLicitacionAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(expected);

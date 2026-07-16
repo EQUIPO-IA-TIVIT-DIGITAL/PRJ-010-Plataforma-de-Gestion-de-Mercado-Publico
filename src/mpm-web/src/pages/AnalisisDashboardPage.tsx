@@ -12,7 +12,7 @@ import {
 } from '@ant-design/icons'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useDashboard } from '../hooks/useAnalisis'
-import { AnalisisChat } from '../components/AnalisisChat'
+import { AnalisisChat, SparklesIcon } from '../components/AnalisisChat'
 import { ComparativaDocumentos, type ValidacionDocumental } from '../components/ComparativaDocumentos'
 import { generarPdfAnalisis } from '../lib/analisisPdf'
 
@@ -928,16 +928,19 @@ export function AnalisisDashboardPage() {
 
       {/* ---- Chat contextual: botón flotante + panel lateral ---- */}
       <FloatButton
-        icon={<RobotOutlined />}
-        type="primary"
+        icon={<SparklesIcon size={18} color="white" />}
         tooltip="Chat contextual con IA"
-        style={{ insetInlineEnd: 32, insetBlockEnd: 32 }}
+        className="mpm-chat-fab"
+        style={{
+          insetInlineEnd: 32,
+          insetBlockEnd: 32,
+        }}
         onClick={() => setChatOpen(true)}
       />
       <Drawer
         title={
           <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <RobotOutlined style={{ color: '#8b5cf6' }} /> Chat contextual con IA
+            <SparklesIcon size={16} color="#8b5cf6" /> Chat contextual con IA
           </span>
         }
         placement="right"
@@ -945,8 +948,17 @@ export function AnalisisDashboardPage() {
         open={chatOpen}
         onClose={() => setChatOpen(false)}
         destroyOnClose={false}
+        styles={{
+          body: {
+            padding: '16px 20px',
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden',
+            height: '100%',
+          },
+        }}
       >
-        <AnalisisChat workspaceId={workspaceId} maxHeight="calc(100vh - 260px)" />
+        <AnalisisChat workspaceId={workspaceId} maxHeight="100%" />
       </Drawer>
     </Space>
   )

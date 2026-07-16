@@ -2,9 +2,21 @@
 
 **Feature Branch**: `018-buscador-inteligente-nl`
 **Created**: 2026-07-03
-**Status**: Planned
+**Status**: **CERRADO** (2026-07-16) — implementado y validado en vivo contra Docker + Vertex AI real. Funcional de punta a punta (US1/US2/US3, incluida degradación FR-005 confirmada con un 429 real de Vertex). SC-001 (latencia <3s) no se cumplió en la medición local (mediana ~6s); decisión del usuario: se atribuye a latencia de red/cuota del entorno local de desarrollo contra `us-central1`, no representativa de producción — no bloquea el cierre. Sin acción de seguimiento pendiente salvo observar la latencia real una vez desplegado.
 **Semana estimada**: Semana 3 (Julio 2026)
-**Impacto**: Alto | **Complejidad**: Media-Alta | **Depende de**: Fase 5
+**Impacto**: Alto | **Complejidad**: Media (bajó de Media-Alta en planning — no requirió pgvector, ver research.md) | **Depende de**: Fase 5
+
+## Estado de implementación (2026-07-16)
+
+Implementadas y probadas en vivo (Docker real, ADC/Vertex AI activo) las 3 user stories (US1/US2 P1, US3 P2) vía `ConsultaSemanticaService` (Gemini 2.5 Flash-Lite + Vertex AI/ADC) enriqueciendo `usp_Licitaciones_BuscarNatural` (migración V107), con fallback a búsqueda literal si Vertex falla o no está configurado (FR-005 — confirmado en un caso real: un 429 de cuota de Vertex durante la prueba, la búsqueda igual respondió 200). Frontend: modo "Búsqueda inteligente" en `LicitacionFilterBar` + `NaturalSearchResults`, conectado a `useBuscarNatural`.
+
+**Bug real encontrado y corregido durante la validación**: `usp_Licitaciones_BuscarNatural` fallaba con `42883` porque `LicitacionHandler.BuscarNaturalAsync` pasaba parámetros de fecha sin `DbType` explícito (mismo patrón que BUG-014) — corregido con `DynamicParameters`.
+
+**Hallazgo abierto, no bloqueante para seguir usando la feature pero sí para cerrarla**: la latencia real (mediana ~6s, algunas sobre 10s) está muy por encima de SC-001 (<3s). El diagnóstico en vivo apunta a **cuota de Vertex AI del proyecto de desarrollo** (`tivit-cu010` chocó contra un 429 real durante la prueba), no a que el modelo `gemini-2.5-flash-lite` sea lento en sí (hubo respuestas de 828ms-1.6s). Antes de cambiar de modelo, revisar la cuota asignada. Ver detalle completo en `tasks.md` (sección Hallazgos).
+
+**Fuera de alcance confirmado en esta iteración**: filtro por ubicación/región (no existe columna en `licitaciones` — ver research.md). Si se necesita a futuro, requiere una fase previa de extracción de región desde el organismo o las bases.
+
+**Pendiente antes de dar la feature por cerrada**: confirmar con el equipo de infraestructura si la cuota de Vertex AI de `tivit-cu010` es representativa de producción o es un límite de desarrollo; correr el benchmark formal de recall (SC-002) con las 6 palabras clave del equipo si se quiere un número duro en vez de la validación cualitativa ya hecha.
 
 **Origen**: Reunión "Revisión Alcance Mercado Público" (2026-06-09). Francisco Lopez Balart y Ariel Gonzalez Borges solicitaron priorizar esta herramienta sobre otros análisis: *"un sistema automatizado... que permita asociar conceptos y encontrar licitaciones relevantes en el mercado público, detectando oportunidades que los buscadores tradicionales omiten debido a la ambigüedad en las categorías"*. Reconfirmado en la reunión del 2026-07-01 como parte del flujo de detección de oportunidades, inmediatamente después del módulo de Alertas (Fase 6).
 

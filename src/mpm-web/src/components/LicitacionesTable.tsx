@@ -66,15 +66,6 @@ function formatDate(d: string | null): string {
   }).format(new Date(d));
 }
 
-function formatCurrency(v: number | null): string {
-  if (v == null) return '—';
-  return new Intl.NumberFormat('es-CL', {
-    style: 'currency',
-    currency: 'CLP',
-    maximumFractionDigits: 0,
-  }).format(v);
-}
-
 function isClosingSoon(fechaCierre: string | null): boolean {
   if (!fechaCierre) return false;
   const diff = new Date(fechaCierre).getTime() - Date.now();
@@ -170,17 +161,6 @@ export function LicitacionesTable({ dataSource, pagination, loading, onRowClick,
       ),
     },
     {
-      title: 'Organismo',
-      dataIndex: 'organismo',
-      key: 'organismo',
-      ellipsis: { showTitle: false },
-      render: (org: string) => (
-        <Tooltip title={org} placement="topLeft">
-          <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{org}</span>
-        </Tooltip>
-      ),
-    },
-    {
       title: 'Publicación',
       dataIndex: 'fechaPublicacion',
       key: 'fecha_publicacion',
@@ -212,47 +192,6 @@ export function LicitacionesTable({ dataSource, pagination, loading, onRowClick,
           </span>
         );
       },
-    },
-    {
-      title: 'Monto',
-      dataIndex: 'montoEstimado',
-      key: 'monto_estimado',
-      width: 150,
-      align: 'right',
-      render: (v: number) => (
-        <span
-          style={{
-            fontSize: 13,
-            fontWeight: 600,
-            color: v ? '#0f172a' : 'var(--text-muted)',
-            fontVariantNumeric: 'tabular-nums',
-          }}
-        >
-          {formatCurrency(v)}
-        </span>
-      ),
-    },
-    {
-      title: 'Items',
-      dataIndex: 'itemsCount',
-      key: 'items_count',
-      width: 65,
-      align: 'center',
-      render: (count: number) => (
-        <Tag
-          style={{
-            borderRadius: 999,
-            fontSize: 11,
-            fontWeight: 700,
-            padding: '1px 8px',
-            background: '#f0f4ff',
-            color: '#3b4fd8',
-            border: '1px solid #c7d7fe',
-          }}
-        >
-          {count ?? 0}
-        </Tag>
-      ),
     },
     {
       title: '',

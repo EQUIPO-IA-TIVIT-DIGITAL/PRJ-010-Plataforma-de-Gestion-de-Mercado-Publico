@@ -1,8 +1,8 @@
 # Spec: Hardening del scraper de TIVIT (extracción + análisis sin gasto duplicado)
 
-**Fecha**: 2026-07-06/07
-**Estado**: ✅ Completado (objetivo local) 2026-07-07 — las 33 licitaciones donde TIVIT participó en 2025-2026 están identificadas y analizadas con Gemini, con un orquestador que corre sin supervisión. Queda pendiente únicamente el hardening para Cloud Run (hornear Xvfb en el Dockerfile), bloqueado por la misma infraestructura pendiente que el resto de Fase 5.
-**Relacionado**: `016-extraccion-documentos-api` (mecanismo de extracción), `002-fase5-deploy-gcp` §1b (riesgo de reCAPTCHA en Cloud Run Jobs, ya documentado ahí con más detalle técnico)
+**Fecha**: 2026-07-06/07, retomado y cerrado 2026-07-15/16
+**Estado**: ✅ **Completado end-to-end** 2026-07-16 — reemplazado `tools/scraper-mp` por `tools/scraper-mp-v2` (ver adenda al final): login robusto con aserción positiva, fix del cuelgue de postback ASP.NET (causa real de que el scraper "no trajera nada" en corridas recientes), y **headless nativo sin Xvfb** (nuevo modo headless de Chromium, validado en vivo sin reCAPTCHA). Docker/`ScraperBackgroundService` ya apuntan a v2; v1 queda marcado `DEPRECATED.md`. 41 licitaciones únicas de TIVIT 2025-2026 encontradas (vs. 33 conocidas), todas con análisis Gemini completado (37 workspaces, 0 en error).
+**Relacionado**: `016-extraccion-documentos-api` (mecanismo de extracción), `002-fase5-deploy-gcp` §1b (riesgo de reCAPTCHA en Cloud Run Jobs — la adenda de abajo resuelve el riesgo documentado ahí)
 
 ## Objetivo
 
@@ -46,5 +46,17 @@ Se implementó un orquestador de sesiones en `agente-mp.js` (`ejecutarConReinten
 
 - [x] Hornear `Xvfb` + `xauth` en el Dockerfile de la imagen `api` de forma permanente, y cambiar la invocación del scraper (`ScraperBackgroundService.cs`, hoy `node <script>`) para envolverla con `xvfb-run --auto-servernum --` (o el arranque manual de `Xvfb :99` + `DISPLAY=:99` ya validado como workaround). Sin esto, el scraper sigue dependiendo de intervención manual para evitar el 403 en modo headless — bloqueante solo para el despliegue en Cloud Run, no para el uso local actual.
   - **Completado 2026-07-08**: `src/MPM.Api/Dockerfile` ahora instala `xvfb xauth` en la capa de runtime. `ScraperBackgroundService.cs` detecta `xvfb-run` en el PATH automáticamente (`IsXvfbAvailable()`): si está disponible (Cloud Run), envuelve la invocación con `xvfb-run --auto-servernum -- node ...` y setea `MP_HEADLESS=false`; si no (local), cae al flujo headless tradicional sin cambios. `dotnet build` pasa con 0 errores.
-- [ ] Confirmar que `ScraperBackgroundService` (el `BackgroundService` de producción, hoy con `SCRAPER_ENABLED=false`) invoca `ejecutarConReintentosDeSesion` (o su equivalente) en vez del ciclo simple, y que el `SCRAPER_INTERVAL_HOURS` de producción es compatible con el límite de volumen por hora descubierto (importante para dimensionar la cadencia de `Cloud Scheduler` en `002-fase5-deploy-gcp`).
+- [x] Confirmar que `ScraperBackgroundService` invoca el orquestador de sesiones — sigue siendo cierto con v2 (`agente-mp.js --daemon --incremental` → `ejecutarConReintentosDeSesion`, sin cambios en esa parte).
 - [ ] (Opcional, no bloqueante) Evaluar usar `Adjudicacion.UrlActa` (hallazgo 9) como fuente de datos complementaria sin login para reducir la dependencia del cupo de "Ver Adjuntos".
+
+## Adenda 2026-07-15/16 — migración a scraper-mp-v2, fix del cuelgue de postback, headless sin Xvfb
+
+Diagnóstico en vivo (Chrome DevTools + corridas headless/headed) reveló que el punto débil real no era el 403 de "Ver Adjuntos" (ya resuelto arriba) sino el **login y la búsqueda**, que fallaban en silencio:
+
+1. **Postback de ASP.NET colgado**: en búsquedas consecutivas sobre `NEwSearchProcurement.aspx` (el bucle de 5 estados), el `UpdatePanel` puede quedar colgado para siempre (`Sys.WebForms.PageRequestManager.get_isInAsyncPostBack()` nunca vuelve a `false`); el evento `endRequest` **nunca dispara** en esta página (solo `beginRequest`). El scraper viejo no detectaba esto y leía la tabla vieja o nada. Fix: detección por transición del flag `busy` (true→false) + recarga proactiva de la página entre estados (~5s vs. 45s de timeout).
+2. **Login con falso éxito**: la heurística por URL daba positivo antes de completar la selección de organización (es un modal sobre `/Home`, no un cambio de URL). Fix: aserción positiva exigiendo `#lnkEndSession` visible en `Menu.aspx`. Los mensajes de error de Keycloak vienen en español (`invalid/Incorrect` en inglés nunca matcheaban).
+3. **Headless sin Xvfb**: `chromium.launch({headless:true, channel:'chromium'})` (Playwright ≥1.49) activa el headless *nuevo* (binario completo de Chrome), validado en vivo sin disparar reCAPToken/robot-block — a diferencia del headless *shell* por defecto, que es el que Mercado Público penalizaba. Xvfb ya no es necesario para Cloud Run Jobs (queda como plan B; `ScraperBackgroundService` lo sigue soportando automáticamente si está presente).
+
+**Cambios**: nuevo directorio `tools/scraper-mp-v2/` (sesión persistida en `scraper_session` vía DB, invalidada tras login fallido/robot-block; marcadores stdout `LOGIN_FALLIDO: true` / `BLOQUEO_ROBOT: true` pendientes de cablear en `ScraperBackgroundService.NotificarResultadoAsync`). `src/MPM.Api/Dockerfile` actualizado para copiar `scraper-mp-v2`. `tools/scraper-mp/` marcado `DEPRECATED.md`, conservado solo como referencia histórica.
+
+**Resultado validado 2026-07-16**: ciclo headless completo (sesión reutilizada, 5 estados, paginación, descarga de actas) sin ningún cuelgue tras el fix — 41 licitaciones únicas (8 más que las 33 conocidas: los estados que colgaban en silencio ocultaban resultados). 37 análisis Gemini completados, 0 en error (7 fallaron por ADC expirado del desarrollador local — no relacionado al scraper — y se re-dispararon con éxito tras renovar `gcloud auth application-default login`).

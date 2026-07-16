@@ -243,6 +243,34 @@ public class AlertasHandler(DbConnectionFactory dbFactory)
         public string? p_telegram_chat_id { get; set; }
         public string? p_email_alertas { get; set; }
     }
+
+    public async Task ActualizarLicitacionEnCalienteAsync(
+        string codigoExterno, string? organismo, string? unidadTecnica, decimal? montoEstimado, string? descripcion, string rawData)
+    {
+        await using var conn = _dbFactory.Create();
+        await conn.ExecuteAsync(
+            @"UPDATE licitaciones 
+              SET organismo = COALESCE(organismo, @organismo), 
+                  unidad_tecnica = COALESCE(unidad_tecnica, @unidadTecnica), 
+                  monto_estimado = COALESCE(monto_estimado, @montoEstimado), 
+                  descripcion = COALESCE(descripcion, @descripcion), 
+                  raw_data = CASE 
+                      WHEN raw_data IS NOT NULL AND (raw_data->'Comprador') IS NOT NULL THEN raw_data 
+                      ELSE @rawData::JSONB 
+                  END,
+                  updated_at = CURRENT_TIMESTAMP
+              WHERE codigo_externo = @codigoExterno;",
+            new
+            {
+                codigoExterno,
+                organismo,
+                unidadTecnica,
+                montoEstimado,
+                descripcion,
+                rawData
+            },
+            commandType: CommandType.Text);
+    }
 }
 
 public class ReglaAlertaRow

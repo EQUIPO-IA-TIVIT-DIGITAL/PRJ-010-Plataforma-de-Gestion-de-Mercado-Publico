@@ -1,0 +1,139 @@
+CU010 - PLATAFORMA DE GESTION Y ANALISIS DE LICITACIONES PUBLICAS
+CASOS DE USO / MODULOS FUNCIONALES
+Version: v2
+Generado: 2026-07-12
+Fuente(s): CLAUDE.md, specs/, MPM.sln
+Regla: specs/ es la fuente de verdad. Ver docs/cu010_formato.txt.
+Nota: en este repo no existe numeracion interna "CU01, CU02...". CU010 es
+el codigo de todo el proyecto/cliente en TIVIT. Lo que sigue son los
+modulos/historias de usuario funcionales dentro de CU010.
+
+===========================================================
+1. AUTENTICACION (MPM.Modules.Auth)
+===========================================================
+- [OK] Login, recuperacion de contraseña, JWT, roles
+Listo para grabar video: SI.
+
+===========================================================
+2. LICITACIONES (MPM.Modules.Licitaciones)
+===========================================================
+- [OK] Sync diario desde API Mercado Publico
+- [OK] Busqueda multicriterio (estado, tipo, fecha, monto, region, rubro)
+- [OK] Scraper de adjuntos
+- [OK] Seguimiento de licitaciones (boton estrella + aclaraciones)
+Listo para grabar video: SI.
+
+===========================================================
+3. CATALOGO (MPM.Modules.Catalogo)
+===========================================================
+- [OK] Estados, tipos, monedas, organismos
+Listo para grabar video: SI.
+
+===========================================================
+4. MENSAJERIA (MPM.Modules.Mensajeria)
+===========================================================
+- [OK] Chat interno real-time (SignalR), presencia
+- [OK] BUG-014 (creacion de conversacion 400) corregido y verificado en
+  produccion (09/07)
+Listo para grabar video: SI.
+
+===========================================================
+5. ANALISIS (MPM.Modules.Analisis)
+===========================================================
+- [OK] Upload de PDF, analisis Gemini (criterios, puntajes, competidores,
+  conclusion)
+- [OK] Chat contextual sobre el analisis
+- [OK] Dashboard ejecutivo (ganadas/perdidas, ranking, diferencial)
+- [DRAFT] Rediseño estetico del chat con Ant Design X (spec 025) — no
+  bloquea el uso actual, es solo apariencia visual
+Listo para grabar video: SI (version actual, funcional).
+
+===========================================================
+6. NOTIFICACIONES (MPM.Modules.Notificaciones)
+===========================================================
+- [OK] Notificaciones in-app (campanita)
+Listo para grabar video: SI.
+
+===========================================================
+7. ALERTAS (MPM.Modules.Alertas)
+===========================================================
+- [OK] CRUD de reglas por keyword + sinonimos via IA
+- [OK] Notificacion enriquecida a account managers
+- [OK] Envio por bot de Telegram + boton "Probar alerta"
+- [OK] Demoed 09/07; 2 bugs P1 post-demo corregidos y verificados en vivo
+  >> CORRECCION (2026-07-12): version anterior de este documento tenia
+     todo el nucleo de Alertas+Telegram sin marcar como completado -> se
+     corrige, ya esta [OK] en su totalidad.
+- [EN CURSO] US2 (spec 024): boton inline "Me interesa" en Telegram
+  (requiere webhook con callback_query)
+- [EN CURSO] US3 (spec 024): canal de alertas por correo electronico
+Listo para grabar video: SI — el flujo base (crear regla, probar alerta,
+recibir en Telegram) esta completo y verificado en produccion real.
+
+===========================================================
+8. COMPETIDORES / INTELIGENCIA DE COMPETENCIA (MPM.Modules.Competidores)
+===========================================================
+- [EN CURSO] US1 (spec 024): panel de inteligencia de competencia,
+  busqueda + ofertas del "Cuadro de Ofertas" publico + analisis Gemini
+  bajo demanda
+- [PENDIENTE] Migraciones V097 (licitaciones_ofertas), V098
+  (competidores_analisis), V099 (columna email_alertas) — diseñadas, sin
+  aplicar
+- [PENDIENTE] Confirmar que % de licitaciones adjudicadas tiene "Cuadro
+  de Ofertas" disponible (riesgo abierto no bloqueante)
+Listo para grabar video: NO todavia — confirmar si ya hay UI navegable
+antes de grabar.
+
+===========================================================
+9. BUSCADOR INTELIGENTE NL (spec 018)
+===========================================================
+- [PENDIENTE] Endpoint semantico, filtros, degradacion a full-text,
+  historial de busqueda
+Listo para grabar video: NO.
+
+===========================================================
+10. PIPELINE DE OPORTUNIDADES (spec 004)
+===========================================================
+- [PENDIENTE] Tablero Kanban, checklist de completitud, asignacion de
+  responsables, alertas de vencimiento
+Listo para grabar video: NO.
+
+===========================================================
+11. DESPLIEGUE EN GCP (spec 002) — infraestructura, no pantalla de usuario
+===========================================================
+- [BLOQUEADO] URL HTTPS publica, migracion de PDFs a GCS, Cloud SQL
+  gestionado, TLS automatico, runbook de deploy sin downtime
+Listo para grabar video: N/A.
+
+===========================================================
+PENDIENTES
+===========================================================
+- [EN CURSO] Competidores (spec 024) — confirmar UI navegable
+- [EN CURSO] Canal de correo para alertas (spec 024, US3)
+- [DRAFT] Rediseño chat de Analisis (spec 025)
+- [PENDIENTE] Buscador NL, Pipeline de Oportunidades
+
+===========================================================
+PROXIMO PASO
+===========================================================
+Verificar en vivo si spec 024 (Competidores) ya tiene pantalla navegable
+antes de decidir si entra en el video de demo.
+
+===========================================================
+QUE GRABAR HOY (2026-07-12)
+===========================================================
+Listos y verificados en produccion real:
+  1. Login/Auth
+  2. Licitaciones: sync + busqueda + seguimiento
+  3. Analisis: subir PDF, ver analisis Gemini, chat contextual, dashboard
+  4. Mensajeria: chat interno
+  5. Notificaciones: campanita
+  6. Alertas: crear regla, "Probar alerta", recibir en Telegram
+
+Confirmar antes de grabar:
+  - Competidores/Inteligencia de Competencia (spec 024)
+
+No mostrar todavia:
+  - Buscador inteligente NL
+  - Pipeline de oportunidades (Kanban)
+  - Pantallas de infraestructura GCP (no aplica, no es parte de la app)

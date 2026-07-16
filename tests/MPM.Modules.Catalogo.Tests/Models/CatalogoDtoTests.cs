@@ -26,7 +26,7 @@ public class CatalogoDtoTests
     public void TipoLicitacionItemDto_DefaultValues()
     {
         var dto = new TipoLicitacionItemDto();
-        dto.Codigo.Should().Be(0);
+        dto.Codigo.Should().BeEmpty();
         dto.Nombre.Should().BeEmpty();
         dto.Slug.Should().BeEmpty();
     }
@@ -34,10 +34,10 @@ public class CatalogoDtoTests
     [Fact]
     public void TipoLicitacionItemDto_WithValues()
     {
-        var dto = new TipoLicitacionItemDto { Codigo = 1, Nombre = "Licitación Pública", Slug = "publica" };
-        dto.Codigo.Should().Be(1);
-        dto.Nombre.Should().Be("Licitación Pública");
-        dto.Slug.Should().Be("publica");
+        var dto = new TipoLicitacionItemDto { Codigo = "LP", Nombre = "Licitación Pública Media", Slug = "lp" };
+        dto.Codigo.Should().Be("LP");
+        dto.Nombre.Should().Be("Licitación Pública Media");
+        dto.Slug.Should().Be("lp");
     }
 
     [Fact]
@@ -78,7 +78,7 @@ public class CatalogoDtoTests
         var dto = new CatalogosResponseDto
         {
             EstadosLicitacion = [new EstadoItemDto { Codigo = 5, Nombre = "Adjudicada" }],
-            TiposLicitacion = [new TipoLicitacionItemDto { Codigo = 1, Nombre = "LP", Slug = "publica" }],
+            TiposLicitacion = [new TipoLicitacionItemDto { Codigo = "LP", Nombre = "Licitación Pública Media", Slug = "lp" }],
             Monedas = [new MonedaItemDto { Codigo = 1, Simbolo = "$", CodigoIso = "CLP" }]
         };
         dto.EstadosLicitacion.Should().HaveCount(1);

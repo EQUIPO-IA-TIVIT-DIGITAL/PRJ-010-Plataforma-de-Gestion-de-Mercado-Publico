@@ -14,7 +14,8 @@ public class LicitacionService(
     IConfiguration config,
     LicitacionHandler licitacionHandler,
     SyncService syncService,
-    ApiMpService apiMpService)
+    ApiMpService apiMpService,
+    ConsultaSemanticaService consultaSemanticaService)
 {
     public async Task<(List<LicitacionResumenDto> items, int totalCount)> ListarAsync(
         int page, int pageSize, string? search, short? estado, string? tipo, string? organismo,
@@ -101,7 +102,30 @@ public class LicitacionService(
         if (string.IsNullOrWhiteSpace(query) || query.Trim().Length < 2)
             return (null, "VAL_001:La búsqueda debe tener al menos 2 caracteres");
 
-        var (items, totalCount) = await licitacionHandler.BuscarNaturalAsync(query.Trim(), page, pageSize, estado, ct);
+        var queryTrim = query.Trim();
+
+        // 018-buscador-inteligente-nl (FR-005): si la interpretación falla, no está disponible,
+        // o tiene confianza baja, se usa la consulta tal cual -- comportamiento idéntico al
+        // buscar-natural literal anterior a esta feature.
+        List<string>? terminosExpandidos = null;
+        short? estadoEfectivo = estado;
+        decimal? montoDesde = null;
+        decimal? montoHasta = null;
+        DateTime? fechaHasta = null;
+
+        var interpretacion = await consultaSemanticaService.InterpretarAsync(queryTrim, ct);
+        if (interpretacion is { Confianza: Models.ConfianzaInterpretacion.Alta })
+        {
+            terminosExpandidos = interpretacion.TerminosExpandidos;
+            montoDesde = interpretacion.MontoDesde;
+            montoHasta = interpretacion.MontoHasta;
+            fechaHasta = interpretacion.FechaHasta;
+            // El estado explícito del usuario siempre tiene prioridad sobre el inferido (US2).
+            estadoEfectivo = estado ?? interpretacion.EstadoInferido;
+        }
+
+        var (items, totalCount) = await licitacionHandler.BuscarNaturalAsync(
+            queryTrim, page, pageSize, estadoEfectivo, terminosExpandidos, montoDesde, montoHasta, fechaHasta, ct);
 
         return (new PaginatedResult<LicitacionNaturalSearchResult>
         {

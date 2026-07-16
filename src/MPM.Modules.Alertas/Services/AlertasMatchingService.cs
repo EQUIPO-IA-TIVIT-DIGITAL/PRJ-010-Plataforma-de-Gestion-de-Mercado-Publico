@@ -1,5 +1,8 @@
 using System.Text.Json;
+using System.Net.Http;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Configuration;
 using MPM.Modules.Alertas.Data;
 using MPM.Modules.Alertas.Models;
 using MPM.Modules.Notificaciones.Services;
@@ -18,7 +21,9 @@ public class AlertasMatchingService(
     TelegramNotificationService telegram,
     EmailNotificationService email,
     NotificacionesService notificaciones,
-    ILogger<AlertasMatchingService> logger)
+    ILogger<AlertasMatchingService> logger,
+    IServiceProvider serviceProvider,
+    IHttpClientFactory httpClientFactory)
 {
     private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNameCaseInsensitive = true };
 
@@ -80,6 +85,80 @@ public class AlertasMatchingService(
         }
 
         if (matches.Count == 0) return esPrueba ? null : null;
+
+        // --- ENRIQUECIMIENTO EN CALIENTE ---
+        // Si hay un match de alertas y el organismo está vacío (lo que indica que proviene de la API masiva resumida)
+        if (string.IsNullOrWhiteSpace(licitacion.Organismo))
+        {
+            try
+            {
+                var config = serviceProvider.GetRequiredService<IConfiguration>();
+                var ticket = config["MP_TICKET"];
+
+                if (!string.IsNullOrEmpty(ticket))
+                {
+                    logger.LogInformation("Enriqueciendo licitación disparada {Codigo} en caliente...", licitacion.CodigoExterno);
+                    var url = $"https://api.mercadopublico.cl/servicios/v1/publico/licitaciones.json?ticket={ticket}&codigo={licitacion.CodigoExterno}";
+                    
+                    using var httpClient = httpClientFactory.CreateClient();
+                    var response = await httpClient.GetAsync(url, ct);
+                    
+                    if (response.IsSuccessStatusCode)
+                    {
+                        var json = await response.Content.ReadAsStringAsync(ct);
+                        using var doc = JsonDocument.Parse(json);
+                        var root = doc.RootElement;
+                        
+                        if (root.TryGetProperty("Listado", out var listadoProp) && listadoProp.ValueKind == JsonValueKind.Array && listadoProp.GetArrayLength() > 0)
+                        {
+                            var item = listadoProp[0];
+                            string? organismo = null;
+                            string? unidadTecnica = null;
+                            if (item.TryGetProperty("Comprador", out var compradorProp) && compradorProp.ValueKind == JsonValueKind.Object)
+                            {
+                                if (compradorProp.TryGetProperty("NombreOrganismo", out var orgProp)) organismo = orgProp.GetString();
+                                if (compradorProp.TryGetProperty("NombreUnidad", out var uniProp)) unidadTecnica = uniProp.GetString();
+                            }
+
+                            string? descripcion = null;
+                            if (item.TryGetProperty("Descripcion", out var descProp)) descripcion = descProp.GetString();
+
+                            decimal? montoEstimado = null;
+                            if (item.TryGetProperty("MontoEstimado", out var montoProp) && (montoProp.ValueKind == JsonValueKind.Number || (montoProp.ValueKind == JsonValueKind.String && decimal.TryParse(montoProp.GetString(), out _))))
+                            {
+                                montoEstimado = montoProp.ValueKind == JsonValueKind.Number 
+                                    ? montoProp.GetDecimal() 
+                                    : decimal.Parse(montoProp.GetString()!);
+                            }
+
+                            // 1. Guardamos en la base de datos de inmediato usando el handler
+                            await handler.ActualizarLicitacionEnCalienteAsync(
+                                licitacion.CodigoExterno,
+                                organismo,
+                                unidadTecnica,
+                                montoEstimado,
+                                descripcion,
+                                item.GetRawText()
+                            );
+
+                            // 2. Actualizamos el objeto en memoria para el envío de notificaciones
+                            licitacion = licitacion with
+                            {
+                                Descripcion = descripcion ?? licitacion.Descripcion,
+                                Monto = montoEstimado ?? licitacion.Monto,
+                                Organismo = organismo ?? licitacion.Organismo
+                            };
+                            logger.LogInformation("Licitación {Codigo} enriquecida exitosamente en caliente.", licitacion.CodigoExterno);
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Error enriqueciendo licitación {Codigo} en caliente", licitacion.CodigoExterno);
+            }
+        }
+        // ------------------------------------
 
         ProbarAlertaResponse? respuestaPrueba = null;
 

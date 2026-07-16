@@ -1,16 +1,25 @@
-import { Row, Col, Input, Select, DatePicker, Button } from 'antd';
-import { SearchOutlined, ClearOutlined } from '@ant-design/icons';
+import { Row, Col, Input, Select, DatePicker, Button, Segmented } from 'antd';
+import { SearchOutlined, ClearOutlined, BulbOutlined, FilterOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { useCatalogos } from '../hooks/useCatalogos';
 import type { LicitacionFilter } from '../types/licitacion';
+
+export type SearchMode = 'filtros' | 'inteligente';
 
 interface Props {
   filter: LicitacionFilter;
   onChange: (partial: Partial<LicitacionFilter>) => void;
   onReset?: () => void;
+  searchMode: SearchMode;
+  onSearchModeChange: (mode: SearchMode) => void;
+  naturalQuery: string;
+  onNaturalQueryChange: (q: string) => void;
 }
 
-export function LicitacionFilterBar({ filter, onChange, onReset }: Props) {
+export function LicitacionFilterBar({
+  filter, onChange, onReset,
+  searchMode, onSearchModeChange, naturalQuery, onNaturalQueryChange,
+}: Props) {
   const { data: catalogos } = useCatalogos();
 
   const estadoOptions = (catalogos?.estadosLicitacion ?? []).map(e => ({
@@ -19,12 +28,35 @@ export function LicitacionFilterBar({ filter, onChange, onReset }: Props) {
   }));
 
   const tipoOptions = (catalogos?.tiposLicitacion ?? []).map(t => ({
-    value: t.slug,
-    label: t.nombre,
+    value: t.codigo,
+    label: `${t.nombre} (${t.codigo})`,
   }));
 
   return (
     <Row gutter={[10, 8]} align="middle">
+      <Col xs={24} md="auto">
+        <Segmented
+          value={searchMode}
+          onChange={v => onSearchModeChange(v as SearchMode)}
+          options={[
+            { label: 'Filtros', value: 'filtros', icon: <FilterOutlined /> },
+            { label: 'Búsqueda inteligente', value: 'inteligente', icon: <BulbOutlined /> },
+          ]}
+          data-testid="filter-search-mode"
+        />
+      </Col>
+      {searchMode === 'inteligente' ? (
+        <Col xs={24} sm={12} md={7}>
+          <Input
+            placeholder="Ej: ciberseguridad para el sector salud, mayores a 10 millones..."
+            prefix={<BulbOutlined />}
+            allowClear
+            value={naturalQuery}
+            onChange={e => onNaturalQueryChange(e.target.value)}
+            data-testid="filter-busqueda-natural"
+          />
+        </Col>
+      ) : (
       <Col xs={24} sm={12} md={7}>
         <Input
           placeholder="Buscar por código o nombre..."
@@ -35,6 +67,7 @@ export function LicitacionFilterBar({ filter, onChange, onReset }: Props) {
           data-testid="filter-busqueda"
         />
       </Col>
+      )}
       <Col xs={12} sm={6} md={4}>
         <Select
           placeholder="Estado"

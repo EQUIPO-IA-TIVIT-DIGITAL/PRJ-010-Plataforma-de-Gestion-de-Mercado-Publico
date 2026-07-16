@@ -34,14 +34,18 @@ RUN apt-get update && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Install scraper Node dependencies (cached layer — only rebuilds when package.json changes)
-COPY tools/scraper-mp/package.json tools/scraper-mp/package-lock.json /app/tools/
+# scraper-mp-v2 reemplaza a scraper-mp (2026-07-16): sesión persistida en BD (salta Keycloak),
+# aserción positiva de login, manejo del postback colgado de ASP.NET, y NUEVO headless de
+# Chromium (channel 'chromium') validado contra Mercado Público sin reCAPTCHA — Xvfb queda
+# solo como plan B (ScraperBackgroundService lo usa automáticamente si está presente).
+COPY tools/scraper-mp-v2/package.json tools/scraper-mp-v2/package-lock.json /app/tools/
 RUN cd /app/tools && npm ci --omit=dev
 
 # Install Playwright Chromium browser + required OS libraries
 RUN cd /app/tools && npx playwright install chromium --with-deps
 
 # Copy scraper source files (node_modules excluded via .dockerignore)
-COPY tools/scraper-mp/ /app/tools/
+COPY tools/scraper-mp-v2/ /app/tools/
 
 COPY --from=build /app/out .
 RUN mkdir -p /app/uploads/mensajeria

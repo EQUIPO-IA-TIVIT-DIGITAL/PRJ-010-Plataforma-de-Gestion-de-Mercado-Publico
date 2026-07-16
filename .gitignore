@@ -48,3 +48,8 @@ coverage/
 playwright-report/
 test-results/
 playwright/.cache/
+
+# Salida de corridas del scraper (datos descargados, capturas de error) --
+# se regenera en cada ejecución, no es código ni debe versionarse
+tools/scraper-mp/descargas/
+tools/scraper-mp-v2/descargas/

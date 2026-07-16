@@ -2,9 +2,11 @@ import { useState, useCallback, useMemo } from 'react';
 import { Space, Tag } from 'antd';
 import { FileTextOutlined } from '@ant-design/icons';
 import { LicitacionFilterBar } from '../components/LicitacionFilterBar';
+import type { SearchMode } from '../components/LicitacionFilterBar';
 import { LicitacionesTable } from '../components/LicitacionesTable';
+import { NaturalSearchResults } from '../components/NaturalSearchResults';
 import { LicitacionDetailDrawer } from '../components/LicitacionDetailDrawer';
-import { useLicitaciones } from '../hooks/useLicitaciones';
+import { useLicitaciones, useBuscarNatural } from '../hooks/useLicitaciones';
 import { useLicitacionDetalle } from '../hooks/useLicitacionDetalle';
 import type { LicitacionResumen, LicitacionFilter } from '../types/licitacion';
 
@@ -19,8 +21,14 @@ export function LicitacionesPage() {
   const [filter, setFilter] = useState<LicitacionFilter>(DEFAULT_FILTER);
   const [selectedCodigo, setSelectedCodigo] = useState<string | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  // 018-buscador-inteligente-nl: la barra de búsqueda semántica convive con los filtros
+  // estructurados existentes en vez de reemplazarlos -- comparten el mismo selector de Estado.
+  const [searchMode, setSearchMode] = useState<SearchMode>('filtros');
+  const [naturalQuery, setNaturalQuery] = useState('');
 
   const { data, isLoading } = useLicitaciones(filter);
+  const { data: naturalData, isLoading: naturalLoading } = useBuscarNatural(
+    naturalQuery, 1, 20, filter.estado ?? undefined);
   const { data: detalle, isLoading: detalleLoading } = useLicitacionDetalle(selectedCodigo);
 
   const licitaciones = useMemo(() => data?.data?.items ?? [], [data]);
@@ -37,7 +45,11 @@ export function LicitacionesPage() {
     };
   }, [data]);
 
-  const totalRecords = data?.data?.totalRecords ?? 0;
+  const naturalResults = useMemo(() => naturalData?.data?.items ?? [], [naturalData]);
+
+  const totalRecords = searchMode === 'inteligente'
+    ? (naturalData?.data?.totalRecords ?? 0)
+    : (data?.data?.totalRecords ?? 0);
 
   const handleFilterChange = useCallback((partial: Partial<LicitacionFilter>) => {
     setFilter(prev => ({ ...prev, ...partial, page: 1 }));
@@ -57,6 +69,11 @@ export function LicitacionesPage() {
 
   const handleRowClick = useCallback((row: LicitacionResumen) => {
     setSelectedCodigo(row.codigoExterno);
+    setDrawerOpen(true);
+  }, []);
+
+  const handleNaturalSelect = useCallback((codigoExterno: string) => {
+    setSelectedCodigo(codigoExterno);
     setDrawerOpen(true);
   }, []);
 
@@ -98,18 +115,35 @@ export function LicitacionesPage() {
 
       {/* ---- Filters (búsqueda única + reiniciar) ---- */}
       <div className="mpm-filter-bar" style={{ padding: '12px 16px' }}>
-        <LicitacionFilterBar filter={filter} onChange={handleFilterChange} onReset={handleResetFilters} />
+        <LicitacionFilterBar
+          filter={filter}
+          onChange={handleFilterChange}
+          onReset={handleResetFilters}
+          searchMode={searchMode}
+          onSearchModeChange={setSearchMode}
+          naturalQuery={naturalQuery}
+          onNaturalQueryChange={setNaturalQuery}
+        />
       </div>
 
       {/* ---- Results ---- */}
-      <LicitacionesTable
-        dataSource={licitaciones}
-        pagination={pagination}
-        loading={isLoading}
-        onRowClick={handleRowClick}
-        onPageChange={handlePageChange}
-        onSortChange={handleSortChange}
-      />
+      {searchMode === 'inteligente' ? (
+        <NaturalSearchResults
+          results={naturalResults}
+          loading={naturalLoading}
+          query={naturalQuery}
+          onSelect={handleNaturalSelect}
+        />
+      ) : (
+        <LicitacionesTable
+          dataSource={licitaciones}
+          pagination={pagination}
+          loading={isLoading}
+          onRowClick={handleRowClick}
+          onPageChange={handlePageChange}
+          onSortChange={handleSortChange}
+        />
+      )}
 
       {/* ---- Detail Drawer ---- */}
       <LicitacionDetailDrawer

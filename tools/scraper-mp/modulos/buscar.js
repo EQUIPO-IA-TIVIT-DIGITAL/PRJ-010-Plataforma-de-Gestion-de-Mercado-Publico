@@ -31,16 +31,42 @@ export async function buscarLicitaciones(page, context) {
       await esperarConDelay(1000);
     }
 
-    console.log('[BUSQUEDA] Configurando filtros...');
-    await configurarFiltros(page);
+    console.log('[BUSQUEDA] Configurando filtros base...');
+    await configurarFiltrosBase(page);
 
-    console.log('[BUSQUEDA] Ejecutando busqueda...');
-    await ejecutarBusqueda(page);
+    // Bucle interactivo por estados para extraer la participación real completa
+    const estados = ['8', '6', '5', '7', '15']; // Adjudicada, Cerrada, Publicada, Desierta, Revocada
+    const licitacionesMap = new Map();
 
-    console.log('[BUSQUEDA] Extrayendo resultados...');
-    const licitaciones = await extraerResultados(page, context);
+    for (const estado of estados) {
+      try {
+        console.log(`\n[BUSQUEDA] Cambiando a filtro de estado: '${estado}'...`);
+        
+        await reintentar(async () => {
+          const selectEstado = page.locator('#cboState');
+          await selectEstado.waitFor({ state: 'visible', timeout: 15000 });
+          await selectEstado.selectOption(estado);
+        });
+        await esperarConDelay(1000);
 
-    console.log(`[BUSQUEDA] ${licitaciones.length} licitaciones encontradas`);
+        console.log(`[BUSQUEDA] Ejecutando busqueda para estado '${estado}'...`);
+        await ejecutarBusqueda(page);
+
+        console.log(`[BUSQUEDA] Extrayendo resultados para estado '${estado}'...`);
+        const resultadosEstado = await extraerResultados(page, context);
+        
+        for (const lic of resultadosEstado) {
+          licitacionesMap.set(lic.codigo, lic);
+        }
+        
+        console.log(`[BUSQUEDA] Estado '${estado}': ${resultadosEstado.length} encontradas. Total acumulado único: ${licitacionesMap.size}`);
+      } catch (errEstado) {
+        console.log(`[BUSQUEDA] ADVERTENCIA: Error en ciclo de estado '${estado}': ${errEstado.message}`);
+      }
+    }
+
+    const licitaciones = Array.from(licitacionesMap.values());
+    console.log(`\n[BUSQUEDA] Búsqueda finalizada. Total único de licitaciones encontradas: ${licitaciones.length}`);
     return licitaciones;
 
   } catch (e) {
@@ -70,7 +96,7 @@ async function cerrarPopups(page) {
   }
 }
 
-async function configurarFiltros(page) {
+async function configurarFiltrosBase(page) {
   const fechaDesde = process.env.MP_FECHA_DESDE || '01-01-2026';
   const hoy = new Date();
   const dia = String(hoy.getDate()).padStart(2, '0');
@@ -78,7 +104,7 @@ async function configurarFiltros(page) {
   const anio = hoy.getFullYear();
   const fechaHasta = `${dia}-${mes}-${anio}`;
 
-  console.log(`[BUSQUEDA] Filtros: Region=Todas, Estado=Adjudicada, Desde=${fechaDesde}, Hasta=${fechaHasta}`);
+  console.log(`[BUSQUEDA] Filtros: Region=Todas, Desde=${fechaDesde}, Hasta=${fechaHasta}`);
 
   await reintentar(async () => {
     console.log('[BUSQUEDA] Seleccionando "Todas las Regiones"...');
@@ -86,16 +112,6 @@ async function configurarFiltros(page) {
     await selectRegion.waitFor({ state: 'visible', timeout: 15000 });
     await selectRegion.selectOption(' ');
     console.log('[BUSQUEDA] Region "Todas" seleccionada');
-  });
-
-  await esperarConDelay(500);
-
-  await reintentar(async () => {
-    console.log('[BUSQUEDA] Seleccionando "Adjudicada"...');
-    const selectEstado = page.locator('#cboState');
-    await selectEstado.waitFor({ state: 'visible', timeout: 15000 });
-    await selectEstado.selectOption('8');
-    console.log('[BUSQUEDA] Estado "Adjudicada" seleccionado');
   });
 
   await esperarConDelay(500);
@@ -126,7 +142,7 @@ async function configurarFiltros(page) {
 
   await esperarConDelay(500);
 
-  console.log('[BUSQUEDA] Filtros configurados correctamente');
+  console.log('[BUSQUEDA] Filtros base configurados correctamente');
 
   await seleccionarFiltroOfertado(page);
 
@@ -152,12 +168,31 @@ async function seleccionarFiltroOfertado(page) {
 }
 
 async function ejecutarBusqueda(page) {
+  const modalCargando = page.locator('#ModalCargando_backgroundElement, .CssBackCargando').first();
+  try {
+    if (await modalCargando.isVisible().catch(() => false)) {
+      console.log('[BUSQUEDA] Esperando que desaparezca el modal de carga...');
+      await modalCargando.waitFor({ state: 'hidden', timeout: 20000 }).catch(() => {});
+      await esperarConDelay(1000);
+    }
+  } catch (errModal) {
+    // ignorar
+  }
+
   console.log('[BUSQUEDA] Click en boton Buscar...');
 
   await reintentar(async () => {
+    try {
+      if (await modalCargando.isVisible().catch(() => false)) {
+        await modalCargando.waitFor({ state: 'hidden', timeout: 10000 }).catch(() => {});
+      }
+    } catch (err) {
+      // ignorar
+    }
+
     const btnBuscar = page.locator('#btnSearch');
     await btnBuscar.waitFor({ state: 'visible', timeout: 15000 });
-    await btnBuscar.click();
+    await btnBuscar.click({ force: true });
   });
 
   console.log('[BUSQUEDA] Esperando resultados...');

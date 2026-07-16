@@ -154,7 +154,23 @@ common_app_env_vars() {
   # bloqueado por CORS. Se conoce recién después del primer `deploy_web`; en el primer
   # despliegue, correr `deploy_api` de nuevo una vez que `deploy_web` imprima la URL final.
   local cors_origins="${CORS_ALLOWED_ORIGINS:-http://localhost:3000,http://localhost:8181}"
-  echo "ASPNETCORE_URLS=http://+:80,ConnectionStrings__Redis=${REDIS_HOST}:${REDIS_PORT},Storage__Provider=gcs,Storage__Bucket=${GCS_BUCKET},GOOGLE_CLOUD_PROJECT=${GCP_PROJECT},Vertex__Region=${GCP_REGION},JWT__Issuer=TIVIT.MPM,JWT__Audience=MPM.Users,Cors__AllowedOrigins=${cors_origins},Telegram__BotUsername=${TELEGRAM_BOT_USERNAME}"
+  # 024-inteligencia-competencia-alertas / US3: canal de correo (Brevo provisional, ver
+  # memoria de sesion project_brevo_smtp_config) -- defaults reflejan lo ya configurado a mano
+  # en Cloud Run el 2026-07-10, para que una corrida futura del script no lo pise con valores
+  # distintos ni lo borre (aprendido de un incidente real ese mismo dia: --set-env-vars
+  # reemplaza TODO el set, no solo agrega).
+  local smtp_host="${SMTP_HOST:-smtp-relay.brevo.com}"
+  local smtp_port="${SMTP_PORT:-587}"
+  local smtp_username="${SMTP_USERNAME:-66dcf8001@smtp-brevo.com}"
+  local smtp_from_email="${SMTP_FROM_EMAIL:-alertas@31032005.xyz}"
+  local smtp_from_name="${SMTP_FROM_NAME:-TIVIT Mercado Publico}"
+  local smtp_enable_ssl="${SMTP_ENABLE_SSL:-true}"
+  # Delimitador "##" en vez de "," -- Cors__AllowedOrigins trae varios dominios separados por
+  # comas, y gcloud --set-env-vars usa "," como separador de pares por defecto: con el delimitador
+  # default, gcloud intenta parsear cada dominio extra como un par KEY=VALUE y falla con
+  # "Bad syntax for dict arg" (encontrado en vivo el 2026-07-10). Los call-sites deben prefijar
+  # el valor completo con "^##^" (ver `gcloud topic escaping`) para que esto funcione.
+  echo "ASPNETCORE_URLS=http://+:80##ConnectionStrings__Redis=${REDIS_HOST}:${REDIS_PORT}##Storage__Provider=gcs##Storage__Bucket=${GCS_BUCKET}##GOOGLE_CLOUD_PROJECT=${GCP_PROJECT}##Vertex__Region=${GCP_REGION}##JWT__Issuer=TIVIT.MPM##JWT__Audience=MPM.Users##Cors__AllowedOrigins=${cors_origins}##Telegram__BotUsername=${TELEGRAM_BOT_USERNAME}##Smtp__Host=${smtp_host}##Smtp__Port=${smtp_port}##Smtp__Username=${smtp_username}##Smtp__FromEmail=${smtp_from_email}##Smtp__FromName=${smtp_from_name}##Smtp__EnableSsl=${smtp_enable_ssl}"
 }
 
 # Telegram__BotToken/WebhookSecret opcionales -- si no existen todavía en Secret Manager (p.ej.
@@ -168,6 +184,10 @@ common_app_secrets() {
   fi
   if gcloud secrets describe "$SECRET_TELEGRAM_WEBHOOK_SECRET" --project="$GCP_PROJECT" >/dev/null 2>&1; then
     secrets="${secrets},Telegram__WebhookSecret=${SECRET_TELEGRAM_WEBHOOK_SECRET}:latest"
+  fi
+  local secret_smtp="${SECRET_SMTP_PASSWORD:-smtp-password}"
+  if gcloud secrets describe "$secret_smtp" --project="$GCP_PROJECT" >/dev/null 2>&1; then
+    secrets="${secrets},Smtp__Password=${secret_smtp}:latest"
   fi
   echo "$secrets"
 }
@@ -196,7 +216,7 @@ deploy_api() {
     --no-cpu-throttling \
     --allow-unauthenticated \
     --port=80 \
-    --set-env-vars="RUN_INPROCESS_WORKERS=false,$(common_app_env_vars)" \
+    --set-env-vars="^##^RUN_INPROCESS_WORKERS=false##$(common_app_env_vars)" \
     --set-secrets="$(common_app_secrets)"
 }
 
@@ -209,7 +229,10 @@ deploy_web() {
   fi
   echo "→ API URL detectada: $api_url"
 
-  build_and_push src/mpm-web/Dockerfile "$WEB_IMAGE" src/mpm-web
+  # Dockerfile relativo al CONTEXTO (src/mpm-web), no al repo -- dentro del contexto subido a
+  # Cloud Build, el Dockerfile ya vive en la raíz. Pasar "src/mpm-web/Dockerfile" aquí buscaba
+  # "src/mpm-web/src/mpm-web/Dockerfile" y fallaba (encontrado en vivo el 2026-07-10).
+  build_and_push Dockerfile "$WEB_IMAGE" src/mpm-web
   echo "→ gcloud run deploy $RUN_WEB_SERVICE"
   gcloud run deploy "$RUN_WEB_SERVICE" \
     --project="$GCP_PROJECT" \
@@ -231,7 +254,7 @@ deploy_job() {
     --network="$VPC_NETWORK" \
     --subnet="$VPC_SUBNET" \
     --vpc-egress=private-ranges-only \
-    --set-env-vars="WORKER_MODE=${worker_mode},$(common_app_env_vars)" \
+    --set-env-vars="^##^WORKER_MODE=${worker_mode}##$(common_app_env_vars)" \
     --set-secrets="$(common_app_secrets)" \
     --max-retries=1
 }

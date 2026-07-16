@@ -1,0 +1,88 @@
+CU010 - FORMATO ESTANDAR PARA DOCUMENTOS DE SEGUIMIENTO
+Version: v1
+Generado: 2026-07-12
+
+Por que existe este archivo: no habia una plantilla ("formato de Jesus")
+para reescribir sprints/roadmap/casos de uso/guion de video, asi que se
+define un formato propio, simple y consistente, para que los 4 documentos
+de docs/cu010_*.txt se lean igual entre si y sean faciles de actualizar
+sin releer todo cada vez.
+
+===========================================================
+1. ENCABEZADO OBLIGATORIO (primeras lineas de todo documento)
+===========================================================
+CU010 - <NOMBRE DEL PROYECTO>
+<TIPO DE DOCUMENTO EN MAYUSCULAS: SPRINTS / ROADMAP / CASOS DE USO / GUION>
+Version: v<N>
+Generado: YYYY-MM-DD
+Fuente(s): <archivos/specs usados>
+Regla: specs/ es la fuente de verdad. Todo dato que venga de otro lado
+(mensajes, PPT viejos, memoria) se contrasta contra specs/ y el codigo; si
+hay conflicto, se corrige y se deja nota fechada (ver seccion 3).
+
+===========================================================
+2. ETIQUETAS DE ESTADO (usar SIEMPRE estas, nunca texto libre suelto)
+===========================================================
+[OK]         Completado / en produccion, verificado
+[EN CURSO]   En desarrollo activo hoy
+[PENDIENTE]  No iniciado, sin bloqueo conocido
+[BLOQUEADO]  Detenido por una dependencia externa (infra, terceros)
+[PAUSADO]    Detenido por decision de negocio/cliente
+[DRAFT]      En planificacion o diseño, sin implementacion todavia
+
+Formato de linea de tarea:
+  [ETIQUETA] Descripcion corta de la tarea
+
+===========================================================
+3. NOTAS DE CORRECCION (cuando un dato contradice el spec/codigo)
+===========================================================
+Formato fijo, siempre en su propia linea, debajo del bloque corregido:
+
+  >> CORRECCION (YYYY-MM-DD): que decia antes -> que dice ahora y por que.
+     Fuente: <spec/archivo que sirvio de evidencia>.
+
+No se edita en silencio: toda correccion queda visible con su fecha.
+
+===========================================================
+4. AGREGADOS Y OMISIONES (cuando se agrega o excluye algo que no vino en
+   el input original del usuario)
+===========================================================
+  >> AGREGADO: no vino en el input, existe en specs/ -> se incluye.
+  >> OMITIDO: existe en specs/ pero se excluye de este documento y por que.
+
+===========================================================
+5. ESTRUCTURA DE SECCIONES
+===========================================================
+- Separador de seccion: linea de "=" (61 caracteres) arriba y abajo del
+  titulo de seccion, titulo en mayusculas.
+- Dentro de cada seccion, items con "-" o "[ETIQUETA]" segun corresponda.
+- Todo documento termina SIEMPRE con dos bloques finales:
+    PENDIENTES (lista corta, sin prosa, de lo que falta a la fecha)
+    PROXIMO PASO / QUE FALTA PARA CERRAR ESTE DOCUMENTO
+
+===========================================================
+6. NOMBRES DE ARCHIVO
+===========================================================
+  docs/cu010_<tema>.txt   (todo minuscula, guion bajo, sin tildes)
+  Ejemplos vigentes: cu010_sprints.txt, cu010_roadmap.txt,
+  cu010_casos_de_uso.txt, cu010_video_script.txt, cu010_formato.txt
+
+===========================================================
+7. VERSIONADO
+===========================================================
+Cada vez que se reescribe un documento por un cambio real de estado (no
+por typos), subir el numero de "Version: vN" en el encabezado y agregar
+una linea en un futuro bloico de "HISTORIAL DE VERSIONES" al final del
+documento si el cambio es significativo.
+
+===========================================================
+PENDIENTES
+===========================================================
+- Si en algun momento aparece el "formato de Jesus" real, comparar contra
+  este y decidir si se reemplaza o se fusiona.
+
+===========================================================
+PROXIMO PASO
+===========================================================
+Aplicar este formato a los 4 documentos existentes (cu010_sprints.txt,
+cu010_roadmap.txt, cu010_casos_de_uso.txt, cu010_video_script.txt).

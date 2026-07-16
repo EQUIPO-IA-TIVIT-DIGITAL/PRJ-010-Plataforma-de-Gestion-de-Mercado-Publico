@@ -505,42 +505,21 @@ body {
   border-color: var(--accent-primary) !important;
 }
 
-/* Chat message bubble */
-.mpm-chat-user {
-  background: var(--accent-primary) !important;
-  color: white !important;
-  border-radius: 18px 18px 4px 18px !important;
-  padding: 10px 14px !important;
-  max-width: 80%;
-  margin-left: auto;
-  box-shadow: 0 2px 8px var(--accent-primary-glow);
+/* mpm-chat-user / mpm-chat-assistant / mpm-typing-dot
+   eliminadas: ahora el chat usa Bubble.List/Sender de @ant-design/x (spec 025) */
+
+/* FloatButton del chat — fondo morado siempre (overrides el blanco default de antd) */
+.mpm-chat-fab .ant-float-btn-body {
+  background: linear-gradient(135deg, #8b5cf6, #a78bfa) !important;
+  box-shadow: 0 4px 16px rgba(139, 92, 246, 0.45) !important;
+  transition: all 0.2s ease !important;
+}
+.mpm-chat-fab .ant-float-btn-body:hover {
+  background: linear-gradient(135deg, #7c3aed, #8b5cf6) !important;
+  box-shadow: 0 6px 20px rgba(139, 92, 246, 0.6) !important;
+  transform: scale(1.06);
 }
 
-.mpm-chat-assistant {
-  background: var(--bg-muted) !important;
-  color: var(--text-primary) !important;
-  border-radius: 18px 18px 18px 4px !important;
-  padding: 10px 14px !important;
-  max-width: 80%;
-  border: 1px solid var(--border);
-}
-
-/* Indicador "escribiendo..." del chat */
-.mpm-typing-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--text-muted);
-  display: inline-block;
-  animation: mpm-typing-bounce 1.2s infinite ease-in-out;
-}
-.mpm-typing-dot:nth-child(2) { animation-delay: 0.15s; }
-.mpm-typing-dot:nth-child(3) { animation-delay: 0.3s; }
-
-@keyframes mpm-typing-bounce {
-  0%, 60%, 100% { transform: translateY(0); opacity: 0.5; }
-  30% { transform: translateY(-4px); opacity: 1; }
-}
 
 /* Mensaje hover — mostrar menú de acciones */
 [data-testid="mensaje-bubble"]:hover .msg-menu-btn {

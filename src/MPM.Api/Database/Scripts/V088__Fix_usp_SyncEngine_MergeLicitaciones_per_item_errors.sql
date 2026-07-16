@@ -47,6 +47,8 @@ BEGIN
                 nombre = EXCLUDED.nombre,
                 descripcion = EXCLUDED.descripcion,
                 codigo_estado = EXCLUDED.codigo_estado,
+                tipo = EXCLUDED.tipo,
+                fecha_publicacion = EXCLUDED.fecha_publicacion,
                 monto_estimado = EXCLUDED.monto_estimado,
                 fecha_cierre = EXCLUDED.fecha_cierre,
                 fecha_adjudicacion = EXCLUDED.fecha_adjudicacion,

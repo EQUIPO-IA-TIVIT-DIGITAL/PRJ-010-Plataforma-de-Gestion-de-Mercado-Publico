@@ -67,9 +67,8 @@ public class ScraperBackgroundService(
             intervalHours = config.GetValue<int>("SCRAPER_INTERVAL_HOURS");
         if (intervalHours <= 0) intervalHours = 12;
 
-        logger.LogInformation("ScraperBackgroundService starting. Interval: {Hours}h", intervalHours);
-
-        await Task.Delay(TimeSpan.FromSeconds(30), stoppingToken);
+        logger.LogInformation("Retrasando el inicio inicial del Scraper de Playwright por 10 minutos para evitar colisiones con la sincronización general...");
+        await Task.Delay(TimeSpan.FromMinutes(10), stoppingToken);
 
         await Task.Run(() => EjecutarScraperAsync(stoppingToken), stoppingToken);
 

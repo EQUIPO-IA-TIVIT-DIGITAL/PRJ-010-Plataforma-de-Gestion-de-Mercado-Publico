@@ -16,6 +16,8 @@ public static class ModuleRegistration
         services.AddScoped<LicitacionService>();
         services.AddScoped<SyncService>();
         services.AddHttpClient<ApiMpService>();
+        // 018-buscador-inteligente-nl: interpretación de consultas en lenguaje natural vía Gemini
+        services.AddHttpClient<ConsultaSemanticaService>();
 
         // 016-extraccion-documentos-api: extracción de documentos vía HTTP directo,
         // con fallback al scraper Node/Playwright existente (Extraccion:Modo).

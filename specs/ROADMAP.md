@@ -56,11 +56,11 @@ Este documento es la fuente única de verdad sobre secuencia y prioridad vigente
 |---|---|---|---|
 | Fase 6 — Alertas Inteligentes por Palabras Clave | [`003-fase6-alertas-keywords`](003-fase6-alertas-keywords/spec.md) | 3, 4, 5, 12 | Alcance ampliado 2026-07-03: User Story 3 (sinónimos vía IA) y User Story 4 (notificación enriquecida a account managers). Complejidad Media → Media-Alta; estimación 1 → 1.5 semanas. **Ampliado de nuevo 2026-07-06**: User Story 5 (bot de Telegram, pedido #12, instrucción interna) + función de "disparar alerta de prueba" para demo. |
 
-### 🔜 N3 — Julio 2026, nuevo
+### ✅ N3 — Cerrado 2026-07-16
 
-| Feature | Spec | Cubre el pedido # | Cambio por repriorización |
+| Feature | Spec | Cubre el pedido # | Estado |
 |---|---|---|---|
-| Buscador Inteligente en Lenguaje Natural sobre Licitaciones | [`018-buscador-inteligente-nl`](018-buscador-inteligente-nl/spec.md) | 2 | **Spec nueva**, creada 2026-07-03 vía spec-kit. Reemplaza el endpoint `buscar-natural` actual (full-text literal, sin UI conectada) por interpretación semántica real. |
+| Buscador Inteligente en Lenguaje Natural sobre Licitaciones | [`018-buscador-inteligente-nl`](018-buscador-inteligente-nl/spec.md) | 2 | **Implementado y cerrado 2026-07-16**, validado en vivo contra Docker + Vertex AI real (US1/US2/US3, incluida degradación FR-005 confirmada con un 429 real de cuota). Reemplaza el endpoint `buscar-natural` literal por interpretación semántica vía Gemini 2.5 Flash-Lite. Detalle en `tasks.md` del spec. |
 
 ### 🔜 N4 — Julio-Agosto 2026
 

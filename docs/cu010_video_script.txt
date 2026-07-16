@@ -1,0 +1,87 @@
+CU010 - PLATAFORMA DE GESTION Y ANALISIS DE LICITACIONES PUBLICAS
+GUION DE VIDEO
+Version: v2
+Generado: 2026-07-12
+Fuente(s): docs/cu010_casos_de_uso.txt, docs/cu010_roadmap.txt
+Regla: specs/ es la fuente de verdad. Ver docs/cu010_formato.txt.
+Nota: este guion cubre solo CU010. CU01 y CU09 son proyectos distintos
+(mensaje "stock" enviado a 3 agentes) y no se mencionan aca.
+
+===========================================================
+BLOQUE 1 - LOGIN Y CONTEXTO GENERAL
+===========================================================
+- Login con usuario de prueba (Auth: JWT, roles)
+- Mencionar: sincronizacion diaria automatica desde la API de Mercado
+  Publico, sin intervencion manual
+
+===========================================================
+BLOQUE 2 - LICITACIONES
+===========================================================
+- Listado con busqueda multicriterio (estado, tipo, fecha, monto, region,
+  rubro)
+- Boton estrella para "seguir" una licitacion; monitoreo de aclaraciones
+  cada 30 minutos
+- Exportacion a Excel
+
+===========================================================
+BLOQUE 3 - ANALISIS CON IA
+===========================================================
+- Abrir un workspace existente (o subir un PDF de acta de evaluacion en
+  vivo)
+- Mostrar analisis estructurado por Gemini: criterios, puntajes,
+  competidores, conclusion
+- Chat contextual: hacer una pregunta sobre el analisis
+- Dashboard ejecutivo: KPIs ganadas/perdidas, ranking de competidores,
+  diferencial economico
+  >> CORRECCION (2026-07-12): se quita la mencion de "refinamiento en
+     curso" del chat. Lo que esta en curso (spec 025) es solo estetico
+     (Ant Design X en vez de divs manuales), no una funcionalidad nueva
+     ni cambio de logica de IA -> el chat ya funciona completo hoy.
+
+===========================================================
+BLOQUE 4 - MENSAJERIA
+===========================================================
+- Chat interno en tiempo real (SignalR) entre dos usuarios, indicador de
+  presencia
+
+===========================================================
+BLOQUE 5 - NOTIFICACIONES
+===========================================================
+- Campanita de notificaciones in-app (ej. tipo aclaracion_detectada)
+
+===========================================================
+BLOQUE 6 - ALERTAS (cierre fuerte de la demo)
+===========================================================
+- Crear regla de alerta por palabra clave (ej. "ciberseguridad")
+- Mostrar que detecta sinonimos/conceptos via IA, no solo la palabra
+  literal
+- "Probar alerta" y mostrar notificacion llegando por Telegram en vivo
+- Mencionar: demoed 09/07, 2 bugs de produccion detectados y corregidos
+  el mismo dia — transmite que se probo en produccion real, no solo local
+
+===========================================================
+CIERRE - PENDIENTES A MENCIONAR (transparencia con el stakeholder)
+===========================================================
+- [BLOQUEADO] Despliegue en GCP — infraestructura pendiente (VPC, Cloud
+  SQL, IAM), no depende del equipo de desarrollo de MPM
+- [EN CURSO] Inteligencia de Competencia (spec 024) — aun no listo para
+  mostrar en pantalla
+- [EN CURSO] Canal de alertas por correo electronico (spec 024, US3) —
+  hoy solo existe Telegram + in-app
+- [PENDIENTE] Buscador Inteligente NL y Pipeline de Oportunidades — no
+  iniciados, no se muestran en este video
+  >> OMITIDO: "tarifas base LATAM" no aplica a CU010, pertenece a otro
+     proyecto (CU01) — excluido de este guion.
+
+===========================================================
+PENDIENTES
+===========================================================
+- Confirmar duracion objetivo del video (afecta nivel de detalle por
+  bloque)
+- Confirmar si se necesita voz en off o solo texto en pantalla
+
+===========================================================
+PROXIMO PASO
+===========================================================
+Grabar bloques 1-6 y validar en vivo el estado de spec 024 antes de
+decidir si se agrega un bloque 7 de Competidores.

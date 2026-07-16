@@ -1,0 +1,262 @@
+CU010 - PLATAFORMA DE GESTION Y ANALISIS DE LICITACIONES PUBLICAS
+SPRINTS
+Version: v2
+Generado: 2026-07-12
+Fuente(s): specs/*/spec.md, specs/ROADMAP.md, CLAUDE.md, ppt-sprints-mpm.md,
+sprints pasados por el usuario en chat (2026-07-12)
+Regla: specs/ es la fuente de verdad. Ver docs/cu010_formato.txt.
+
+===========================================================
+SETUP INICIAL (17/04/2026 - 18/04/2026)
+===========================================================
+- [OK] Ticket de la API de Mercado Publico y configuracion de
+  credenciales .env
+- [OK] Entorno de desarrollo local con Docker Compose (PostgreSQL, Redis,
+  Backend .NET 8, Frontend React)
+  >> CORRECCION (2026-07-12): input decia "Backend/Frontend" generico ->
+     la stack real es .NET 8 (MPM.Api) + React 18/Vite. Fuente: CLAUDE.md.
+- [OK] Migraciones iniciales de base de datos
+  >> CORRECCION (2026-07-12): input decia "con Alembic" (herramienta de
+     Python) -> este proyecto usa archivos .sql VXXX__Descripcion.sql
+     embebidos como recurso, aplicados por DatabaseInitializer al
+     arrancar. Fuente: CLAUDE.md.
+
+===========================================================
+SPRINT 1 (18/04/2026 - 11/05/2026)
+===========================================================
+- [OK] Worker de ingesta: sincronizacion diaria automatizada desde la API
+  oficial de Mercado Publico
+- [OK] Procesamiento en segundo plano: background services (.NET) + Redis
+  para manejo asincrono y backfill historico
+  >> CORRECCION (2026-07-12): input decia "Celery y Redis" (Celery es de
+     Python) -> es IHostedService/BackgroundService de .NET
+     (SyncEngineService), Redis se usa como backplane de SignalR. Fuente:
+     CLAUDE.md.
+- [OK] API REST (.NET 8 / ASP.NET Core): endpoints de Licitaciones y
+  catalogos de referencia
+  >> CORRECCION (2026-07-12): input decia "FastAPI" y rutas
+     /api/v1/licitaciones, /api/v1/ordenes-compra -> es ASP.NET Core
+     (MPM.Api), no FastAPI.
+  >> OMITIDO: "Ordenes de Compra" no existe como modulo en el codigo
+     actual (solo Licitaciones) -> se excluye por no corresponder a CU010.
+- [OK] Optimizacion de base de datos: indices en PostgreSQL
+
+===========================================================
+SPRINT 2 (11/05/2026 - 22/05/2026)
+===========================================================
+- [OK] Reuniones con BDM para confirmar servicios de terceros
+- [OK] Dashboard principal: KPIs, tendencias mensuales, graficos de
+  distribucion
+  >> CORRECCION (2026-07-12): input decia "Next.js" + "Recharts" -> el
+     frontend es React 18 + Vite, no Next.js; no hay evidencia en el repo
+     de Recharts como libreria especifica, se deja generico.
+- [OK] Busqueda avanzada: filtrado multicriterio (estado, tipo, fecha,
+  monto, region, rubro)
+- [OK] Exportacion de resultados (Excel) y metricas de rendimiento
+  >> CORRECCION (2026-07-12): input mencionaba "Prometheus" -> sin
+     evidencia de Prometheus en el repo, se deja generico hasta confirmar.
+
+===========================================================
+SPRINT 3 (23/05/2026 - 29/06/2026)
+===========================================================
+- [OK] Modulo Auth: login, recuperacion de contraseña, JWT, roles
+- [OK] Sincronizacion diaria de licitaciones desde API Mercado Publico
+- [OK] Catalogo: estados, tipos, organismos
+- [OK] Mensajeria real-time con SignalR
+- [OK] Upload manual de PDF de acta de evaluacion
+- [OK] Analisis IA con Gemini (criterios, puntajes, competidores,
+  conclusion)
+- [OK] Workspace de analisis con chat contextual
+- [OK] Dashboard ejecutivo: KPIs ganadas/perdidas, ranking competidores,
+  diferencial economico
+- [OK] Modulo Notificaciones: tablas, stored procedures, campanita
+- [OK] Dockerfile Node.js 20 + Playwright Chromium para scraping
+- [OK] docker-compose: variables MP_RUT, MP_PASSWORD, SCRAPER_ENABLED
+- [OK] Deteccion automatica de "Acta de Evaluacion" en adjuntos
+- [OK] Disparo automatico de analisis Gemini post-scraping
+- [OK] Migracion V072 (licitaciones_seguidas, licitaciones_aclaraciones)
+- [OK] Migracion V073 (5 stored procedures de seguimiento activo)
+- [OK] AclaracionMonitorService: poll MP API cada 30 min
+- [OK] Endpoints seguir/es-seguida/listar seguidas
+- [OK] Frontend: boton estrella toggle en tabla de licitaciones
+- [OK] Notificaciones tipo aclaracion_detectada
+  >> OMITIDO: spec 001-analisis-fases-sdd (creada 06-23, dentro de esta
+     ventana) no es una entrega de sprint, es el documento que formaliza
+     las Fases 5 a 18 -> no ocupa linea de sprint.
+
+===========================================================
+SPRINT "AJUSTES URGENTES DEL CLIENTE" (30/06/2026 - 01/07/2026)
+spec 017-ajustes-urgentes-cliente
+===========================================================
+  >> AGREGADO: no vino en el input del usuario, existe en specs/ y
+     ROADMAP.md lo marca "Hecho".
+- [OK] Analisis historico / validacion documental: razon de perdida vs.
+  documentos realmente enviados
+- [OK] Coherencia del analisis, UI/UX y ajustes de sesion (pedido directo
+  de Francisco, reunion 01/07)
+
+===========================================================
+SPRINT 4 (06/07/2026 - 10/07/2026)
+spec 002-fase5-deploy-gcp
+===========================================================
+- [BLOQUEADO] Sistema accesible en una URL HTTPS publica y estable
+- [BLOQUEADO] Migrar almacenamiento de PDFs a GCS (bucket
+  tivit-cu010-mpm-adjuntos)
+- [BLOQUEADO] Base de datos PostgreSQL en servicio gestionado con backup
+  recuperable
+- [BLOQUEADO] Reinicio automatico de servicios ante caida
+- [BLOQUEADO] Gestion segura de credenciales fuera del repo/imagen
+- [BLOQUEADO] Certificado TLS con renovacion automatica
+- [BLOQUEADO] Runbook de despliegue documentado
+- [BLOQUEADO] Proceso de deploy sin downtime perceptible (<15 min)
+  >> CORRECCION (2026-07-12): esta ventana ya paso y sigue todo sin
+     avanzar. Causa: bloqueo externo de infraestructura pendiente de
+     Nicolas Valdivia (VPC custom, Cloud SQL, Memorystore, IAM), no es un
+     problema de ejecucion del equipo de desarrollo. Fuente: CLAUDE.md.
+
+===========================================================
+SPRINT "ALERTAS INTELIGENTES" (01/07/2026 - 09/07/2026)
+spec 003-fase6-alertas-keywords
+===========================================================
+  >> CORRECCION (2026-07-12): el input traia esto como "Sprint 5
+     (13/07-17/07), todo Pendiente". No coincide con specs 003/022/023:
+     el modulo ya existe, se demoed el 09/07 (jueves), y ese mismo dia se
+     corrigieron 2 bugs P1 encontrados en produccion. El sprint ya paso y
+     ya cerro antes de la ventana que se habia dado. Fuente:
+     specs/023-fix-bugs-produccion, CLAUDE.md.
+- [OK] Pagina /alertas con CRUD de reglas (keyword, monto, tipos,
+  organismos)
+- [OK] Nuevo modulo MPM.Modules.Alertas
+- [OK] Motor de matching contra el sync diario de licitaciones
+- [OK] Expansion de keywords a sinonimos/conceptos via IA
+- [OK] Deduplicacion de alertas
+- [OK] Notificacion enriquecida (requisitos, competidores, presupuesto,
+  forma de pago, multas, señal de renovacion/proveedor actual)
+- [OK] Enrutamiento a los dos account managers de gobierno
+- [OK] Integracion con modulo de Notificaciones existente
+- [OK] User Story 5: bot de Telegram + endpoint "disparar alerta de
+  prueba" (pedido interno de Manuel Aliaga, 06/07)
+- [OK] Fix produccion (09/07): chat_id de Telegram placeholder rompia
+  "Probar alerta"
+- [OK] Fix produccion (09/07): auto-vinculado de Telegram no marcaba
+  es_account_manager_gobierno
+
+===========================================================
+SPRINT "QA PRE-PRODUCCION" (07/07/2026 - 08/07/2026)
+spec 022-qa-fixes-preproduccion
+===========================================================
+  >> AGREGADO: no vino en el input, existe en specs/.
+- [OK] 13 hallazgos de auditoria QA tecnica (Jean Franco Benique,
+  07/07), agrupados en 9 historias de usuario
+- [OK] Migracion V092 (tabla auth_eventos)
+- [OK] Migracion V093 (fix usp_Licitaciones_Listar)
+- [OK] Validado en Docker local y en produccion real (tivit-cu010,
+  deploy 09/07)
+
+===========================================================
+SPRINT "FIX URGENTE DE BUGS EN PRODUCCION" (09/07/2026)
+spec 023-fix-bugs-produccion
+===========================================================
+  >> AGREGADO: no vino en el input, existe en specs/.
+- [OK] BUG-014: creacion de conversacion en Mensajeria devolvia 400
+  siempre
+- [OK] BUG-015: auto-vinculado de Telegram no marcaba
+  es_account_manager_gobierno
+- [OK] Ambos verificados en produccion real (tivit-cu010)
+
+===========================================================
+SPRINT "INTELIGENCIA DE COMPETENCIA + ALERTAS INTERACTIVAS + EMAIL"
+(09/07/2026 - en curso) - spec 024-inteligencia-competencia-alertas
+===========================================================
+  >> AGREGADO: no vino en el input, existe en specs/ y es el trabajo
+     activo real de hoy.
+- [EN CURSO] US1 (P1): panel de inteligencia de competencia (busqueda de
+  competidor, ofertas del "Cuadro de Ofertas" publico, analisis Gemini
+  bajo demanda, cacheado por competidor+periodo)
+- [EN CURSO] US2 (P2): boton inline "Me interesa" en alertas de Telegram
+  (webhook debe manejar callback_query)
+- [EN CURSO] US3 (P3): canal de alertas por correo electronico
+- [PENDIENTE] Migraciones V097 (licitaciones_ofertas), V098
+  (competidores_analisis), V099 (columna email_alertas) — diseñadas, sin
+  aplicar
+- [EN CURSO] tasks.md generado, avance aproximado ~28 de 33 tareas
+
+===========================================================
+SPRINT 5 - VENTANA ORIGINAL (13/07/2026 - 17/07/2026) - SIN TAREAS
+===========================================================
+  >> CORRECCION (2026-07-12): la ventana de fechas que el usuario dio
+     originalmente para "Sprint 5" (Alertas) queda vacia porque ese
+     trabajo ya se ejecuto antes (ver bloque de Alertas arriba). No hay
+     tareas nuevas formalmente planificadas para esta ventana especifica.
+
+===========================================================
+SPRINT 6 (20/07/2026 - 24/07/2026)
+spec 018-buscador-inteligente-nl
+===========================================================
+- [PENDIENTE] Endpoint real de busqueda semantica conectado al frontend
+- [PENDIENTE] Interpretacion de consultas: sinonimos, conceptos, filtros
+  implicitos
+- [PENDIENTE] Filtro por estado (activa/cerrada/adjudicada/todas)
+- [PENDIENTE] Resultados por relevancia semantica con resumen
+- [PENDIENTE] Degradacion controlada a busqueda full-text
+- [PENDIENTE] Historial de sesion de busqueda
+
+===========================================================
+SPRINT 7 (27/07/2026 - 31/07/2026)
+spec 004-fase7-pipeline-oportunidades
+===========================================================
+- [PENDIENTE] Pagina /pipeline con tablero Kanban drag-and-drop
+- [PENDIENTE] 6 columnas: Detectada / En Evaluacion / En Cotizacion /
+  Presentada / Ganada / Perdida
+- [PENDIENTE] Tarjeta de oportunidad: responsable, dias al cierre, %
+  completitud
+- [PENDIENTE] Checklist de documentos pre-poblado desde analisis IA
+- [PENDIENTE] Asignacion de responsable con notificacion
+- [PENDIENTE] Alertas automaticas por vencimiento de fechas
+- [PENDIENTE] Registro de resultado (ganada/perdida + motivo)
+
+===========================================================
+SPRINT "REDISEÑO CHAT DE ANALISIS CON ANT DESIGN X" (10/07/2026 - en
+planificacion) - spec 025-rediseno-chat-analisis-antd-x
+===========================================================
+  >> AGREGADO: no vino en el input, existe en specs/.
+- [DRAFT] Migrar burbujas de chat a Bubble/Bubble.List de Ant Design X
+- [DRAFT] Migrar compositor de mensajes a Sender de Ant Design X
+- Nota: no cambia el backend ni el contrato de API, es solo capa visual.
+
+===========================================================
+OMITIDOS (specs que existen pero no ocupan linea de sprint)
+===========================================================
+  >> OMITIDO: specs/005 a specs/015 (Fase 8 a Fase 18) — [PAUSADO] por
+     pedido explicito del cliente el 03/07/2026, sin trabajo ni fecha.
+  >> OMITIDO: specs/001-analisis-fases-sdd — documento base, no entrega
+     funcional.
+  >> OMITIDO: specs/016-extraccion-documentos-api — quedo en "backlog
+     tecnico" ([BLOQUEADO] por reCAPTCHA Enterprise, sin fecha de
+     retomar), no ocupa ventana de sprint activa. Ver cu010_roadmap.txt.
+  >> OMITIDO: specs/019-rediseno-frontend, specs/020-migracion-gemini-adc,
+     specs/021-scraper-tivit-hardening — trabajo tecnico/paralelo sin
+     ventana de sprint formal asignada por el usuario; documentados en
+     cu010_roadmap.txt en vez de inventarles fecha de sprint.
+
+===========================================================
+PENDIENTES
+===========================================================
+- [BLOQUEADO] Deploy en GCP (Sprint 4) — infraestructura Nicolas Valdivia
+- [EN CURSO] Inteligencia de Competencia + alertas interactivas + email
+  (spec 024) — migraciones V097/V098/V099 sin aplicar
+- [PENDIENTE] Buscador Inteligente NL (Sprint 6)
+- [PENDIENTE] Pipeline de Oportunidades / Kanban (Sprint 7)
+- [DRAFT] Rediseño del chat de Analisis con Ant Design X (spec 025)
+- [PENDIENTE] Rediseño Frontend general de MPM (spec 019), paralelo, sin
+  fecha fija
+- [PENDIENTE] Hardening scraper TIVIT (spec 021): falta hornear
+  Xvfb+xauth en Dockerfile para Cloud Run Jobs
+
+===========================================================
+PROXIMO PASO
+===========================================================
+Confirmar con el usuario si las ventanas de fecha agregadas para los
+sprints que no vinieron en su input (Ajustes urgentes, QA, Fix
+produccion, Competidores, Rediseño chat) son aceptables o si prefiere
+fechas distintas.

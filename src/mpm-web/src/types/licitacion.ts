@@ -44,7 +44,7 @@ export interface LicitacionFilter {
   pageSize?: number;
   search?: string;
   estado?: number | null;
-  tipo?: TipoLicitacion | null;
+  tipo?: string | null;
   organismo?: string;
   fechaDesde?: string | null;
   fechaHasta?: string | null;

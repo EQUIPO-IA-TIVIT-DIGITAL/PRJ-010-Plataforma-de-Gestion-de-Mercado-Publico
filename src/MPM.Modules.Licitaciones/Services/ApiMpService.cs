@@ -19,12 +19,13 @@ public class ApiMpService(HttpClient httpClient, ILogger<ApiMpService> logger)
         response.EnsureSuccessStatusCode();
 
         var json = await response.Content.ReadAsStringAsync(ct);
+        ValidarRespuestaJson(json);
         var apiResponse = JsonSerializer.Deserialize<ApiMpListResponse>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
 
         if (apiResponse?.Listado == null)
             return new List<LicitacionRawDto>();
 
-        return apiResponse.Listado.Select(MapToLicitacionRaw).ToList();
+        return apiResponse.Listado.Select(item => MapToLicitacionRaw(item, date)).ToList();
     }
 
     public async Task<ApiMpLicitacion?> GetDetalleAsync(string codigo, string ticket, CancellationToken ct = default)
@@ -39,27 +40,28 @@ public class ApiMpService(HttpClient httpClient, ILogger<ApiMpService> logger)
         response.EnsureSuccessStatusCode();
 
         var json = await response.Content.ReadAsStringAsync(ct);
+        ValidarRespuestaJson(json);
         var apiResponse = JsonSerializer.Deserialize<ApiMpListResponse>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
 
         return apiResponse?.Listado?.FirstOrDefault();
     }
 
-    private static LicitacionRawDto MapToLicitacionRaw(ApiMpLicitacion item) => new()
+    private static LicitacionRawDto MapToLicitacionRaw(ApiMpLicitacion item, DateTime? defaultFechaPublicacion = null) => new()
     {
         codigo_externo = item.CodigoExterno,
         nombre = item.Nombre,
-        descripcion = null,
+        descripcion = item.Descripcion,
         codigo_estado = ParseCodigoEstado(item.CodigoEstado),
-        tipo = "Licitacion",
-        organismo = null,
-        unidad_tecnica = null,
-        moneda = "CLP",
-        monto_estimado = null,
-        fecha_publicacion = null,
+        tipo = ParseTipoDesdeCodigo(item.CodigoExterno),
+        organismo = item.Comprador?.NombreOrganismo,
+        unidad_tecnica = item.Comprador?.NombreUnidad,
+        moneda = item.Moneda ?? "CLP",
+        monto_estimado = item.MontoEstimado,
+        fecha_publicacion = DateTime.TryParse(item.Fechas?.FechaPublicacion, out var fp) ? fp : defaultFechaPublicacion,
         fecha_cierre = DateTime.TryParse(item.FechaCierre, out var fc) ? fc : null,
-        fecha_adjudicacion = null,
-        fecha_estimada_adjudicacion = null,
-        link = null,
+        fecha_adjudicacion = DateTime.TryParse(item.Fechas?.FechaAdjudicacion, out var fa) ? fa : null,
+        fecha_estimada_adjudicacion = DateTime.TryParse(item.Fechas?.FechaEstimadaAdjudicacion, out var fea) ? fea : null,
+        link = $"https://www.mercadopublico.cl/Procurement/Modules/RFB/DetailsAcquisition.aspx?qs=/{item.CodigoExterno}",
         raw_data = JsonSerializer.Serialize(item)
     };
 
@@ -72,6 +74,47 @@ public class ApiMpService(HttpClient httpClient, ILogger<ApiMpService> logger)
             JsonValueKind.String => short.TryParse(el.Value.GetString(), out var v) ? v : (short)1,
             _ => (short)1
         };
+    }
+
+    private static void ValidarRespuestaJson(string json)
+    {
+        if (string.IsNullOrWhiteSpace(json)) return;
+
+        using (var doc = JsonDocument.Parse(json))
+        {
+            var root = doc.RootElement;
+            if (root.TryGetProperty("Codigo", out var codigoProp))
+            {
+                int codigoVal = 0;
+                if (codigoProp.ValueKind == JsonValueKind.Number)
+                {
+                    codigoVal = codigoProp.GetInt32();
+                }
+                else if (codigoProp.ValueKind == JsonValueKind.String)
+                {
+                    int.TryParse(codigoProp.GetString(), out codigoVal);
+                }
+
+                if (codigoVal > 200)
+                {
+                    var mensaje = root.TryGetProperty("Mensaje", out var msgProp) ? msgProp.GetString() : "Error de la API de Mercado Publico";
+                    throw new HttpRequestException($"API Error {codigoVal}: {mensaje} (Simulando 429 para reintento)", null, System.Net.HttpStatusCode.TooManyRequests);
+                }
+            }
+        }
+    }
+
+    private static string ParseTipoDesdeCodigo(string? codigoExterno)
+    {
+        if (string.IsNullOrWhiteSpace(codigoExterno)) return "Licitacion";
+        var partes = codigoExterno.Split('-');
+        if (partes.Length < 3) return "Licitacion";
+
+        var parte3 = partes[2];
+        var letras = new string(parte3.TakeWhile(char.IsLetter).ToArray());
+
+        if (string.IsNullOrWhiteSpace(letras)) return "Licitacion";
+        return letras.ToUpper();
     }
 }
 

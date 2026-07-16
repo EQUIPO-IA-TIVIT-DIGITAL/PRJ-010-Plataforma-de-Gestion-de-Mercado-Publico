@@ -1,0 +1,109 @@
+CU010 - PLATAFORMA DE GESTION Y ANALISIS DE LICITACIONES PUBLICAS
+ROADMAP
+Version: v2
+Generado: 2026-07-12
+Fuente(s): specs/ROADMAP.md, specs/roadmap.csv, CLAUDE.md, specs/*/spec.md
+Regla: specs/ es la fuente de verdad. Ver docs/cu010_formato.txt.
+
+  >> CORRECCION (2026-07-12): specs/ROADMAP.md y roadmap.csv quedaron
+     congelados en la repriorizacion del 03-06/07/2026. Desde entonces se
+     ejecutaron 4 iniciativas reales que no aparecen ahi (022, 023, 024,
+     025). Esta tabla las incorpora sin modificar los archivos originales
+     del repo.
+
+===========================================================
+HECHO
+===========================================================
+- [OK] Analisis historico / validacion documental
+  (017-ajustes-urgentes-cliente) — cubre pedido #1 (Francisco, 01/07)
+- [OK] Alertas Inteligentes por Palabras Clave (003-fase6-alertas-keywords)
+  — cubre pedidos #3, #4, #5, #12. Implementado, demoed 09/07, 2 bugs
+  post-demo ya corregidos.
+  >> CORRECCION (2026-07-12): roadmap.csv lo tenia como "N2, Planned" ->
+     specs 022 y 023 confirman que ya esta en produccion.
+- [OK] QA Pre-Produccion (022-qa-fixes-preproduccion) — 13 hallazgos
+  cerrados, validado en produccion.
+  >> AGREGADO: no estaba en roadmap.csv por ser posterior a su fecha de
+     corte.
+- [OK] Fix urgente de bugs en produccion (023-fix-bugs-produccion) —
+  BUG-014 y BUG-015 resueltos y verificados en tivit-cu010.
+  >> AGREGADO: no estaba en roadmap.csv.
+
+===========================================================
+BACKLOG TECNICO
+===========================================================
+- [BLOQUEADO] Extraccion de licitaciones via API directa
+  (016-extraccion-documentos-api) — implementado a nivel de codigo,
+  bloqueado por reCAPTCHA Enterprise, modo fijo en "solo_navegador".
+- [OK] Migracion Gemini API Key -> ADC/Vertex AI (020-migracion-gemini-adc)
+  >> AGREGADO: no estaba en roadmap.csv.
+- [EN CURSO] Hardening del scraper TIVIT (021-scraper-tivit-hardening) —
+  bug de paginacion corregido (10 -> 33 licitaciones reales); falta
+  Xvfb+xauth en Dockerfile para Cloud Run Jobs.
+  >> AGREGADO: no estaba en roadmap.csv.
+
+===========================================================
+N1 - AHORA, ANTES QUE CUALQUIER OTRO ITEM
+===========================================================
+- [BLOQUEADO] Fase 5 — Despliegue en GCP (002-fase5-deploy-gcp) — cubre
+  pedido #9 (cliente). Bloqueado por infraestructura pendiente (Nicolas
+  Valdivia: VPC custom, Cloud SQL, Memorystore, IAM). Deadline interno
+  del 09/07 ya vencido.
+
+===========================================================
+EN CURSO (posterior a la ultima repriorizacion formal)
+===========================================================
+- [EN CURSO] Inteligencia de competencia + alertas interactivas + canal
+  de correo (024-inteligencia-competencia-alertas) — pedido post-demo,
+  reunion de equipo + Manuel Aliaga (09/07). Spec/plan/research/
+  data-model/tasks.md generados. Migraciones V097/V098/V099 diseñadas,
+  sin aplicar.
+  >> AGREGADO: no estaba en roadmap.csv.
+
+===========================================================
+N3
+===========================================================
+- [PENDIENTE] Buscador Inteligente en Lenguaje Natural
+  (018-buscador-inteligente-nl) — cubre pedido #2 (Francisco/Ariel).
+
+===========================================================
+N4
+===========================================================
+- [PENDIENTE] Fase 7 — Pipeline de Oportunidades
+  (004-fase7-pipeline-oportunidades) — cubre pedido #6 (motor de
+  validacion de completitud, US2).
+
+===========================================================
+PARALELO (sin fecha fija, nunca desplaza N1-N4)
+===========================================================
+- [PENDIENTE] Rediseño Frontend de MPM (019-rediseno-frontend) — cubre
+  pedido #10 (cliente).
+- [DRAFT] Rediseño del chat de Analisis con Ant Design X
+  (025-rediseno-chat-analisis-antd-x) — mejora de UX interna, no es
+  pedido directo del cliente.
+  >> AGREGADO: no estaba en roadmap.csv.
+
+===========================================================
+PAUSADO (fases 8 a 18)
+===========================================================
+- [PAUSADO] specs 005 a 015 (Analisis IA bases, Reportes, Notif.
+  Multicanal, Inteligencia Competitiva Avanzada, Garantias, CRM,
+  Predictor Exito, Pricing, Portal Colab, Gestion Documental,
+  Integracion ERP) — pedido explicito del cliente 03/07/2026, sin
+  trabajo ni fecha. Fase 11 (Inteligencia Competitiva) es la candidata
+  mas probable a reactivarse primero (pedido #7).
+
+===========================================================
+PENDIENTES
+===========================================================
+- [BLOQUEADO] N1 Deploy GCP — deadline interno ya vencido
+- [EN CURSO] spec 024 — migraciones V097/V098/V099 sin aplicar
+- [PENDIENTE] N3 Buscador NL, N4 Pipeline — sin iniciar
+- [DRAFT] spec 025 — rediseño chat sin implementar
+
+===========================================================
+PROXIMO PASO
+===========================================================
+- Confirmar con el equipo si conviene actualizar specs/ROADMAP.md y
+  specs/roadmap.csv directamente con esta informacion, o si este
+  documento queda como snapshot corregido en paralelo.

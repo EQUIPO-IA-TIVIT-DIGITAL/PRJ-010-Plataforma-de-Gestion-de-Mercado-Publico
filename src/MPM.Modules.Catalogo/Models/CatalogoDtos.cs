@@ -8,7 +8,9 @@ public class EstadoItemDto
 
 public class TipoLicitacionItemDto
 {
-    public int Codigo { get; set; }
+    // string, no int -- 027-catalogo-frontend-licitaciones-generales: el código real de tipo
+    // de licitación del portal es texto (LE, LP, LQ...), no un id numérico interno.
+    public string Codigo { get; set; } = string.Empty;
     public string Nombre { get; set; } = string.Empty;
     public string Slug { get; set; } = string.Empty;
 }

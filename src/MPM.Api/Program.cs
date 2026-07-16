@@ -208,6 +208,7 @@ static async Task<int> EjecutarWorkerAsync(string workerMode, string[] args)
         builder.Services.AddSingleton<IStorageService, LocalStorageService>();
     }
 
+    builder.Services.AddAuthModule();
     builder.Services.AddNotificacionesModule();
     builder.Services.AddAlertasModule();
     builder.Services.AddLicitacionModule(builder.Configuration);

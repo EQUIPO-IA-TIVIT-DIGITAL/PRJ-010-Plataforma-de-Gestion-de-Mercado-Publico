@@ -192,31 +192,48 @@ public class LicitacionHandler(DbConnectionFactory dbFactory)
             p);
     }
 
-    public async Task<(List<LicitacionNaturalSearchResult> Items, long TotalCount)> BuscarNaturalAsync(
-        string query, int page, int pageSize, short? estado, CancellationToken ct = default)
+    // virtual para poder mockearlo en LicitacionServiceTests
+    public virtual async Task<(List<LicitacionNaturalSearchResult> Items, long TotalCount)> BuscarNaturalAsync(
+        string query, int page, int pageSize, short? estado,
+        List<string>? terminosExpandidos = null, decimal? montoDesde = null, decimal? montoHasta = null,
+        DateTime? fechaHasta = null, CancellationToken ct = default)
     {
         await using var conn = _dbFactory.Create();
 
+        // DynamicParameters con DbType.Date explicito para p_fecha_hasta -- igual que
+        // ActualizarDetalleAsync (ver comentario ahi), un objeto anonimo con un DateTime? en
+        // null llega a Postgres como parametro "unknown" (42883, no resuelve el overload de la
+        // funcion) porque Npgsql no puede inferir entre date/timestamp/timestamptz sin tipo
+        // explicito. p_estado/p_monto_desde/p_monto_hasta no mostraban este problema en la
+        // practica, pero se tipan explicito tambien para no repetir el bug si cambian de tipo.
+        var itemsParams = new DynamicParameters();
+        itemsParams.Add("p_query", query, DbType.String);
+        itemsParams.Add("p_page", page, DbType.Int32);
+        itemsParams.Add("p_page_size", pageSize, DbType.Int32);
+        itemsParams.Add("p_estado", estado, DbType.Int16);
+        itemsParams.Add("p_fecha_desde", DateTime.Parse("2026-01-01"), DbType.Date);
+        itemsParams.Add("p_terminos_expandidos", terminosExpandidos?.ToArray());
+        itemsParams.Add("p_monto_desde", montoDesde, DbType.Decimal);
+        itemsParams.Add("p_monto_hasta", montoHasta, DbType.Decimal);
+        itemsParams.Add("p_fecha_hasta", fechaHasta, DbType.Date);
+
         var items = await conn.QueryAsync<LicitacionNaturalSearchResult>(
             sql: LicitacionStoredProcedures.BuscarNatural,
-            param: new
-            {
-                p_query = query,
-                p_page = page,
-                p_page_size = pageSize,
-                p_estado = estado,
-                p_fecha_desde = "2026-01-01",
-            },
+            param: itemsParams,
             commandType: CommandType.Text);
+
+        var countParams = new DynamicParameters();
+        countParams.Add("p_query", query, DbType.String);
+        countParams.Add("p_estado", estado, DbType.Int16);
+        countParams.Add("p_fecha_desde", DateTime.Parse("2026-01-01"), DbType.Date);
+        countParams.Add("p_terminos_expandidos", terminosExpandidos?.ToArray());
+        countParams.Add("p_monto_desde", montoDesde, DbType.Decimal);
+        countParams.Add("p_monto_hasta", montoHasta, DbType.Decimal);
+        countParams.Add("p_fecha_hasta", fechaHasta, DbType.Date);
 
         var totalCount = await conn.QueryFirstOrDefaultAsync<long>(
             sql: LicitacionStoredProcedures.BuscarNaturalCount,
-            param: new
-            {
-                p_query = query,
-                p_estado = estado,
-                p_fecha_desde = "2026-01-01",
-            },
+            param: countParams,
             commandType: CommandType.Text);
 
         var list = items.ToList();
