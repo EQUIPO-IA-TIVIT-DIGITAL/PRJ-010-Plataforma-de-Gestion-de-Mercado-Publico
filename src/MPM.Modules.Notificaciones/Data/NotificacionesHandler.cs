@@ -49,7 +49,16 @@ public class NotificacionesHandler(DbConnectionFactory dbFactory)
         var totalCount = items.Count > 0 ? items.First().TotalCount ?? 0 : 0;
 
         foreach (var item in items)
+        {
             item.TotalCount = null;
+            // notificaciones.created_at es TIMESTAMP sin zona horaria (poblado con
+            // CURRENT_TIMESTAMP del servidor Postgres, en UTC); Npgsql lo mapea con
+            // Kind=Unspecified y System.Text.Json lo serializa sin offset, lo que el
+            // navegador interpreta como hora local y desfasa la notificación (ver
+            // specs/030-qol-frontend-y-fix-scraper/research.md §2). Se marca como UTC
+            // explícito para que el frontend pueda convertirlo correctamente.
+            item.CreatedAt = DateTime.SpecifyKind(item.CreatedAt, DateTimeKind.Utc);
+        }
 
         return (items, totalCount);
     }

@@ -304,6 +304,24 @@ public class ScraperBackgroundService(
                     mensaje: $"Se procesaron {total} licitaciones. Actas descargadas: {conActa}. Sin acta: {sinActa}. Errores: {conError}.",
                     metadata: new { total, conActa, sinActa, conError, exitCode });
             }
+            else if (exitCode == 0 && totalNumerico == 0)
+            {
+                // 030-qol-frontend-y-fix-scraper US3/FR-007: antes este caso compartía el mismo
+                // tipo/mensaje ("scraper_error"/"El scraper terminó con código 0...") que un
+                // ciclo con exitCode != 0 (falla real de lectura del sitio), y el usuario no
+                // podía distinguir "no había licitaciones nuevas" de "el scraper no pudo leer
+                // Mercado Público" sin abrir logs. Ahora que scraper-mp-v2 lanza un error real
+                // (exitCode != 0) cuando 0 de 5 estados de búsqueda pudieron leerse (ver
+                // buscar.js), este branch solo se alcanza cuando el scraper SÍ pudo leer el
+                // sitio pero legítimamente no encontró licitaciones nuevas — se notifica en tono
+                // neutro, no como error.
+                await notificaciones.CrearAsync(
+                    usuarioId: "00000000-0000-0000-0000-000000000000",
+                    tipo: "scraper_sin_resultados",
+                    titulo: "Scraper completado sin licitaciones nuevas",
+                    mensaje: "El scraper corrió correctamente pero no encontró licitaciones nuevas en este ciclo.",
+                    metadata: new { total, conActa, sinActa, conError, exitCode });
+            }
             else
             {
                 await notificaciones.CrearAsync(

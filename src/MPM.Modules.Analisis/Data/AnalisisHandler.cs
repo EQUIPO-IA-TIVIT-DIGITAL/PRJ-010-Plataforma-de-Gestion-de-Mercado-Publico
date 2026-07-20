@@ -22,12 +22,26 @@ public class AnalisisHandler(DbConnectionFactory dbFactory)
         return await ExecuteReturningIdAsync(conn, AnalisisStoredProcedures.WorkspacesCrear, p, "p_id", ct);
     }
 
-    public async Task<(List<WorkspaceItemDto> Items, long TotalCount)> ListarWorkspacesAsync(int page, int pageSize, string? search, string? estado, CancellationToken ct = default)
+    public async Task<(List<WorkspaceItemDto> Items, long TotalCount)> ListarWorkspacesAsync(
+        int page, int pageSize, string? search, string? estado,
+        DateOnly? fechaDesde = null, DateOnly? fechaHasta = null, CancellationToken ct = default)
     {
         await using var conn = _dbFactory.Create();
+
+        // DbType.Date explicito -- sin esto Postgres no resuelve el overload de
+        // usp_AnalisisWorkspaces_Listar(DATE) y devuelve 42883 (mismo patron que
+        // 029-fix-hallazgos-code-review-competidores-alertas FR-009/QA BUG-002 en LicitacionHandler).
+        var p = new DynamicParameters();
+        p.Add("p_page", page);
+        p.Add("p_page_size", pageSize);
+        p.Add("p_search", search);
+        p.Add("p_estado", estado);
+        p.Add("p_fecha_desde", fechaDesde?.ToDateTime(TimeOnly.MinValue), DbType.Date);
+        p.Add("p_fecha_hasta", fechaHasta?.ToDateTime(TimeOnly.MinValue), DbType.Date);
+
         var items = await conn.QueryAsync<WorkspaceItemDto>(
             AnalisisStoredProcedures.WorkspacesListar,
-            new { p_page = page, p_page_size = pageSize, p_search = search, p_estado = estado },
+            p,
             commandType: CommandType.Text);
         var list = items.ToList();
         var totalCount = list.Count > 0 ? list.First().TotalCount ?? 0 : 0;

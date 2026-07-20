@@ -1,16 +1,19 @@
 import { useState, useCallback } from 'react'
 import {
   Space, Typography, Button, Modal, Form, Input, Select, App, Tag, Alert, Empty,
-  Row, Col, Spin, Tooltip,
+  Row, Col, Spin, Tooltip, DatePicker,
 } from 'antd'
 import {
   PlusOutlined, DeleteOutlined, EyeOutlined, ExclamationCircleOutlined,
   BarChartOutlined, FileTextOutlined, ClockCircleOutlined, CheckCircleOutlined,
-  LoadingOutlined, WarningOutlined, SearchOutlined,
+  LoadingOutlined, WarningOutlined, SearchOutlined, CalendarOutlined,
 } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
+import dayjs, { type Dayjs } from 'dayjs'
 import { useWorkspacesLista, useCrearWorkspace, useEliminarWorkspace } from '../hooks/useAnalisis'
 import type { WorkspaceItem } from '../types/analisis'
+
+const { RangePicker } = DatePicker
 
 const STATUS_CONFIG: Record<string, { color: string; bg: string; icon: React.ReactNode; label: string }> = {
   pendiente: {
@@ -179,10 +182,16 @@ function WorkspaceCard({
           marginTop: 'auto',
         }}
       >
-        <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-          <FileTextOutlined style={{ marginRight: 4 }} />
-          {workspace.documentosCount ?? 0} documento{workspace.documentosCount !== 1 ? 's' : ''}
-        </span>
+        <Space direction="vertical" size={2}>
+          <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+            <FileTextOutlined style={{ marginRight: 4 }} />
+            {workspace.documentosCount ?? 0} documento{workspace.documentosCount !== 1 ? 's' : ''}
+          </span>
+          <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+            <CalendarOutlined style={{ marginRight: 4 }} />
+            {dayjs(workspace.createdAt).format('DD-MM-YYYY')}
+          </span>
+        </Space>
         <Button
           size="small"
           type={isCompletado ? 'primary' : 'default'}
@@ -218,10 +227,14 @@ export function AnalisisListPage() {
   const [search, setSearch] = useState('')
   const [searchInput, setSearchInput] = useState('')
   const [estadoFilter, setEstadoFilter] = useState<string | undefined>()
+  const [rangoFechas, setRangoFechas] = useState<[Dayjs | null, Dayjs | null] | null>(null)
   const [modalOpen, setModalOpen] = useState(false)
   const [form] = Form.useForm()
 
-  const { data, isLoading, error, refetch } = useWorkspacesLista(page, 20, search, estadoFilter)
+  const fechaDesde = rangoFechas?.[0]?.format('YYYY-MM-DD')
+  const fechaHasta = rangoFechas?.[1]?.format('YYYY-MM-DD')
+
+  const { data, isLoading, error, refetch } = useWorkspacesLista(page, 20, search, estadoFilter, fechaDesde, fechaHasta)
   const crearMutation = useCrearWorkspace()
   const eliminarMutation = useEliminarWorkspace()
 
@@ -328,6 +341,13 @@ export function AnalisisListPage() {
               { value: 'completado', label: '✅ Completado' },
               { value: 'error', label: '⚠ Error' },
             ]}
+          />
+          <RangePicker
+            placeholder={['Desde', 'Hasta']}
+            value={rangoFechas}
+            onChange={(valores) => { setRangoFechas(valores as [Dayjs | null, Dayjs | null] | null); setPage(1) }}
+            format="DD-MM-YYYY"
+            style={{ borderRadius: 10 }}
           />
           {totalItems > 0 && (
             <Tag

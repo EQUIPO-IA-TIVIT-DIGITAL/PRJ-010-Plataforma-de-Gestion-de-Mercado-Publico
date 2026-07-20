@@ -446,52 +446,55 @@ export function AnalisisDashboardPage() {
         />
       )}
 
-      {/* ---- KPI Cards ---- */}
-      {kpis.length > 0 && (
-        <div>
-          <p className="mpm-section-title">Indicadores clave</p>
-          <Row gutter={[16, 16]}>
-            {kpis.map((kpi, i) => {
-              const color = tendenciaColor(kpi.tendencia)
-              return (
-                <Col key={i} xs={24} sm={12} md={8} lg={6}>
-                  <div
-                    className="mpm-stat-card"
-                    style={{
-                      borderTopColor: color,
-                      background: 'white',
-                    }}
-                  >
+      {/* ---- Resumen comparativo: KPIs + métricas clave en una sola sección ----
+          030-qol-frontend-y-fix-scraper US6: antes "Indicadores clave" (dashboard_kpis, texto
+          libre generado por Gemini) y "Métricas clave" (metricas_clave, los mismos números en
+          formato numérico/Statistic) eran dos bloques separados que mostraban esencialmente la
+          misma comparación TIVIT vs. ganador dos veces seguidas -- se unifican en una sola
+          tarjeta: los chips de KPI arriba como resumen, el detalle numérico abajo. */}
+      {(kpis.length > 0 || mc) && (
+        <Card>
+          <SectionTitle icon={<BarChartOutlined />} title="Resumen comparativo: TIVIT vs. ganador" color="#8b5cf6" />
+
+          {kpis.length > 0 && (
+            <Row gutter={[16, 16]} style={{ marginBottom: mc ? 24 : 0 }}>
+              {kpis.map((kpi, i) => {
+                const color = tendenciaColor(kpi.tendencia)
+                return (
+                  <Col key={i} xs={24} sm={12} md={8} lg={6}>
                     <div
+                      className="mpm-stat-card"
                       style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'flex-start',
-                        marginBottom: 8,
+                        borderTopColor: color,
+                        background: 'white',
                       }}
                     >
-                      <div className="mpm-stat-label">{kpi.indicador}</div>
-                      {tendenciaIcon(kpi.tendencia) && (
-                        <span style={{ color, fontSize: 16 }}>
-                          {tendenciaIcon(kpi.tendencia)}
-                        </span>
-                      )}
+                      <div
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'flex-start',
+                          marginBottom: 8,
+                        }}
+                      >
+                        <div className="mpm-stat-label">{kpi.indicador}</div>
+                        {tendenciaIcon(kpi.tendencia) && (
+                          <span style={{ color, fontSize: 16 }}>
+                            {tendenciaIcon(kpi.tendencia)}
+                          </span>
+                        )}
+                      </div>
+                      <div className="mpm-stat-value" style={{ color }}>
+                        {kpi.valor}
+                      </div>
                     </div>
-                    <div className="mpm-stat-value" style={{ color }}>
-                      {kpi.valor}
-                    </div>
-                  </div>
-                </Col>
-              )
-            })}
-          </Row>
-        </div>
-      )}
+                  </Col>
+                )
+              })}
+            </Row>
+          )}
 
-      {/* ---- Métricas clave ---- */}
-      {mc && (
-        <Card>
-          <SectionTitle icon={<BarChartOutlined />} title="Métricas clave" color="#8b5cf6" />
+          {mc && <>
           <Row gutter={[24, 24]}>
             {mc.diferencia_puntaje_total != null && (
               <Col xs={24} sm={12} md={6}>
@@ -579,6 +582,7 @@ export function AnalisisDashboardPage() {
               )}
             </Row>
           )}
+          </>}
         </Card>
       )}
 

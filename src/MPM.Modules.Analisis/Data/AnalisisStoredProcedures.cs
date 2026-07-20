@@ -3,7 +3,7 @@ namespace MPM.Modules.Analisis.Data;
 public static class AnalisisStoredProcedures
 {
     public const string WorkspacesCrear = "CALL usp_AnalisisWorkspaces_Crear(@p_licitacion_id, @p_nombre, @p_user_id, @p_id, @p_error_msg)";
-    public const string WorkspacesListar = "SELECT * FROM usp_AnalisisWorkspaces_Listar(@p_page, @p_page_size, @p_search, @p_estado)";
+    public const string WorkspacesListar = "SELECT * FROM usp_AnalisisWorkspaces_Listar(@p_page, @p_page_size, @p_search, @p_estado, @p_fecha_desde, @p_fecha_hasta)";
     public const string WorkspacesObtener = "SELECT * FROM usp_AnalisisWorkspaces_Obtener(@p_id)";
     public const string WorkspacesActualizarEstado = "CALL usp_AnalisisWorkspaces_ActualizarEstado(@p_id, @p_estado, @p_error_msg)";
     public const string WorkspacesEliminar = "CALL usp_AnalisisWorkspaces_Eliminar(@p_id, @p_error_msg)";

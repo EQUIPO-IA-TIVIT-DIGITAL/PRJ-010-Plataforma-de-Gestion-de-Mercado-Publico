@@ -1,16 +1,23 @@
 import { useState } from 'react'
 import { Table, Typography, Button, Empty, Spin, Tag, Popconfirm, Space } from 'antd'
 import { CheckOutlined, CheckCircleOutlined, BellOutlined, StarFilled, DeleteOutlined } from '@ant-design/icons'
+import dayjs from 'dayjs'
+import utc from 'dayjs/plugin/utc'
+import timezone from 'dayjs/plugin/timezone'
 import {
   useNotificacionesLista, useMarcarLeida, useMarcarTodasLeidas,
   useEliminarNotificacion, useEliminarTodasNotificaciones,
 } from '../hooks/useNotificaciones'
 import type { NotificacionItem } from '../types/notificaciones'
 
+dayjs.extend(utc)
+dayjs.extend(timezone)
+
 const { Title, Text } = Typography
 
 const TIPO_TAG: Record<string, string> = {
   scraper_completado: 'success',
+  scraper_sin_resultados: 'blue',
   scraper_error: 'error',
   scraper_config_error: 'warning',
   aclaracion_detectada: 'gold',
@@ -18,6 +25,7 @@ const TIPO_TAG: Record<string, string> = {
 
 const TIPO_LABEL: Record<string, string> = {
   scraper_completado: 'Scraper',
+  scraper_sin_resultados: 'Scraper',
   scraper_error: 'Error',
   scraper_config_error: 'Config',
   aclaracion_detectada: 'Aclaración',
@@ -102,7 +110,7 @@ export default function NotificacionesPage() {
       key: 'createdAt',
       width: 180,
       render: (fecha: string) => (
-        <Text style={{ fontSize: 12 }}>{new Date(fecha).toLocaleString('es-CL')}</Text>
+        <Text style={{ fontSize: 12 }}>{dayjs.utc(fecha).tz('America/Santiago').format('DD-MM-YYYY HH:mm')}</Text>
       ),
     },
     {
