@@ -1,14 +1,45 @@
-import { useState, useCallback, useRef, useEffect } from 'react'
-import { Card, Space, Typography, Table, Button, Tag, App, Descriptions, Alert } from 'antd'
-import { UploadOutlined, PlayCircleOutlined, ArrowLeftOutlined, BarChartOutlined, LoadingOutlined } from '@ant-design/icons'
+import { useCallback, useRef, useEffect } from 'react'
+import { Space, Typography, Table, Button, Tag, App, Alert, Empty } from 'antd'
+import {
+  UploadOutlined, PlayCircleOutlined, ArrowLeftOutlined, BarChartOutlined, LoadingOutlined,
+  FileTextOutlined, ClockCircleOutlined, CheckCircleOutlined, WarningOutlined,
+  FolderOpenOutlined, CalendarOutlined,
+} from '@ant-design/icons'
 import { useNavigate, useParams } from 'react-router-dom'
+import dayjs from 'dayjs'
 import { useWorkspaceDetalle, useListarDocumentos, useSubirDocumento, useAnalizar } from '../hooks/useAnalisis'
 import type { DocumentoItem } from '../types/analisis'
+
+const STATUS_CONFIG: Record<string, { color: string; bg: string; icon: React.ReactNode; label: string }> = {
+  pendiente: { color: '#64748b', bg: '#f8fafc', icon: <ClockCircleOutlined />, label: 'Pendiente' },
+  listo: { color: '#3b82f6', bg: '#eff6ff', icon: <FileTextOutlined />, label: 'Listo' },
+  analizando: { color: '#f59e0b', bg: '#fffbeb', icon: <LoadingOutlined spin />, label: 'Analizando…' },
+  completado: { color: '#10b981', bg: '#f0fdf4', icon: <CheckCircleOutlined />, label: 'Completado' },
+  error: { color: '#ef4444', bg: '#fef2f2', icon: <WarningOutlined />, label: 'Error' },
+}
 
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+}
+
+function InfoStat({ icon, label, value }: { icon: React.ReactNode; label: string; value: React.ReactNode }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+      <div style={{
+        width: 32, height: 32, borderRadius: 8, background: '#f8fafc',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        color: '#8b5cf6', fontSize: 14, flexShrink: 0,
+      }}>
+        {icon}
+      </div>
+      <div>
+        <div style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.2 }}>{label}</div>
+        <div style={{ fontSize: 13, color: 'var(--text-primary)', fontWeight: 600, lineHeight: 1.4 }}>{value}</div>
+      </div>
+    </div>
+  )
 }
 
 export function AnalisisWorkspacePage() {
@@ -26,6 +57,7 @@ export function AnalisisWorkspacePage() {
   const workspace = workspaceData?.data
   const documentos = docsData?.data ?? []
   const isAnalizando = workspace?.estado === 'analizando'
+  const cfg = STATUS_CONFIG[workspace?.estado ?? 'pendiente'] ?? STATUS_CONFIG.pendiente
 
   // 029-fix-hallazgos-code-review-competidores-alertas (FR-016/US12, QA BUG-004): el seguimiento
   // de la transición "analizando" → "completado"/"error" ya no vive acá -- se movió a
@@ -67,31 +99,38 @@ export function AnalisisWorkspacePage() {
       title: 'Nombre',
       dataIndex: 'nombreArchivo',
       key: 'nombreArchivo',
+      render: (nombre: string) => (
+        <Space size={8}>
+          <FileTextOutlined style={{ color: '#94a3b8' }} />
+          <Typography.Text style={{ fontSize: 13 }}>{nombre}</Typography.Text>
+        </Space>
+      ),
     },
     {
       title: 'Tipo',
       dataIndex: 'mimeType',
       key: 'mimeType',
       width: 120,
+      render: (tipo: string) => <Tag style={{ borderRadius: 6 }}>{tipo?.replace('application/', '') ?? '—'}</Tag>,
     },
     {
       title: 'Tamaño',
       dataIndex: 'tamanioBytes',
       key: 'tamanioBytes',
       width: 100,
-      render: (bytes: number) => formatBytes(bytes),
+      render: (bytes: number) => <Typography.Text type="secondary" style={{ fontSize: 12 }}>{formatBytes(bytes)}</Typography.Text>,
     },
     {
       title: 'Subido',
       dataIndex: 'createdAt',
       key: 'createdAt',
-      width: 180,
-      render: (date: string) => new Date(date).toLocaleString('es-CL'),
+      width: 160,
+      render: (date: string) => <Typography.Text type="secondary" style={{ fontSize: 12 }}>{dayjs(date).format('DD-MM-YYYY HH:mm')}</Typography.Text>,
     },
     {
-      title: 'Acción',
+      title: '',
       key: 'accion',
-      width: 100,
+      width: 110,
       render: (_: unknown, record: DocumentoItem) => (
         <Button
           type="primary"
@@ -99,6 +138,7 @@ export function AnalisisWorkspacePage() {
           icon={<BarChartOutlined />}
           onClick={() => handleAnalizar(record.id)}
           disabled={isAnalizando}
+          style={{ borderRadius: 8, fontSize: 12 }}
         >
           Analizar
         </Button>
@@ -107,22 +147,51 @@ export function AnalisisWorkspacePage() {
   ]
 
   if (workspaceLoading) {
-    return <div style={{ textAlign: 'center', padding: 40 }}><LoadingOutlined style={{ fontSize: 32 }} /></div>
+    return <div style={{ textAlign: 'center', padding: 60 }}><LoadingOutlined style={{ fontSize: 32 }} /></div>
   }
 
   return (
-    <Space direction="vertical" size="large" style={{ width: '100%' }}>
-      <Space>
-        <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/analisis')}>
-          Volver
-        </Button>
-        <Typography.Title level={3} style={{ margin: 0 }}>
-          {workspace?.nombre ?? 'Workspace'}
-        </Typography.Title>
-        <Tag color={workspace?.estado === 'completado' ? 'success' : workspace?.estado === 'analizando' ? 'processing' : workspace?.estado === 'error' ? 'error' : 'default'}>
-          {workspace?.estado ?? ''}
-        </Tag>
-      </Space>
+    <Space direction="vertical" size={20} style={{ width: '100%' }}>
+
+      {/* ---- Page Header ---- */}
+      <div className="mpm-page-header">
+        <div>
+          <Button
+            icon={<ArrowLeftOutlined />}
+            onClick={() => navigate('/analisis')}
+            type="text"
+            style={{ marginBottom: 8, paddingLeft: 0, color: 'var(--text-secondary)' }}
+          >
+            Volver a análisis
+          </Button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+            <div
+              style={{
+                width: 32, height: 32, borderRadius: 8,
+                background: 'linear-gradient(135deg, #8b5cf6, #a78bfa)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                boxShadow: '0 4px 10px rgba(139,92,246,0.3)', flexShrink: 0,
+              }}
+            >
+              <BarChartOutlined style={{ color: 'white', fontSize: 15 }} />
+            </div>
+            <h1 className="mpm-page-title" style={{ margin: 0 }}>{workspace?.nombre ?? 'Workspace'}</h1>
+            <span
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: 5,
+                padding: '4px 10px', borderRadius: 999, fontSize: 11, fontWeight: 600,
+                color: cfg.color, background: cfg.bg,
+              }}
+            >
+              {cfg.icon}
+              {cfg.label}
+            </span>
+          </div>
+          {workspace?.licitacionNombre && (
+            <p className="mpm-page-subtitle">{workspace.licitacionNombre}</p>
+          )}
+        </div>
+      </div>
 
       {isAnalizando && (
         <Alert
@@ -131,31 +200,92 @@ export function AnalisisWorkspacePage() {
           type="info"
           showIcon
           icon={<LoadingOutlined spin />}
+          style={{ borderRadius: 12 }}
         />
       )}
 
-      {workspace && (
-        <Card size="small">
-          <Descriptions column={2} size="small">
-            <Descriptions.Item label="Licitación">{workspace.licitacionNombre}</Descriptions.Item>
-            <Descriptions.Item label="Documentos">{workspace.documentosCount}</Descriptions.Item>
-            <Descriptions.Item label="Creado">{new Date(workspace.createdAt).toLocaleDateString('es-CL')}</Descriptions.Item>
-            <Descriptions.Item label="Actualizado">{new Date(workspace.updatedAt).toLocaleDateString('es-CL')}</Descriptions.Item>
-          </Descriptions>
-        </Card>
+      {workspace?.estado === 'completado' && (
+        <Alert
+          type="success"
+          showIcon
+          icon={<CheckCircleOutlined />}
+          message="El último análisis terminó correctamente"
+          action={
+            <Button
+              type="primary"
+              size="small"
+              icon={<BarChartOutlined />}
+              onClick={() => navigate(`/analisis/${workspaceId}/dashboard`)}
+              style={{ borderRadius: 8, background: '#10b981', border: 'none' }}
+            >
+              Ver dashboard
+            </Button>
+          }
+          style={{ borderRadius: 12 }}
+        />
       )}
 
-      <Card
-        size="small"
-        title="Documentos"
-        extra={
-          <Space>
+      {workspace?.estado === 'error' && (
+        <Alert
+          type="error"
+          showIcon
+          icon={<WarningOutlined />}
+          message="El último análisis falló"
+          description="Puedes reintentar sin volver a subir los documentos."
+          action={
+            <Button
+              type="primary"
+              danger
+              size="small"
+              icon={<PlayCircleOutlined />}
+              onClick={() => handleAnalizar()}
+              disabled={!documentos.length}
+              style={{ borderRadius: 8 }}
+            >
+              Reintentar
+            </Button>
+          }
+          style={{ borderRadius: 12 }}
+        />
+      )}
+
+      {/* ---- Info card ---- */}
+      {workspace && (
+        <div
+          style={{
+            background: 'white', border: '1px solid var(--border)', borderRadius: 14,
+            padding: 20, boxShadow: 'var(--shadow-card)',
+            display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 16,
+          }}
+        >
+          <InfoStat icon={<FolderOpenOutlined />} label="Licitación" value={workspace.licitacionNombre || '—'} />
+          <InfoStat icon={<FileTextOutlined />} label="Documentos" value={workspace.documentosCount} />
+          <InfoStat icon={<CalendarOutlined />} label="Creado" value={dayjs(workspace.createdAt).format('DD-MM-YYYY')} />
+          <InfoStat icon={<CalendarOutlined />} label="Actualizado" value={dayjs(workspace.updatedAt).format('DD-MM-YYYY')} />
+        </div>
+      )}
+
+      {/* ---- Documentos ---- */}
+      <div style={{ background: 'white', border: '1px solid var(--border)', borderRadius: 14, boxShadow: 'var(--shadow-card)', overflow: 'hidden' }}>
+        <div style={{
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10,
+          padding: '16px 20px', borderBottom: '1px solid var(--border)',
+        }}>
+          <Typography.Text strong style={{ fontSize: 14 }}>
+            <FileTextOutlined style={{ marginRight: 8, color: '#8b5cf6' }} />
+            Documentos
+          </Typography.Text>
+          <Space wrap>
             <Button
               type="primary"
               icon={<PlayCircleOutlined />}
               onClick={() => handleAnalizar()}
               loading={analizarMutation.isPending}
               disabled={!documentos.length || isAnalizando}
+              style={{
+                borderRadius: 8, fontWeight: 600,
+                background: 'linear-gradient(135deg, #E30613, #ff3a46)', border: 'none',
+              }}
             >
               {isAnalizando ? 'Analizando...' : 'Analizar todo'}
             </Button>
@@ -164,6 +294,7 @@ export function AnalisisWorkspacePage() {
               onClick={() => fileInputRef.current?.click()}
               loading={subirMutation.isPending}
               disabled={isAnalizando}
+              style={{ borderRadius: 8 }}
             >
               Subir documento
             </Button>
@@ -179,48 +310,23 @@ export function AnalisisWorkspacePage() {
               }}
             />
           </Space>
-        }
-      >
-        <Table
-          dataSource={documentos}
-          columns={columns}
-          rowKey="id"
-          loading={docsLoading}
-          pagination={false}
-        />
-      </Card>
+        </div>
 
-      {workspace?.estado === 'completado' && (
-        <Card size="small">
-          <Space>
-            <Typography.Text>Último análisis completado:</Typography.Text>
-            <Button
-              type="primary"
-              icon={<BarChartOutlined />}
-              onClick={() => navigate(`/analisis/${workspaceId}/dashboard`)}
-            >
-              Ver Dashboard
-            </Button>
-          </Space>
-        </Card>
-      )}
-
-      {workspace?.estado === 'error' && (
-        <Card size="small">
-          <Space direction="vertical">
-            <Typography.Text strong type="danger">El último análisis falló.</Typography.Text>
-            <Typography.Text type="secondary">Puedes reintentar haciendo clic en "Analizar todo".</Typography.Text>
-            <Button
-              type="primary"
-              icon={<PlayCircleOutlined />}
-              onClick={() => handleAnalizar()}
-              disabled={!documentos.length}
-            >
-              Reintentar análisis
-            </Button>
-          </Space>
-        </Card>
-      )}
+        {documentos.length === 0 && !docsLoading ? (
+          <div style={{ padding: '40px 20px' }}>
+            <Empty description="Sin documentos todavía — sube un PDF para empezar" />
+          </div>
+        ) : (
+          <Table
+            dataSource={documentos}
+            columns={columns}
+            rowKey="id"
+            loading={docsLoading}
+            pagination={false}
+            style={{ padding: '0 4px' }}
+          />
+        )}
+      </div>
     </Space>
   )
 }

@@ -17,9 +17,10 @@ public class AnalisisService(
     private readonly IAnalisisBackgroundService _backgroundService = backgroundService;
 
     public async Task<(PaginatedResult<WorkspaceItemDto>? Result, string? Error)> ListarWorkspacesAsync(
-        int page, int pageSize, string? search, string? estado, CancellationToken ct = default)
+        int page, int pageSize, string? search, string? estado,
+        DateOnly? fechaDesde = null, DateOnly? fechaHasta = null, CancellationToken ct = default)
     {
-        var (items, total) = await _handler.ListarWorkspacesAsync(page, pageSize, search, estado, ct);
+        var (items, total) = await _handler.ListarWorkspacesAsync(page, pageSize, search, estado, fechaDesde, fechaHasta, ct);
         var list = items.ToList();
         return (new PaginatedResult<WorkspaceItemDto>
         {

@@ -51,9 +51,11 @@ public class AnalisisController(AnalisisService analisisService) : ControllerBas
         [FromQuery] int pageSize = 20,
         [FromQuery] string? search = null,
         [FromQuery] string? estado = null,
+        [FromQuery] DateOnly? fechaDesde = null,
+        [FromQuery] DateOnly? fechaHasta = null,
         CancellationToken ct = default)
     {
-        var (result, error) = await _analisisService.ListarWorkspacesAsync(page, pageSize, search, estado, ct);
+        var (result, error) = await _analisisService.ListarWorkspacesAsync(page, pageSize, search, estado, fechaDesde, fechaHasta, ct);
         if (error != null)
             return BadRequest(ApiResponse<object>.Fail(error));
 

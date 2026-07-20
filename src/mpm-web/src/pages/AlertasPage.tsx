@@ -207,23 +207,34 @@ export function AlertasPage() {
           </p>
         </div>
         <Space>
-          <Button icon={<SendOutlined />} onClick={() => setModalTelegram(true)}>
+          <Button icon={<SendOutlined />} onClick={() => setModalTelegram(true)} style={{ borderRadius: 10, height: 38 }}>
             Mis canales de alerta
           </Button>
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => setModalCrear(true)}>
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={() => setModalCrear(true)}
+            style={{
+              height: 38, borderRadius: 10, fontWeight: 700,
+              background: 'linear-gradient(135deg, #E30613, #ff3a46)', border: 'none',
+              boxShadow: '0 4px 12px rgba(227,6,19,0.3)',
+            }}
+          >
             Nueva alerta
           </Button>
         </Space>
       </div>
 
-      <Table<ReglaAlerta>
-        columns={columns}
-        dataSource={reglas}
-        rowKey="id"
-        loading={isLoading}
-        pagination={false}
-        locale={{ emptyText: <Empty description="Sin alertas configuradas todavía" /> }}
-      />
+      <div style={{ background: 'white', border: '1px solid var(--border)', borderRadius: 14, boxShadow: 'var(--shadow-card)', overflow: 'hidden' }}>
+        <Table<ReglaAlerta>
+          columns={columns}
+          dataSource={reglas}
+          rowKey="id"
+          loading={isLoading}
+          pagination={false}
+          locale={{ emptyText: <div style={{ padding: '40px 0' }}><Empty description="Sin alertas configuradas todavía" /></div> }}
+        />
+      </div>
 
       <Modal
         title="Nueva alerta"
@@ -232,6 +243,8 @@ export function AlertasPage() {
         onOk={() => form.submit()}
         confirmLoading={crear.isPending}
         okText="Crear"
+        okButtonProps={{ style: { borderRadius: 10, background: 'linear-gradient(135deg, #E30613, #ff3a46)', border: 'none', fontWeight: 600 } }}
+        cancelButtonProps={{ style: { borderRadius: 10 } }}
       >
         <Form form={form} layout="vertical" onFinish={handleCrear} initialValues={{ notificarTelegram: false }}>
           <Form.Item
@@ -260,7 +273,8 @@ export function AlertasPage() {
         onOk={handleProbar}
         confirmLoading={probar.isPending}
         okText="Disparar prueba"
-        okButtonProps={{ disabled: licitacionSeleccionada == null }}
+        okButtonProps={{ disabled: licitacionSeleccionada == null, style: { borderRadius: 10, fontWeight: 600 } }}
+        cancelButtonProps={{ style: { borderRadius: 10 } }}
       >
         <p style={{ color: '#64748b', fontSize: 13, marginBottom: 12 }}>
           Elegí una licitación real existente para simular el disparo de esta alerta — útil para demostrar el sistema sin esperar a que llegue una licitación nueva.
@@ -285,7 +299,14 @@ export function AlertasPage() {
         <p style={{ color: '#64748b', fontSize: 13, marginBottom: 12 }}>
           Conectá tu Telegram con un clic — se abre el chat del bot con todo listo para apretar "Iniciar".
         </p>
-        <Button type="primary" icon={<SendOutlined />} block loading={generarLink.isPending} onClick={handleConectarTelegram} style={{ marginBottom: 20 }}>
+        <Button
+          type="primary"
+          icon={<SendOutlined />}
+          block
+          loading={generarLink.isPending}
+          onClick={handleConectarTelegram}
+          style={{ marginBottom: 20, borderRadius: 10, height: 38, fontWeight: 600, background: 'linear-gradient(135deg, #E30613, #ff3a46)', border: 'none' }}
+        >
           Conectar con Telegram
         </Button>
 
@@ -300,7 +321,7 @@ export function AlertasPage() {
           >
             <Input placeholder="ej. 123456789" />
           </Form.Item>
-          <Button htmlType="submit" loading={guardarTelegram.isPending}>Guardar Chat ID manualmente</Button>
+          <Button htmlType="submit" loading={guardarTelegram.isPending} style={{ borderRadius: 10 }}>Guardar Chat ID manualmente</Button>
         </Form>
 
         <div style={{ borderTop: '1px solid #e2e8f0', margin: '20px 0 16px' }} />
@@ -316,7 +337,7 @@ export function AlertasPage() {
           >
             <Input placeholder="ej. tu-correo@tivit.cl" />
           </Form.Item>
-          <Button htmlType="submit" loading={guardarEmail.isPending}>Guardar correo</Button>
+          <Button htmlType="submit" loading={guardarEmail.isPending} style={{ borderRadius: 10 }}>Guardar correo</Button>
         </Form>
       </Modal>
     </Space>

@@ -58,7 +58,7 @@ public class AnalisisRecoveryWorker(
         var handler = scope.ServiceProvider.GetRequiredService<AnalisisHandler>();
         var backgroundService = scope.ServiceProvider.GetRequiredService<IAnalisisBackgroundService>();
 
-        var (candidatos, _) = await handler.ListarWorkspacesAsync(page: 1, pageSize: 200, search: null, estado: "analizando", ct);
+        var (candidatos, _) = await handler.ListarWorkspacesAsync(page: 1, pageSize: 200, search: null, estado: "analizando", ct: ct);
         if (candidatos.Count == 0) return;
 
         var ahora = DateTime.UtcNow;

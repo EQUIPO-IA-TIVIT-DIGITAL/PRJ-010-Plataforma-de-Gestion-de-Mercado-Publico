@@ -37,6 +37,7 @@ export async function buscarLicitaciones(page, context) {
     // Bucle interactivo por estados para extraer la participación real completa
     const estados = ['8', '6', '5', '7', '15']; // Adjudicada, Cerrada, Publicada, Desierta, Revocada
     const licitacionesMap = new Map();
+    let estadosExitosos = 0;
 
     for (const estado of estados) {
       // Reproducido en vivo el 2026-07-15: al encadenar busquedas consecutivas sobre la misma
@@ -86,6 +87,7 @@ export async function buscarLicitaciones(page, context) {
 
           console.log(`[BUSQUEDA] Estado '${estado}': ${resultadosEstado.length} encontradas. Total acumulado único: ${licitacionesMap.size}`);
           exitoEstado = true;
+          estadosExitosos++;
         } catch (errEstado) {
           console.log(`[BUSQUEDA] ADVERTENCIA: Error en ciclo de estado '${estado}' (intento ${intento}/2): ${errEstado.message}`);
           if (intento === 2) {
@@ -96,8 +98,22 @@ export async function buscarLicitaciones(page, context) {
       }
     }
 
+    // 030-qol-frontend-y-fix-scraper US3: si NINGUNO de los 5 estados pudo leerse (2 intentos
+    // cada uno agotados por postback colgado, sesion caida, etc.), el ciclo NO tuvo una lectura
+    // real del sitio -- antes esto retornaba [] silenciosamente y el llamador (agente-mp.js)
+    // lo trataba igual que "0 licitaciones nuevas legitimas", terminando el ciclo con exit code 0
+    // y una notificacion ambigua ("El scraper termino con codigo 0. Licitaciones: 0, Actas: 0").
+    // Lanzar aqui hace que el ciclo se reporte como fallo real (ver agente-mp.js catch de
+    // executeCycle) en vez de un "0 resultados" que el usuario no puede distinguir de un dia
+    // sin licitaciones nuevas.
+    if (estadosExitosos === 0) {
+      throw new Error(
+        `No se pudo leer ningun estado de busqueda (0 de ${estados.length} estados exitosos tras 2 intentos cada uno) -- posible sesion invalida, cambio de estructura del sitio, o postback colgado no recuperado`
+      );
+    }
+
     const licitaciones = Array.from(licitacionesMap.values());
-    console.log(`\n[BUSQUEDA] Búsqueda finalizada. Total único de licitaciones encontradas: ${licitaciones.length}`);
+    console.log(`\n[BUSQUEDA] Búsqueda finalizada. Total único de licitaciones encontradas: ${licitaciones.length} (${estadosExitosos}/${estados.length} estados leidos correctamente)`);
     return licitaciones;
 
   } catch (e) {

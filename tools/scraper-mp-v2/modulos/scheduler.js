@@ -103,6 +103,18 @@ export function startDaemon(executeCycle, getIntervalMs) {
       await executeCycle();
     } catch (e) {
       console.log(`[SCHEDULER] Error en ciclo: ${e.message}`);
+      // 030-qol-frontend-y-fix-scraper US3: este catch solo logueaba el error y dejaba que el
+      // proceso siguiera su curso normal -- como el timeout de abajo esta unref()eado, el
+      // proceso terminaba saliendo solo (nada mas lo mantenia vivo) con el codigo de salida
+      // por defecto de Node (0, exitoso) aunque el ciclo hubiera fallado por completo. El
+      // wrapper .NET (ScraperBackgroundService) lee ese exit code 0 sin poder distinguirlo de
+      // un ciclo realmente exitoso, y como tampoco se imprimio el "REPORTE FINAL" (el fallo
+      // corto el ciclo antes de cerrarYGenerar), el conteo de licitaciones que parsea del
+      // stdout tambien queda en 0 -- de ahi el patron "El scraper termino con codigo 0.
+      // Licitaciones: 0, Actas: 0" con una falla real detras. Marcar process.exitCode (no
+      // process.exit(), para no cortar limpieza async pendiente) asegura que el proceso
+      // reporte la falla de verdad.
+      process.exitCode = 1;
     }
 
     const elapsed = Date.now() - startTime;
