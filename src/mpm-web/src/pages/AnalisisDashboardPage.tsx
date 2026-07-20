@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import {
-  Card, Space, Typography, Button, Spin, Descriptions,
+  Alert, Card, Space, Typography, Button, Spin, Descriptions,
   Empty, Row, Col, Statistic, Progress, Table, Tag, Drawer, FloatButton,
 } from 'antd'
 import {
@@ -43,6 +43,7 @@ interface LicitacionInfo {
   moneda?: string | null
   fechas?: Fechas | null
   monto_estimado?: number | null
+  monto_estimado_moneda?: string | null
   duracion_contrato?: string | null
   renovacion?: string | null
   toma_razon_contraloria?: string | null
@@ -54,6 +55,7 @@ interface Adjudicatario {
   nombre?: string | null
   rut?: string | null
   monto_adjudicado?: number | null
+  monto_adjudicado_moneda?: string | null
   cantidad_ofertas_recibidas?: number | null
 }
 
@@ -61,6 +63,7 @@ interface Ofertante {
   nombre?: string | null
   rut?: string | null
   monto_ofertado?: number | null
+  monto_ofertado_moneda?: string | null
   puntaje_total?: number | null
   resultado?: string | null
   motivo_inadmisibilidad?: string | null
@@ -140,6 +143,17 @@ interface RiesgoIdentificado {
   impacto_estimado?: number | null
 }
 
+// 029-fix-hallazgos-code-review-competidores-alertas (FR-012/US8, QA BUG-010): cuando el
+// workspace tiene más de un documento y uno revoca/deja sin efecto a otro, GeminiService lo
+// declara acá en vez de que el dashboard presente la conclusión revocada como vigente.
+interface Revocacion {
+  detectada?: boolean | null
+  documento_que_revoca?: string | null
+  documento_revocado?: string | null
+  motivo?: string | null
+  resultado_vigente?: string | null
+}
+
 interface AnalisisCompleto {
   licitacion?: LicitacionInfo | null
   adjudicacion?: Adjudicacion | null
@@ -150,6 +164,7 @@ interface AnalisisCompleto {
   dashboard_kpis?: DashboardKpi[]
   recomendaciones_estrategicas?: string[]
   riesgos_identificados?: RiesgoIdentificado[]
+  revocacion?: Revocacion | null
 }
 
 function tryParse(contenido: string | null | undefined): AnalisisCompleto | null {
@@ -407,6 +422,30 @@ export function AnalisisDashboardPage() {
         </Button>
       </div>
 
+      {/* ---- Revocación detectada (FR-012/US8) ---- */}
+      {analisis?.revocacion?.detectada && (
+        <Alert
+          type="warning"
+          showIcon
+          icon={<WarningOutlined />}
+          message="Se detectó una revocación entre los documentos de este workspace"
+          description={
+            <div>
+              <p style={{ margin: 0 }}>
+                <strong>{analisis.revocacion.documento_que_revoca ?? 'Un documento posterior'}</strong> deja sin efecto a{' '}
+                <strong>{analisis.revocacion.documento_revocado ?? 'otro documento anterior'}</strong> de este mismo workspace.
+              </p>
+              {analisis.revocacion.motivo && <p style={{ margin: '4px 0 0' }}>Motivo: {analisis.revocacion.motivo}</p>}
+              {analisis.revocacion.resultado_vigente && (
+                <p style={{ margin: '4px 0 0' }}>
+                  <strong>Resultado vigente:</strong> {analisis.revocacion.resultado_vigente}
+                </p>
+              )}
+            </div>
+          }
+        />
+      )}
+
       {/* ---- KPI Cards ---- */}
       {kpis.length > 0 && (
         <div>
@@ -457,7 +496,7 @@ export function AnalisisDashboardPage() {
             {mc.diferencia_puntaje_total != null && (
               <Col xs={24} sm={12} md={6}>
                 <Statistic
-                  title={<span style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 600 }}>Diferencia puntaje total</span>}
+                  title={<span style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 600 }}>Diferencia puntaje total (TIVIT vs. ganador)</span>}
                   value={mc.diferencia_puntaje_total}
                   precision={2}
                   valueStyle={{
@@ -472,7 +511,7 @@ export function AnalisisDashboardPage() {
             {mc.diferencia_monto_ofertado != null && (
               <Col xs={24} sm={12} md={6}>
                 <Statistic
-                  title={<span style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 600 }}>Diferencia monto ofertado</span>}
+                  title={<span style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 600 }}>Diferencia monto ofertado (TIVIT vs. ganador)</span>}
                   value={mc.diferencia_monto_ofertado}
                   precision={0}
                   valueStyle={{
@@ -565,7 +604,7 @@ export function AnalisisDashboardPage() {
             <Descriptions.Item label="Cierre de ofertas">{lic.fechas?.cierre_ofertas ?? '—'}</Descriptions.Item>
             <Descriptions.Item label="Monto estimado">
               <span style={{ fontWeight: 600, color: '#0f172a' }}>
-                {formatMoney(lic.monto_estimado, moneda)}
+                {formatMoney(lic.monto_estimado, lic.monto_estimado_moneda ?? moneda)}
               </span>
             </Descriptions.Item>
             <Descriptions.Item label="Duración contrato">{lic.duracion_contrato ?? '—'}</Descriptions.Item>
@@ -580,7 +619,7 @@ export function AnalisisDashboardPage() {
                     RUT: {adj.adjudicatario.rut ?? '—'}
                   </span>
                   <span style={{ color: 'var(--text-secondary)', fontSize: 12 }}>
-                    Monto adjudicado: <strong>{formatMoney(adj.adjudicatario.monto_adjudicado, moneda)}</strong>
+                    Monto adjudicado: <strong>{formatMoney(adj.adjudicatario.monto_adjudicado, adj.adjudicatario.monto_adjudicado_moneda ?? moneda)}</strong>
                   </span>
                 </div>
               </Descriptions.Item>
@@ -642,7 +681,7 @@ export function AnalisisDashboardPage() {
               { title: 'RUT', dataIndex: 'rut', key: 'rut', render: (v?: string | null) => v ?? '—' },
               {
                 title: 'Monto ofertado', dataIndex: 'monto_ofertado', key: 'monto_ofertado',
-                render: (v?: number | null) => formatMoney(v, moneda),
+                render: (v?: number | null, row?: Ofertante) => formatMoney(v, row?.monto_ofertado_moneda ?? moneda),
               },
               { title: 'Puntaje', dataIndex: 'puntaje_total', key: 'puntaje_total', render: (v?: number | null) => formatNumber(v) },
               {

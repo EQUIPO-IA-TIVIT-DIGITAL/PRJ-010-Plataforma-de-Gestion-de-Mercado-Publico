@@ -42,7 +42,8 @@ public class LicitacionServiceTests
     {
         _handlerMock.Setup(h => h.BuscarNaturalAsync(
                 It.IsAny<string>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<short?>(),
-                It.IsAny<List<string>?>(), It.IsAny<decimal?>(), It.IsAny<decimal?>(), It.IsAny<DateTime?>(),
+                It.IsAny<List<string>?>(), It.IsAny<decimal?>(), It.IsAny<decimal?>(),
+                It.IsAny<DateTime?>(), It.IsAny<DateTime?>(),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync((items ?? new List<LicitacionNaturalSearchResult>(), totalCount));
     }
@@ -68,7 +69,7 @@ public class LicitacionServiceTests
         error.Should().BeNull();
         result.Should().NotBeNull();
         _handlerMock.Verify(h => h.BuscarNaturalAsync(
-            "ciberseguridad", 1, 20, null, null, null, null, null, It.IsAny<CancellationToken>()), Times.Once);
+            "ciberseguridad", 1, 20, null, null, null, null, null, null, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
@@ -82,13 +83,14 @@ public class LicitacionServiceTests
 
         error.Should().BeNull();
         _handlerMock.Verify(h => h.BuscarNaturalAsync(
-            "asdf qwerty", 1, 20, null, null, null, null, null, It.IsAny<CancellationToken>()), Times.Once);
+            "asdf qwerty", 1, 20, null, null, null, null, null, null, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
     public async Task BuscarNaturalAsync_EnrichesQuery_WhenInterpretationIsConfident()
     {
         SetupHandler();
+        var fechaDesdeInferida = new DateTime(2025, 1, 1);
         _semanticaMock.Setup(s => s.InterpretarAsync("ciberseguridad salud", It.IsAny<CancellationToken>()))
             .ReturnsAsync(new ConsultaSemanticaResult
             {
@@ -96,15 +98,20 @@ public class LicitacionServiceTests
                 TerminosExpandidos = ["SOC", "seguridad de la información"],
                 EstadoInferido = 8,
                 MontoDesde = 10_000_000m,
+                FechaDesde = fechaDesdeInferida,
             });
 
         await _service.BuscarNaturalAsync("ciberseguridad salud", 1, 20, estado: null);
 
+        // 029-fix-hallazgos-code-review-competidores-alertas (FR-002): FechaDesde ya se
+        // calculaba en ConsultaSemanticaResult pero nunca llegaba al handler -- este assert
+        // falla si se vuelve a romper ese threading de parámetro.
         _handlerMock.Verify(h => h.BuscarNaturalAsync(
             "ciberseguridad salud", 1, 20,
             (short?)8,
             It.Is<List<string>>(t => t.Contains("SOC")),
-            10_000_000m, null, null,
+            10_000_000m, null,
+            fechaDesdeInferida, null,
             It.IsAny<CancellationToken>()), Times.Once);
     }
 
@@ -124,7 +131,31 @@ public class LicitacionServiceTests
 
         _handlerMock.Verify(h => h.BuscarNaturalAsync(
             "telecomunicaciones", 1, 20, (short?)6,
-            It.IsAny<List<string>?>(), It.IsAny<decimal?>(), It.IsAny<decimal?>(), It.IsAny<DateTime?>(),
+            It.IsAny<List<string>?>(), It.IsAny<decimal?>(), It.IsAny<decimal?>(),
+            It.IsAny<DateTime?>(), It.IsAny<DateTime?>(),
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task BuscarNaturalAsync_NoAcotaFechaDesde_WhenInterpretationDoesNotInferOne()
+    {
+        // FR-002 (edge case de la spec): una consulta NL sin fecha explícita no debe requerir
+        // que el usuario especifique una para obtener resultados -- FechaDesde debe llegar como
+        // null al handler (que a su vez no debe acotar el rango), no con un valor por defecto.
+        SetupHandler();
+        _semanticaMock.Setup(s => s.InterpretarAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ConsultaSemanticaResult
+            {
+                Confianza = ConfianzaInterpretacion.Alta,
+                TerminosExpandidos = ["nube"],
+            });
+
+        await _service.BuscarNaturalAsync("servicios cloud", 1, 20, estado: null);
+
+        _handlerMock.Verify(h => h.BuscarNaturalAsync(
+            "servicios cloud", 1, 20, null,
+            It.IsAny<List<string>?>(), null, null,
+            null, null,
             It.IsAny<CancellationToken>()), Times.Once);
     }
 }

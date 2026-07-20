@@ -25,4 +25,9 @@ public static class LicitacionStoredProcedures
 
     // Soporte para el motor de matching de Alertas (003-fase6-alertas-keywords)
     public const string ListarParaMatching = "SELECT * FROM usp_Licitaciones_ListarParaMatching(@p_fecha_desde)";
+
+    // Backfill del import histórico masivo (029-fix-hallazgos-code-review-competidores-alertas, FR-010)
+    public const string ListarParaBackfillTipo = "SELECT * FROM usp_Licitaciones_ListarParaBackfillTipo(@p_limite)";
+    public const string ActualizarTipoBackfill = "CALL usp_Licitaciones_ActualizarTipoBackfill(@p_codigo_externo, @p_tipo)";
+    public const string ListarParaBackfillOrganismo = "SELECT * FROM usp_Licitaciones_ListarParaBackfillOrganismo(@p_limite)";
 }

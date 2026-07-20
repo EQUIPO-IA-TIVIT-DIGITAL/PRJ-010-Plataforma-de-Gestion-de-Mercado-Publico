@@ -19,21 +19,29 @@ public class LicitacionHandler(DbConnectionFactory dbFactory)
         CancellationToken ct = default)
     {
         await using var conn = _dbFactory.Create();
+
+        // 029-fix-hallazgos-code-review-competidores-alertas (FR-009/QA BUG-002): p_fecha_desde/
+        // p_fecha_hasta iban en un objeto anonimo sin tipo explicito -- un DateTime? en null
+        // llega a Postgres como parametro "unknown" (Npgsql no puede inferir entre date/
+        // timestamp/timestamptz sin tipo explicito), y usp_Licitaciones_Listar (V093) declara
+        // esos parametros como DATE, asi que Postgres no resolvia el overload (42883, 500 en
+        // cada filtro de fecha). Mismo patron ya usado en BuscarNaturalAsync/ActualizarDetalleAsync
+        // en este mismo archivo.
+        var p = new DynamicParameters();
+        p.Add("p_page", page, DbType.Int32);
+        p.Add("p_page_size", pageSize, DbType.Int32);
+        p.Add("p_search", search, DbType.String);
+        p.Add("p_estado", estado, DbType.Int16);
+        p.Add("p_tipo", tipo, DbType.String);
+        p.Add("p_organismo", organismo, DbType.String);
+        p.Add("p_fecha_desde", fechaDesde, DbType.Date);
+        p.Add("p_fecha_hasta", fechaHasta, DbType.Date);
+        p.Add("p_sort_by", sortBy, DbType.String);
+        p.Add("p_sort_dir", sortDir, DbType.String);
+
         var result = await conn.QueryAsync<LicitacionResumenDto>(
             sql: LicitacionStoredProcedures.Listar,
-            param: new
-            {
-                p_page = page,
-                p_page_size = pageSize,
-                p_search = search,
-                p_estado = estado,
-                p_tipo = tipo,
-                p_organismo = organismo,
-                p_fecha_desde = fechaDesde,
-                p_fecha_hasta = fechaHasta,
-                p_sort_by = sortBy,
-                p_sort_dir = sortDir
-            },
+            param: p,
             commandType: CommandType.Text);
 
         var list = result.ToList();
@@ -69,6 +77,52 @@ public class LicitacionHandler(DbConnectionFactory dbFactory)
         public decimal? p_monto_estimado { get; set; }
         public string? p_tipo { get; set; }
         public string? p_organismo { get; set; }
+    }
+
+    /// <summary>
+    /// 029-fix-hallazgos-code-review-competidores-alertas (FR-010): licitaciones con tipo
+    /// genérico ("Licitacion") o nulo, candidatas a re-derivar su tipo real por sufijo de
+    /// codigo_externo -- ver ImportBackfillService.
+    /// </summary>
+    public async Task<IEnumerable<string>> ListarParaBackfillTipoAsync(int limite, CancellationToken ct = default)
+    {
+        await using var conn = _dbFactory.Create();
+        var rows = await conn.QueryAsync<BackfillTipoRow>(
+            LicitacionStoredProcedures.ListarParaBackfillTipo,
+            new { p_limite = limite },
+            commandType: CommandType.Text);
+        return rows.Select(r => r.codigo_externo);
+    }
+
+    private class BackfillTipoRow
+    {
+        public string codigo_externo { get; set; } = "";
+        public string? tipo_actual { get; set; }
+    }
+
+    public async Task ActualizarTipoBackfillAsync(string codigoExterno, string tipo, CancellationToken ct = default)
+    {
+        await using var conn = _dbFactory.Create();
+        await conn.ExecuteAsync(
+            LicitacionStoredProcedures.ActualizarTipoBackfill,
+            new { p_codigo_externo = codigoExterno, p_tipo = tipo },
+            commandType: CommandType.Text);
+    }
+
+    /// <summary>
+    /// 029-fix-hallazgos-code-review-competidores-alertas (FR-010): licitaciones que cumplen el
+    /// mismo trigger que ya usa <c>LicitacionService.ObtenerPorCodigoAsync</c> on-demand
+    /// (descripcion vacía Y fecha_publicacion nula), candidatas al backfill de organismo vía API
+    /// real de Mercado Público -- ver ImportBackfillService.
+    /// </summary>
+    public async Task<IEnumerable<string>> ListarParaBackfillOrganismoAsync(int limite, CancellationToken ct = default)
+    {
+        await using var conn = _dbFactory.Create();
+        var rows = await conn.QueryAsync<string>(
+            LicitacionStoredProcedures.ListarParaBackfillOrganismo,
+            new { p_limite = limite },
+            commandType: CommandType.Text);
+        return rows;
     }
 
     public async Task<LicitacionDetalleDto?> ObtenerPorCodigoAsync(string codigoExterno, CancellationToken ct = default)
@@ -196,22 +250,28 @@ public class LicitacionHandler(DbConnectionFactory dbFactory)
     public virtual async Task<(List<LicitacionNaturalSearchResult> Items, long TotalCount)> BuscarNaturalAsync(
         string query, int page, int pageSize, short? estado,
         List<string>? terminosExpandidos = null, decimal? montoDesde = null, decimal? montoHasta = null,
-        DateTime? fechaHasta = null, CancellationToken ct = default)
+        DateTime? fechaDesde = null, DateTime? fechaHasta = null, CancellationToken ct = default)
     {
         await using var conn = _dbFactory.Create();
 
-        // DynamicParameters con DbType.Date explicito para p_fecha_hasta -- igual que
-        // ActualizarDetalleAsync (ver comentario ahi), un objeto anonimo con un DateTime? en
+        // DynamicParameters con DbType.Date explicito para p_fecha_desde/p_fecha_hasta -- igual
+        // que ActualizarDetalleAsync (ver comentario ahi), un objeto anonimo con un DateTime? en
         // null llega a Postgres como parametro "unknown" (42883, no resuelve el overload de la
         // funcion) porque Npgsql no puede inferir entre date/timestamp/timestamptz sin tipo
         // explicito. p_estado/p_monto_desde/p_monto_hasta no mostraban este problema en la
         // practica, pero se tipan explicito tambien para no repetir el bug si cambian de tipo.
+        //
+        // 029-fix-hallazgos-code-review-competidores-alertas (FR-002): antes, p_fecha_desde
+        // estaba hardcodeado a 2026-01-01 en vez de recibir el valor real inferido por
+        // ConsultaSemanticaService -- toda busqueda NL de un periodo anterior a esa fecha
+        // devolvia una lista vacia sin explicacion. Si fechaDesde es null (Gemini no infirio una
+        // fecha de inicio), no se acota el rango por abajo -- igual que ya hace fechaHasta.
         var itemsParams = new DynamicParameters();
         itemsParams.Add("p_query", query, DbType.String);
         itemsParams.Add("p_page", page, DbType.Int32);
         itemsParams.Add("p_page_size", pageSize, DbType.Int32);
         itemsParams.Add("p_estado", estado, DbType.Int16);
-        itemsParams.Add("p_fecha_desde", DateTime.Parse("2026-01-01"), DbType.Date);
+        itemsParams.Add("p_fecha_desde", fechaDesde, DbType.Date);
         itemsParams.Add("p_terminos_expandidos", terminosExpandidos?.ToArray());
         itemsParams.Add("p_monto_desde", montoDesde, DbType.Decimal);
         itemsParams.Add("p_monto_hasta", montoHasta, DbType.Decimal);
@@ -225,7 +285,7 @@ public class LicitacionHandler(DbConnectionFactory dbFactory)
         var countParams = new DynamicParameters();
         countParams.Add("p_query", query, DbType.String);
         countParams.Add("p_estado", estado, DbType.Int16);
-        countParams.Add("p_fecha_desde", DateTime.Parse("2026-01-01"), DbType.Date);
+        countParams.Add("p_fecha_desde", fechaDesde, DbType.Date);
         countParams.Add("p_terminos_expandidos", terminosExpandidos?.ToArray());
         countParams.Add("p_monto_desde", montoDesde, DbType.Decimal);
         countParams.Add("p_monto_hasta", montoHasta, DbType.Decimal);

@@ -3,6 +3,83 @@ import { esperarConDelay, screenshotOnError } from './browser.js';
 const MAX_REINTENTOS = 2;
 
 /**
+ * Busca la tabla de "Cuadro de Ofertas" en el documento actual y extrae sus filas. Exportada a
+ * nivel de modulo (en vez de una closure dentro de extraerCuadroOfertas) para poder testearla
+ * directamente via Playwright contra un fixture HTML real (ver
+ * tools/scraper-mp-v2/test-cuadroOfertas.mjs, 029-fix-hallazgos-code-review-competidores-alertas
+ * T049) -- no captura nada del closure de extraerCuadroOfertas, solo usa `document`.
+ *
+ * 029-fix-hallazgos-code-review-competidores-alertas (FR-005): antes se asumia siempre el orden
+ * fijo "Rut Proveedor | Proveedor | Nombre Oferta | Total Oferta | Estado" (posiciones 0,1,3,4),
+ * validando solo que hubiera al menos 4 celdas -- una variante de layout con columnas
+ * reordenadas corrompia monto/estado silenciosamente. Se resuelve el indice real de cada columna
+ * contra el texto del encabezado, igual que ya se hace para localizar la tabla misma, en vez de
+ * asumir una posicion fija.
+ */
+export const buscarTablaEnDocumento = () => {
+  // Busca la tabla que tenga un encabezado reconocible (Rut Proveedor / Proveedor / Total
+  // Oferta / Estado) en vez de depender de un id fijo -- la pagina de Mercado Publico
+  // reutiliza ids genericos entre distintos cuadros/modales.
+  const tablas = Array.from(document.querySelectorAll('table'));
+  const tabla = tablas.find(t => {
+    const texto = t.innerText.toLowerCase();
+    return texto.includes('proveedor') && (texto.includes('total oferta') || texto.includes('estado'));
+  });
+
+  if (!tabla) return { encontrada: false, filas: [] };
+
+  const todasLasFilas = Array.from(tabla.querySelectorAll('tr'));
+  const filaEncabezado = todasLasFilas[0];
+  const filas = todasLasFilas.slice(1);
+  const resultados = [];
+
+  const encabezados = filaEncabezado
+    ? Array.from(filaEncabezado.querySelectorAll('th,td')).map(c => (c.textContent || '').trim().toLowerCase())
+    : [];
+
+  const idxRut = encabezados.findIndex(h => h.includes('rut'));
+  const idxProveedor = encabezados.findIndex(h => h.includes('proveedor') && !h.includes('rut'));
+  const idxMonto = encabezados.findIndex(h => h.includes('total oferta') || h.includes('monto'));
+  const idxEstado = encabezados.findIndex(h => h.includes('estado'));
+
+  const columnasReconocidas = idxProveedor >= 0 && idxMonto >= 0 && idxEstado >= 0;
+  if (!columnasReconocidas) {
+    // No se pudo mapear el encabezado real -- no se adivina la posicion, se reporta la
+    // tabla como no reconocida en vez de arriesgar datos en la columna equivocada.
+    return { encontrada: true, filas: [], encabezadoNoReconocido: true };
+  }
+
+  for (const fila of filas) {
+    const celdas = Array.from(fila.querySelectorAll('td')).map(td => td.textContent?.trim() || '');
+    if (celdas.length <= Math.max(idxProveedor, idxMonto, idxEstado, idxRut)) continue;
+
+    const rut = idxRut >= 0 ? celdas[idxRut] : '';
+    const proveedor = celdas[idxProveedor];
+    const montoTexto = celdas[idxMonto];
+    const estado = celdas[idxEstado];
+    if (!proveedor) continue;
+
+    // La grilla de Mercado Publico duplica cada fila con una version oculta (responsive
+    // mobile) cuyas columnas quedan desalineadas -- se detecto en vivo una fila espuria
+    // donde "proveedor" terminaba siendo en realidad el RUT (ej. "92.580.000-7"). Se
+    // descarta cualquier fila donde el campo "proveedor" tenga forma de RUT chileno.
+    if (/^\d{1,3}(\.\d{3})*-[\dkK]$/.test(proveedor)) continue;
+
+    const montoLimpio = (montoTexto || '').replace(/[^0-9]/g, '');
+    const monto = montoLimpio ? parseInt(montoLimpio, 10) : null;
+
+    resultados.push({
+      rutProveedor: rut || null,
+      nombreProveedor: proveedor,
+      montoOferta: monto,
+      estadoOferta: estado || null,
+    });
+  }
+
+  return { encontrada: true, filas: resultados };
+};
+
+/**
  * 024-inteligencia-competencia-alertas / US1: extrae el listado de oferentes (no solo el
  * adjudicatario) desde el "Cuadro de Ofertas" de la ficha publica de una licitacion adjudicada
  * -- confirmado en vivo el 2026-07-09 que esta seccion es publica, sin necesitar login.
@@ -80,49 +157,6 @@ export async function extraerCuadroOfertas(fichaPage, context, datosLicitacion, 
         await tabResumen.click();
         await esperarConDelay(1500);
       }
-
-      const buscarTablaEnDocumento = () => {
-        // Busca la tabla que tenga un encabezado reconocible (Rut Proveedor / Proveedor / Total
-        // Oferta / Estado) en vez de depender de un id fijo -- la pagina de Mercado Publico
-        // reutiliza ids genericos entre distintos cuadros/modales.
-        const tablas = Array.from(document.querySelectorAll('table'));
-        const tabla = tablas.find(t => {
-          const texto = t.innerText.toLowerCase();
-          return texto.includes('proveedor') && (texto.includes('total oferta') || texto.includes('estado'));
-        });
-
-        if (!tabla) return { encontrada: false, filas: [] };
-
-        const filas = Array.from(tabla.querySelectorAll('tr')).slice(1); // salta encabezado
-        const resultados = [];
-
-        for (const fila of filas) {
-          const celdas = Array.from(fila.querySelectorAll('td')).map(td => td.textContent?.trim() || '');
-          if (celdas.length < 4) continue;
-
-          // Orden observado en vivo: Rut Proveedor | Proveedor | Nombre Oferta | Total Oferta | Estado
-          const [rut, proveedor, , montoTexto, estado] = celdas;
-          if (!proveedor) continue;
-
-          // La grilla de Mercado Publico duplica cada fila con una version oculta (responsive
-          // mobile) cuyas columnas quedan desalineadas -- se detecto en vivo una fila espuria
-          // donde "proveedor" terminaba siendo en realidad el RUT (ej. "92.580.000-7"). Se
-          // descarta cualquier fila donde el campo "proveedor" tenga forma de RUT chileno.
-          if (/^\d{1,3}(\.\d{3})*-[\dkK]$/.test(proveedor)) continue;
-
-          const montoLimpio = (montoTexto || '').replace(/[^0-9]/g, '');
-          const monto = montoLimpio ? parseInt(montoLimpio, 10) : null;
-
-          resultados.push({
-            rutProveedor: rut || null,
-            nombreProveedor: proveedor,
-            montoOferta: monto,
-            estadoOferta: estado || null,
-          });
-        }
-
-        return { encontrada: true, filas: resultados };
-      };
 
       // Se prueba en la pagina principal (o la ventana nueva) y, si no aparece ahi, en cada uno
       // de sus frames -- cubre el caso de que el cuadro se renderice dentro de un iframe interno.

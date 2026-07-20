@@ -82,24 +82,45 @@ public class AnalisisService(
         if (ws.Estado == "analizando")
             return (null, "ANA_002:El workspace ya tiene un análisis en progreso");
 
-        DocumentoDetalleDto? doc;
+        List<DocumentoDetalleDto> documentos;
         if (documentoId.HasValue)
         {
-            doc = await _handler.ObtenerDocumentoAsync(documentoId.Value, ct);
+            var doc = await _handler.ObtenerDocumentoAsync(documentoId.Value, ct);
             if (doc == null) return (null, "ANA_001:Documento no encontrado");
+            documentos = [doc];
         }
         else
         {
+            // 029-fix-hallazgos-code-review-competidores-alertas (FR-011/QA BUG-005): "Analizar
+            // todo" antes solo tomaba docList.First() -- un único documento, sin advertir que
+            // el resto del workspace quedaba sin analizar. Ahora se envían todos los documentos
+            // del workspace a Gemini en una sola llamada (ver GeminiService.AnalyzeDocumentosAsync).
             var docs = await _handler.ListarDocumentosAsync(workspaceId, ct);
             var docList = docs.ToList();
             if (docList.Count == 0) return (null, "ANA_003:No hay documentos para analizar en este workspace");
-            doc = await _handler.ObtenerDocumentoAsync(docList.First().Id, ct);
+
+            documentos = [];
+            foreach (var item in docList)
+            {
+                var detalle = await _handler.ObtenerDocumentoAsync(item.Id, ct);
+                if (detalle != null) documentos.Add(detalle);
+            }
+            if (documentos.Count == 0) return (null, "ANA_003:No hay documentos para analizar en este workspace");
         }
 
         var estadoError = await _handler.ActualizarEstadoAsync(workspaceId, "analizando", ct);
         if (estadoError != null) return (null, estadoError);
 
-        _backgroundService.EnqueueAnalisis(workspaceId, doc!.Id, doc.NombreArchivo, doc.RutaStorage);
+        // El resultado se asocia (FK documento_id) al documento más reciente del conjunto como
+        // representante -- el contenido analizado por Gemini sí incluye TODOS los documentos
+        // (ver AnalisisBackgroundService), esto solo decide qué fila referenciar para el join
+        // existente de usp_AnalisisResultados_ObtenerPorLicitacion.
+        var documentoRepresentativo = documentos.OrderByDescending(d => d.CreatedAt).First();
+
+        _backgroundService.EnqueueAnalisis(
+            workspaceId,
+            documentoRepresentativo.Id,
+            documentos.Select(d => (d.Id, d.NombreArchivo, d.RutaStorage)).ToList());
 
         return (new AnalisisResumenDto
         {
@@ -183,13 +204,27 @@ public class AnalisisService(
 
         foreach (var r in resultados)
         {
-            todosLosAnios.Add(r.CreadoEn.Year);
-            if (string.IsNullOrWhiteSpace(r.ContenidoJson)) continue;
+            if (string.IsNullOrWhiteSpace(r.ContenidoJson))
+            {
+                // Sin contenido que parsear -- no hay fecha real disponible, se usa CreadoEn
+                // como único dato que existe para esta fila (mejor que omitirla del todo).
+                todosLosAnios.Add(r.CreadoEn.Year);
+                continue;
+            }
 
             JsonElement root;
             try { root = JsonDocument.Parse(r.ContenidoJson).RootElement; }
-            catch { continue; }
-            if (root.ValueKind != JsonValueKind.Object) continue;
+            catch { todosLosAnios.Add(r.CreadoEn.Year); continue; }
+            if (root.ValueKind != JsonValueKind.Object) { todosLosAnios.Add(r.CreadoEn.Year); continue; }
+
+            // 029-fix-hallazgos-code-review-competidores-alertas (FR-018/US14, QA BUG-011): antes
+            // se usaba r.CreadoEn.Year (fecha de creación del registro de análisis) para el filtro
+            // de año -- una licitación de 2025 analizada recién en 2026 nunca aparecía bajo "2025".
+            // Se usa la fecha real de la licitación (adjudicación si existe, si no publicación) ya
+            // extraída por Gemini en el propio contenido_json, con CreadoEn solo como último
+            // fallback si el JSON no trae ninguna fecha real utilizable.
+            var anioReal = ExtraerAnioRealLicitacion(root) ?? r.CreadoEn.Year;
+            todosLosAnios.Add(anioReal);
 
             var tivitGano = false;
             string resultadoTivit = "Desconocido";
@@ -333,5 +368,27 @@ public class AnalisisService(
             Licitaciones = licitaciones.OrderByDescending(l => l.FechaAnalisis).ToList(),
             AniosDisponibles = todosLosAnios.OrderDescending().ToList()
         }, null);
+    }
+
+    // 029-fix-hallazgos-code-review-competidores-alertas (FR-018/US14): año real de la licitación
+    // desde licitacion.fechas.adjudicacion (preferida) o licitacion.fechas.publicacion, tal como
+    // Gemini las devuelve en el schema de GeminiService.GetAnalisisPrompt. Null si el JSON no trae
+    // ninguna fecha real parseable.
+    private static int? ExtraerAnioRealLicitacion(JsonElement root)
+    {
+        if (!root.TryGetProperty("licitacion", out var lic) || lic.ValueKind != JsonValueKind.Object)
+            return null;
+        if (!lic.TryGetProperty("fechas", out var fechas) || fechas.ValueKind != JsonValueKind.Object)
+            return null;
+
+        if (fechas.TryGetProperty("adjudicacion", out var fa) && fa.ValueKind == JsonValueKind.String
+            && DateTime.TryParse(fa.GetString(), out var fechaAdj))
+            return fechaAdj.Year;
+
+        if (fechas.TryGetProperty("publicacion", out var fp) && fp.ValueKind == JsonValueKind.String
+            && DateTime.TryParse(fp.GetString(), out var fechaPub))
+            return fechaPub.Year;
+
+        return null;
     }
 }

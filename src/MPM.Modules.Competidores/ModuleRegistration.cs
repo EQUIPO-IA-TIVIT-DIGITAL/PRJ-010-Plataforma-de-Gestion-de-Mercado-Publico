@@ -11,7 +11,7 @@ public static class ModuleRegistration
         services.AddScoped<OfertasHandler>();
         services.AddScoped<CompetidorAnalisisHandler>();
         services.AddScoped<CompetidorAnalysisService>();
-        services.AddHttpClient<CompetidorGeminiService>();
+        services.AddScoped<CompetidorGeminiService>();
         return services;
     }
 }

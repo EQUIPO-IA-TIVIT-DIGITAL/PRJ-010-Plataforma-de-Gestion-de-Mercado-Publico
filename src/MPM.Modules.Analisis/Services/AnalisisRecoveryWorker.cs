@@ -90,22 +90,34 @@ public class AnalisisRecoveryWorker(
                 continue;
             }
 
-            var documentos = (await handler.ListarDocumentosAsync(candidato.Id, ct)).ToList();
-            var ultimoDocumento = documentos.OrderByDescending(d => d.CreatedAt).FirstOrDefault();
-            if (ultimoDocumento == null)
+            var documentosItem = (await handler.ListarDocumentosAsync(candidato.Id, ct)).ToList();
+            if (documentosItem.Count == 0)
             {
                 logger.LogWarning("Workspace {WorkspaceId} huérfano en 'analizando' sin documentos — no se puede reprocesar.", candidato.Id);
                 continue;
             }
 
-            var docDetalle = await handler.ObtenerDocumentoAsync(ultimoDocumento.Id, ct);
-            if (docDetalle == null) continue;
+            // 029-fix-hallazgos-code-review-competidores-alertas (FR-011): el reintento
+            // reprocesa TODOS los documentos del workspace (igual que "Analizar todo"), no solo
+            // el más reciente -- consistente con AnalisisService.AnalizarAsync.
+            var documentosDetalle = new List<Models.DocumentoDetalleDto>();
+            foreach (var item in documentosItem)
+            {
+                var docDetalle = await handler.ObtenerDocumentoAsync(item.Id, ct);
+                if (docDetalle != null) documentosDetalle.Add(docDetalle);
+            }
+            if (documentosDetalle.Count == 0) continue;
+
+            var documentoRepresentativo = documentosDetalle.OrderByDescending(d => d.CreatedAt).First();
 
             logger.LogWarning(
-                "Reintentando análisis huérfano: workspace {WorkspaceId}, documento {DocumentoId} (inactivo {Minutos:F0} min)",
-                candidato.Id, docDetalle.Id, antiguedad.TotalMinutes);
+                "Reintentando análisis huérfano: workspace {WorkspaceId}, {Count} documento(s) (inactivo {Minutos:F0} min)",
+                candidato.Id, documentosDetalle.Count, antiguedad.TotalMinutes);
 
-            backgroundService.EnqueueAnalisis(candidato.Id, docDetalle.Id, docDetalle.NombreArchivo, docDetalle.RutaStorage);
+            backgroundService.EnqueueAnalisis(
+                candidato.Id,
+                documentoRepresentativo.Id,
+                documentosDetalle.Select(d => (d.Id, d.NombreArchivo, d.RutaStorage)).ToList());
         }
     }
 }

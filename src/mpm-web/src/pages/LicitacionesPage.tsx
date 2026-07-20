@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo } from 'react';
-import { Space, Tag } from 'antd';
+import { Alert, Space, Tag } from 'antd';
 import { FileTextOutlined } from '@ant-design/icons';
 import { LicitacionFilterBar } from '../components/LicitacionFilterBar';
 import type { SearchMode } from '../components/LicitacionFilterBar';
@@ -26,7 +26,10 @@ export function LicitacionesPage() {
   const [searchMode, setSearchMode] = useState<SearchMode>('filtros');
   const [naturalQuery, setNaturalQuery] = useState('');
 
-  const { data, isLoading } = useLicitaciones(filter);
+  // 029-fix-hallazgos-code-review-competidores-alertas (FR-009/QA BUG-002): antes solo se leía
+  // data/isLoading -- un 500 real (ej. filtro de fecha mal tipado) se veía idéntico a "sin
+  // resultados", la tabla quedaba vacía sin ningún aviso. Ahora se distingue explícitamente.
+  const { data, isLoading, isError } = useLicitaciones(filter);
   const { data: naturalData, isLoading: naturalLoading } = useBuscarNatural(
     naturalQuery, 1, 20, filter.estado ?? undefined);
   const { data: detalle, isLoading: detalleLoading } = useLicitacionDetalle(selectedCodigo);
@@ -133,6 +136,13 @@ export function LicitacionesPage() {
           loading={naturalLoading}
           query={naturalQuery}
           onSelect={handleNaturalSelect}
+        />
+      ) : isError ? (
+        <Alert
+          type="error"
+          showIcon
+          message="No se pudieron cargar las licitaciones"
+          description="Ocurrió un error al aplicar los filtros. Intenta de nuevo o ajusta los filtros aplicados."
         />
       ) : (
         <LicitacionesTable

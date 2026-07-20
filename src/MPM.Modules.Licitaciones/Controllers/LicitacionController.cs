@@ -14,7 +14,8 @@ namespace MPM.Modules.Licitaciones.Controllers;
 [Route("api/v1/licitaciones")]
 public class LicitacionController(
     LicitacionService licitacionService,
-    SeguimientoHandler seguimientoHandler) : ControllerBase
+    SeguimientoHandler seguimientoHandler,
+    ImportBackfillService importBackfillService) : ControllerBase
 {
     private TenantContext? GetTenant() => HttpContext.Items["TenantContext"] as TenantContext;
     [HttpGet]
@@ -87,6 +88,37 @@ public class LicitacionController(
     {
         var syncStatus = await licitacionService.ForzarSyncAsync(desde, ct);
         return Ok(ApiResponse<SyncStatusDto>.Ok(syncStatus));
+    }
+
+    /// <summary>
+    /// 029-fix-hallazgos-code-review-competidores-alertas (FR-010/US6, QA BUG-003): re-deriva el
+    /// tipo real de las licitaciones del import histórico masivo a partir del sufijo de
+    /// codigo_externo -- determinístico, no llama a ninguna API externa. Idempotente: correrlo
+    /// varias veces solo re-procesa lo que sigue con tipo genérico.
+    /// </summary>
+    [HttpPost("backfill-tipo")]
+    [Authorize]
+    [ProducesResponseType(typeof(ApiResponse<BackfillResultado>), 200)]
+    public async Task<ActionResult<ApiResponse<BackfillResultado>>> BackfillTipo(
+        [FromQuery] int limite = 1000, CancellationToken ct = default)
+    {
+        var resultado = await importBackfillService.BackfillTipoPorSufijoAsync(limite, ct);
+        return Ok(ApiResponse<BackfillResultado>.Ok(resultado));
+    }
+
+    /// <summary>
+    /// 029-fix-hallazgos-code-review-competidores-alertas (FR-010/US6, QA BUG-003): backfill de
+    /// organismo llamando a la API real de Mercado Público -- limitado por defecto (100) porque,
+    /// a diferencia de BackfillTipo, sí gasta llamadas HTTP reales contra un servicio externo.
+    /// </summary>
+    [HttpPost("backfill-organismo")]
+    [Authorize]
+    [ProducesResponseType(typeof(ApiResponse<BackfillResultado>), 200)]
+    public async Task<ActionResult<ApiResponse<BackfillResultado>>> BackfillOrganismo(
+        [FromQuery] int limite = 100, CancellationToken ct = default)
+    {
+        var resultado = await importBackfillService.BackfillOrganismoAsync(limite, ct);
+        return Ok(ApiResponse<BackfillResultado>.Ok(resultado));
     }
 
     [HttpPost("{codigoExterno}/seguir")]

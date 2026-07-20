@@ -83,6 +83,13 @@ builder.Services.AddSingleton<IConnectionMultiplexer>(_ =>
 
 builder.Services.AddScoped<DatabaseInitializer>();
 builder.Services.AddSingleton<GoogleAdcTokenProvider>();
+// Cliente Gemini compartido entre MPM.Modules.Analisis y MPM.Modules.Competidores
+// (029-fix-hallazgos-code-review-competidores-alertas) -- timeout de 5 min porque el análisis
+// de PDFs (Análisis) puede tardar bastante más que el análisis de texto de Competidores.
+builder.Services.AddHttpClient<VertexGeminiClient>(client =>
+{
+    client.Timeout = TimeSpan.FromMinutes(5);
+});
 
 var storageProvider = builder.Configuration.GetValue<string>("Storage:Provider") ?? "local";
 if (storageProvider == "gcs")
@@ -194,6 +201,10 @@ static async Task<int> EjecutarWorkerAsync(string workerMode, string[] args)
     builder.Services.AddSingleton<IConnectionMultiplexer>(_ =>
         ConnectionMultiplexer.Connect(builder.Configuration.GetConnectionString("Redis")!));
     builder.Services.AddSingleton<GoogleAdcTokenProvider>();
+    builder.Services.AddHttpClient<VertexGeminiClient>(client =>
+    {
+        client.Timeout = TimeSpan.FromMinutes(5);
+    });
 
     var storageProvider = builder.Configuration.GetValue<string>("Storage:Provider") ?? "local";
     if (storageProvider == "gcs")
