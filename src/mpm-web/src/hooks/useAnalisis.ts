@@ -14,15 +14,20 @@ import { apiFetch } from '../lib/apiClient'
 
 const BASE = '/api/v1/analisis'
 
-export function useWorkspacesLista(page = 1, pageSize = 20, search?: string, estado?: string) {
+export function useWorkspacesLista(
+  page = 1, pageSize = 20, search?: string, estado?: string,
+  fechaDesde?: string, fechaHasta?: string,
+) {
   const params = new URLSearchParams()
   params.set('page', String(page))
   params.set('pageSize', String(pageSize))
   if (search) params.set('search', search)
   if (estado) params.set('estado', estado)
+  if (fechaDesde) params.set('fechaDesde', fechaDesde)
+  if (fechaHasta) params.set('fechaHasta', fechaHasta)
 
   return useQuery({
-    queryKey: ['analisis-workspaces', { page, pageSize, search, estado }],
+    queryKey: ['analisis-workspaces', { page, pageSize, search, estado, fechaDesde, fechaHasta }],
     queryFn: () => apiFetch<{ data: { items: WorkspaceItem[]; totalRecords: number; totalPages: number; page: number; pageSize: number } }>(`${BASE}/workspaces?${params.toString()}`),
     staleTime: 10_000,
     refetchInterval: 5000,

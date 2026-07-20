@@ -21,3 +21,23 @@ Mejoras de v2 sobre v1 (ver detalle en el historial y en `specs/026-robustez-sin
 No agregar features aquí. Esta carpeta se conserva solo como referencia histórica
 (spikes `spike-*.js`, `exportar-sesion.js` que aún referencia `MpSessionProvider.cs`, y
 lotes descargados en `descargas/`).
+
+## Adenda: "0 licitaciones, código 0" reapareció en v2 (030-qol-frontend-y-fix-scraper, 2026-07-20)
+
+El fix del postback colgado de arriba cubre el cuelgue *dentro* de un intento de búsqueda, pero
+no el caso en que **los 5 estados fallaran sus 2 intentos cada uno** (ej. una racha de cuelgues
+más larga que el retry, sesión inválida, o un cambio de estructura no cubierto por el resto de
+las heurísticas). En ese escenario, `buscarLicitaciones()` (`scraper-mp-v2/modulos/buscar.js`)
+tragaba el error de cada estado en un `console.log` de advertencia y, al no tener éxito ninguno,
+retornaba `[]` — indistinguible de "0 licitaciones nuevas legítimas". Además, en modo `--daemon`,
+el `catch` de `cycle()` (`scraper-mp-v2/modulos/scheduler.js`) solo logueaba el error sin marcar
+`process.exitCode`, así que el proceso terminaba con el código de salida por defecto de Node (0)
+aunque el ciclo hubiera fallado por completo. Combinado, esto reproducía exactamente el patrón
+"El scraper terminó con código 0. Licitaciones: 0, Actas: 0" para una falla real, indistinguible
+de un día sin licitaciones nuevas.
+
+Fix: `buscarLicitaciones()` ahora cuenta cuántos de los 5 estados tuvieron éxito y lanza un error
+real si son 0 de 5; `scheduler.js` marca `process.exitCode = 1` en su catch. El wrapper .NET
+(`ScraperBackgroundService.NotificarResultadoAsync`) distingue ahora tres casos: éxito con
+licitaciones nuevas, éxito sin licitaciones nuevas (tipo `scraper_sin_resultados`, tono neutro) y
+fallo real (tipo `scraper_error`, `exitCode != 0`).

@@ -193,6 +193,56 @@ public class ScraperBackgroundServiceTests
             "el probe debe usar --help o equivalente para no iniciar un servidor Xvfb real");
     }
 
+    // ── 030-qol-frontend-y-fix-scraper US3: "0 licitaciones, código 0" ya no se confunde con
+    // una falla real ────────────────────────────────────────────────────────────────────
+
+    [Fact]
+    public void SourceCode_NotificarResultadoAsync_DistingueSinResultadosDeError()
+    {
+        var source = File.ReadAllText(FindSourceFile("ScraperBackgroundService.cs"));
+
+        source.Should().Contain("scraper_sin_resultados",
+            "un ciclo con exitCode == 0 y 0 licitaciones (lectura exitosa, sin novedades) debe " +
+            "notificarse distinto de un ciclo con exitCode != 0 (falla real de lectura) — antes " +
+            "ambos compartían el mismo tipo 'scraper_error' y el mismo mensaje ambiguo");
+    }
+
+    [Fact]
+    public void SourceCode_BuscarLicitaciones_LanzaErrorSiNingunEstadoTuvoExito()
+    {
+        var source = File.ReadAllText(FindScraperV2File("modulos", "buscar.js"));
+
+        source.Should().Contain("estadosExitosos",
+            "buscarLicitaciones debe contar cuántos de los 5 estados de búsqueda pudieron leerse");
+        source.Should().Contain("estadosExitosos === 0",
+            "si 0 de 5 estados pudieron leerse, la función debe lanzar un error en vez de " +
+            "retornar [] silenciosamente (antes se reportaba como '0 licitaciones legítimas')");
+    }
+
+    [Fact]
+    public void SourceCode_SchedulerCycle_MarcaExitCodeEnFallo()
+    {
+        var source = File.ReadAllText(FindScraperV2File("modulos", "scheduler.js"));
+
+        source.Should().Contain("process.exitCode = 1",
+            "el catch de cycle() en modo --daemon solo logueaba el error sin marcar el proceso " +
+            "como fallido — el proceso terminaba con exit code 0 (Node por defecto) aunque el " +
+            "ciclo hubiera fallado, y el wrapper .NET lo leía como éxito silencioso");
+    }
+
+    // scraper-mp (v1, deprecado) y scraper-mp-v2 comparten nombres de archivo (buscar.js,
+    // scheduler.js) — FindSourceFile (que asume nombre único en el repo) no sirve aquí.
+    private static string FindScraperV2File(string subfolder, string fileName)
+    {
+        var dir = new DirectoryInfo(AppContext.BaseDirectory);
+        while (dir != null && !File.Exists(Path.Combine(dir.FullName, "MPM.sln")))
+            dir = dir.Parent;
+
+        if (dir == null) throw new FileNotFoundException("No se encontró MPM.sln subiendo desde el directorio de test.");
+
+        return Path.Combine(dir.FullName, "tools", "scraper-mp-v2", subfolder, fileName);
+    }
+
     // ── Dockerfile: Xvfb + xauth instalados en la imagen de runtime ──────────────────────
 
     [Fact]

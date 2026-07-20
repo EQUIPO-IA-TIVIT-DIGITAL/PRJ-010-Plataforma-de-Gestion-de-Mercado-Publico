@@ -73,6 +73,7 @@ Este documento es la fuente única de verdad sobre secuencia y prioridad vigente
 | Feature | Spec | Cubre el pedido # | Cambio por repriorización |
 |---|---|---|---|
 | Rediseño Frontend de MPM | [`019-rediseno-frontend`](019-rediseno-frontend/spec.md) | 10 | **Spec nueva**, creada 2026-07-03 vía spec-kit. Se ejecuta en tiempo disponible del equipo, en paralelo a N1-N4 o después de cerrar Pipeline (N4) — explícitamente nunca compite por prioridad con el bloque funcional. |
+| Ajustes QoL de frontend post-rediseño + fix scraper "0 resultados" | [`030-qol-frontend-y-fix-scraper`](030-qol-frontend-y-fix-scraper/spec.md) | 10 | **Cerrado 2026-07-20**. Pedido directo del usuario (no del cliente): desambiguar el ranking de competidores en `/ejecutivo`, fix de timezone en `/notificaciones`, filtro/orden/fecha en `/analisis`, rediseño de `/analisis/:id`, `/analisis/:id/dashboard` y `/alertas`, y diagnóstico + fix del scraper que reportaba "0 licitaciones" con código de salida 0. Causa raíz real: `buscarLicitaciones()` podía fallar en los 5 estados de búsqueda sin propagar el error, y el `catch` de `scheduler.js` en modo `--daemon` no marcaba `process.exitCode`, así que el proceso salía con código 0 igual — ambos corregidos. Validado en vivo contra Docker real y revisado por el usuario. |
 
 ### ⏸️ En pausa — Fases 8-18
 

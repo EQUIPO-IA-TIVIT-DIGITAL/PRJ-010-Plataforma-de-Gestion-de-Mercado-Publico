@@ -275,7 +275,11 @@ export default function EjecutivoDashboardPage() {
               <div style={{ display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap' }}>
                 <Text strong style={{ minWidth: 200 }}>{comp.nombre}</Text>
                 <Tag color="blue">{comp.vecesCompetidor}× competidor</Tag>
-                {comp.vecesGanador > 0 && <Tag color="gold"><TrophyOutlined /> {comp.vecesGanador} ganada(s)</Tag>}
+                {comp.vecesGanador > 0 && (
+                  <Tag color="gold">
+                    <TrophyOutlined /> {comp.vecesGanador} licitación{comp.vecesGanador === 1 ? '' : 'es'} ganada{comp.vecesGanador === 1 ? '' : 's'} por {comp.nombre}
+                  </Tag>
+                )}
                 {comp.montoTotalAdjudicado > 0 && <Tag color="green">{fmt(comp.montoTotalAdjudicado)}</Tag>}
               </div>
             ),
