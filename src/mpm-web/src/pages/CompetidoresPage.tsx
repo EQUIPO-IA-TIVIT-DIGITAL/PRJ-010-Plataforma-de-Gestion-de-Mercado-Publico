@@ -3,6 +3,7 @@ import { Space, Table, AutoComplete, DatePicker, Button, Tag, Empty, App as AntA
 import { TeamOutlined, ExperimentOutlined, BulbOutlined } from '@ant-design/icons';
 import dayjs, { type Dayjs } from 'dayjs';
 import { useBuscarCompetidor, useAnalizarCompetidor, useListarCompetidores } from '../hooks/useCompetidores';
+import { ApiError } from '../lib/apiClient';
 import type { OfertaCompetidor, AnalisisCompetidorResponse } from '../types/competidores';
 
 const { Text } = Typography;
@@ -58,7 +59,15 @@ export function CompetidoresPage() {
         message.success('Análisis generado con IA');
       }
     } catch (e) {
-      message.error(e instanceof Error ? e.message : 'No se pudo generar el análisis');
+      // 029-fix-hallazgos-code-review-competidores-alertas (FR-003/US3): 422 = Gemini bloqueó
+      // el contenido -- es un caso reintentable, no una falla del sistema, así que se muestra
+      // como warning (con más tiempo en pantalla) en vez del error genérico. El texto del
+      // mensaje ya viene armado por el backend (contracts/competidores-analisis-api.md).
+      if (e instanceof ApiError && e.status === 422) {
+        message.warning(e.message, 8);
+      } else {
+        message.error(e instanceof Error ? e.message : 'No se pudo generar el análisis');
+      }
     }
   };
 
@@ -80,7 +89,7 @@ export function CompetidoresPage() {
       dataIndex: 'montoOferta',
       key: 'montoOferta',
       align: 'right' as const,
-      render: (v: number | null) => (v ? `$${v.toLocaleString('es-CL')}` : '—'),
+      render: (v: number | null) => (v !== null && v !== undefined ? `$${v.toLocaleString('es-CL')}` : '—'),
     },
     {
       title: 'Estado',

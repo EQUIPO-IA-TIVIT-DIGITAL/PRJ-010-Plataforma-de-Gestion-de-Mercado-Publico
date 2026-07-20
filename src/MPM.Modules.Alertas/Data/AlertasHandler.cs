@@ -244,6 +244,10 @@ public class AlertasHandler(DbConnectionFactory dbFactory)
         public string? p_email_alertas { get; set; }
     }
 
+    // 029-fix-hallazgos-code-review-competidores-alertas (FR-004/US4): antes le faltaba el guard
+    // deleted_at IS NULL que sí tiene la query equivalente en LicitacionHandler.cs -- un match de
+    // Alertas en curso podía "resucitar" organismo/monto/raw_data en una licitación ya eliminada
+    // (soft-delete) por deduplicación o reconciliación de catálogo.
     public async Task ActualizarLicitacionEnCalienteAsync(
         string codigoExterno, string? organismo, string? unidadTecnica, decimal? montoEstimado, string? descripcion, string rawData)
     {
@@ -259,7 +263,7 @@ public class AlertasHandler(DbConnectionFactory dbFactory)
                       ELSE @rawData::JSONB 
                   END,
                   updated_at = CURRENT_TIMESTAMP
-              WHERE codigo_externo = @codigoExterno;",
+              WHERE codigo_externo = @codigoExterno AND deleted_at IS NULL;",
             new
             {
                 codigoExterno,

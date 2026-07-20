@@ -9,10 +9,7 @@ public static class ModuleRegistration
     public static IServiceCollection AddAnalisisModule(this IServiceCollection services)
     {
         services.AddScoped<AnalisisHandler>();
-        services.AddHttpClient<GeminiService>(client =>
-        {
-            client.Timeout = TimeSpan.FromMinutes(5);
-        });
+        services.AddScoped<GeminiService>();
         services.AddScoped<AnalisisService>();
         services.AddSingleton<IAnalisisBackgroundService, AnalisisBackgroundService>();
         services.AddHostedService<AnalisisRecoveryWorker>();

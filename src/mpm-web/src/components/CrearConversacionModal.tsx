@@ -1,5 +1,5 @@
 import { Modal, Form, Input, Select, Button, Spin } from 'antd';
-import { useState, useCallback, useMemo, useRef } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { useUsuarios } from '../hooks/useUsuarios';
 import type { CrearConversacionRequest, TipoConversacion } from '../types/mensajeria';
 
@@ -26,11 +26,19 @@ export function CrearConversacionModal({ open, onClose, onCreate, isPending }: P
   const handleSubmit = async () => {
     try {
       const values = await form.validateFields();
+      // 029-fix-hallazgos-code-review-competidores-alertas (FR-019/QA BUG-012): en modo
+      // "directo" el Select no usa mode="multiple", así que Form.Item entrega un string suelto
+      // en vez de un array -- se normaliza acá para que participanteIds siempre sea string[].
+      const participanteIds = Array.isArray(values.participanteIds)
+        ? values.participanteIds
+        : values.participanteIds
+          ? [values.participanteIds]
+          : [];
       onCreate({
         tipo,
         asunto: tipo === 'grupal' ? values.asunto : null,
         licitacionId: values.licitacionId || null,
-        participanteIds: values.participanteIds || [],
+        participanteIds,
       });
       form.resetFields();
       setSearchText('');
@@ -46,11 +54,6 @@ export function CrearConversacionModal({ open, onClose, onCreate, isPending }: P
     onClose();
   }, [form, onClose]);
 
-  const selectValue = useMemo(() => {
-    if (tipo === 'directo') return undefined;
-    return undefined;
-  }, [tipo]);
-
   return (
     <Modal
       title="Nueva conversación"
@@ -64,7 +67,15 @@ export function CrearConversacionModal({ open, onClose, onCreate, isPending }: P
     >
       <Form form={form} layout="vertical" initialValues={{ participanteIds: [] }}>
         <Form.Item label="Tipo">
-          <Select value={tipo} onChange={setTipo}>
+          <Select
+            value={tipo}
+            onChange={(nuevoTipo) => {
+              // Cambiar entre modo single (directo) y multiple (grupal) invalida el valor ya
+              // seleccionado de participanteIds (distinta forma esperada) -- se limpia al cambiar.
+              setTipo(nuevoTipo);
+              form.setFieldValue('participanteIds', nuevoTipo === 'grupal' ? [] : undefined);
+            }}
+          >
             <Select.Option value="directo">Directa (1 a 1)</Select.Option>
             <Select.Option value="grupal">Grupal</Select.Option>
           </Select>
@@ -87,7 +98,6 @@ export function CrearConversacionModal({ open, onClose, onCreate, isPending }: P
             onSearch={handleSearch}
             loading={isLoading}
             notFoundContent={isLoading ? <Spin size="small" /> : 'Sin resultados'}
-            value={selectValue}
             style={{ width: '100%' }}
           >
             {usuarios

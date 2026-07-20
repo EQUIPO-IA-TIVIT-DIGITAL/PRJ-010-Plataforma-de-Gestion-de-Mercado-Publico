@@ -1,7 +1,3 @@
-using System.Text;
-using System.Text.Json;
-using System.Text.Json.Serialization;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using MPM.Shared.Services;
 
@@ -16,34 +12,15 @@ namespace MPM.Modules.Analisis.Services;
 /// directo por <c>fileData.fileUri = gs://...</c> — Gemini lee el PDF completo desde GCS, sin
 /// las limitaciones de tamaño/calidad de mandar el PDF inline en base64. Con storage local se
 /// usa <c>inlineData</c> (mismo fallback que ya existía).
+///
+/// Armado de request, auth y parseo de respuesta viven en <see cref="VertexGeminiClient"/>
+/// (MPM.Shared, compartido con MPM.Modules.Competidores desde
+/// 029-fix-hallazgos-code-review-competidores-alertas) -- este servicio solo construye el
+/// prompt/contenido específico de análisis de PDFs y chat.
 /// </summary>
-public class GeminiService(HttpClient httpClient, IConfiguration config, GoogleAdcTokenProvider tokenProvider, ILogger<GeminiService> logger)
+public class GeminiService(VertexGeminiClient vertexClient, ILogger<GeminiService> logger)
 {
     public const string ModelName = "gemini-2.5-pro";
-    private static readonly JsonSerializerOptions _jsonOptions = new()
-    {
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
-    };
-
-    private string ProjectId => config["GOOGLE_CLOUD_PROJECT"]
-        ?? throw new InvalidOperationException("GOOGLE_CLOUD_PROJECT no configurado");
-    private string Region => config["Vertex:Region"] ?? "us-central1";
-
-    private string EndpointFor(string model) =>
-        $"https://{Region}-aiplatform.googleapis.com/v1/projects/{ProjectId}/locations/{Region}/publishers/google/models/{model}:generateContent";
-
-    private async Task<HttpRequestMessage> BuildRequestAsync(string model, object body, CancellationToken ct)
-    {
-        var token = await tokenProvider.GetAccessTokenAsync(ct);
-        var json = JsonSerializer.Serialize(body, _jsonOptions);
-        var request = new HttpRequestMessage(HttpMethod.Post, EndpointFor(model))
-        {
-            Content = new StringContent(json, Encoding.UTF8, "application/json")
-        };
-        request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
-        return request;
-    }
 
     /// <param name="gcsUri">
     /// Si el documento ya está en GCS (<c>gs://...</c>), se referencia directo sin mandar
@@ -51,14 +28,36 @@ public class GeminiService(HttpClient httpClient, IConfiguration config, GoogleA
     /// <c>inlineData</c>. Si es <c>null</c> (storage local), se usa <paramref name="pdfBytes"/>
     /// como <c>inlineData</c> en base64.
     /// </param>
-    public async Task<GeminiResponse> AnalyzePdfAsync(byte[] pdfBytes, string fileName, string? gcsUri, CancellationToken ct = default)
-    {
-        var prompt = GetAnalisisPrompt();
-        logger.LogInformation("Enviando PDF {File} a Gemini (Vertex AI) para análisis ({Size} bytes, gcsUri={GcsUri})", fileName, pdfBytes.Length, gcsUri ?? "(inline)");
+    public Task<GeminiResponse> AnalyzePdfAsync(byte[] pdfBytes, string fileName, string? gcsUri, CancellationToken ct = default) =>
+        AnalyzeDocumentosAsync([(pdfBytes, fileName, gcsUri)], ct);
 
-        object documentPart = gcsUri != null
-            ? new { fileData = new { mimeType = "application/pdf", fileUri = gcsUri } }
-            : new { inlineData = new { mimeType = "application/pdf", data = Convert.ToBase64String(pdfBytes) } };
+    /// <summary>
+    /// 029-fix-hallazgos-code-review-competidores-alertas (FR-011/FR-012, QA BUG-005/BUG-010):
+    /// envía todos los documentos de un workspace en una sola llamada a Gemini, en vez de
+    /// analizar solo el primero (<c>AnalisisService.cs:96</c> hacía <c>docList.First()</c>).
+    /// Se le da el contexto de todos a la vez para que pueda sintetizar información entre ellos
+    /// Y detectar si alguno revoca/deja sin efecto a otro documento anterior del mismo
+    /// workspace -- ambos bugs comparten la misma causa raíz (falta de contexto multi-documento).
+    /// </summary>
+    public async Task<GeminiResponse> AnalyzeDocumentosAsync(
+        List<(byte[] Bytes, string FileName, string? GcsUri)> documentos, CancellationToken ct = default)
+    {
+        if (documentos.Count == 0)
+            throw new ArgumentException("Debe proporcionarse al menos un documento", nameof(documentos));
+
+        var prompt = GetAnalisisPrompt(documentos.Count);
+        logger.LogInformation("Enviando {Count} documento(s) a Gemini (Vertex AI) para análisis: {Files}",
+            documentos.Count, string.Join(", ", documentos.Select(d => d.FileName)));
+
+        var parts = new List<object>();
+        foreach (var (bytes, _, gcsUri) in documentos)
+        {
+            object documentPart = gcsUri != null
+                ? new { fileData = new { mimeType = "application/pdf", fileUri = gcsUri } }
+                : new { inlineData = new { mimeType = "application/pdf", data = Convert.ToBase64String(bytes) } };
+            parts.Add(documentPart);
+        }
+        parts.Add(new { text = prompt });
 
         var request = new
         {
@@ -67,25 +66,26 @@ public class GeminiService(HttpClient httpClient, IConfiguration config, GoogleA
                 new
                 {
                     role = "user",
-                    parts = new object[] { documentPart, new { text = prompt } }
+                    parts = parts.ToArray()
                 }
             },
-            generationConfig = new { temperature = 0.2, maxOutputTokens = 65536, responseMimeType = "application/json" }
+            generationConfig = new { temperature = 0.2, maxOutputTokens = VertexGeminiClient.DefaultMaxOutputTokens, responseMimeType = "application/json" }
         };
 
-        using var httpRequest = await BuildRequestAsync(ModelName, request, ct);
-        var response = await httpClient.SendAsync(httpRequest, ct);
+        var result = await vertexClient.GenerarContenidoAsync(ModelName, request, ct);
+        logger.LogInformation("Respuesta de Gemini recibida ({Length} chars)", result.RawResponse.Length);
 
-        if (!response.IsSuccessStatusCode)
+        return new GeminiResponse
         {
-            var errorBody = await response.Content.ReadAsStringAsync(ct);
-            logger.LogError("Gemini (Vertex AI) error {Status}: {Body}", (int)response.StatusCode, errorBody);
-            response.EnsureSuccessStatusCode();
-        }
-
-        var jsonResponse = await response.Content.ReadAsStringAsync(ct);
-        logger.LogInformation("Respuesta de Gemini recibida ({Length} chars)", jsonResponse.Length);
-        return await ParseGeminiResponse(jsonResponse);
+            Text = result.Text,
+            Usage = new GeminiUsage
+            {
+                PromptTokenCount = result.Usage.PromptTokenCount,
+                CandidatesTokenCount = result.Usage.CandidatesTokenCount,
+                TotalTokenCount = result.Usage.TotalTokenCount
+            },
+            RawResponse = result.RawResponse
+        };
     }
 
     public async Task<GeminiChatResponse> ChatAsync(string mensaje, string contextoAnalisis, List<ChatHistoryItem> historial, CancellationToken ct = default)
@@ -129,101 +129,37 @@ FORMATO DE RESPUESTA (obligatorio):
             }
         };
 
-        using var httpRequest = await BuildRequestAsync(ModelName, request, ct);
-        var response = await httpClient.SendAsync(httpRequest, ct);
-        response.EnsureSuccessStatusCode();
-
-        var jsonResponse = await response.Content.ReadAsStringAsync(ct);
-        return await ParseChatResponse(jsonResponse);
-    }
-
-    private static async Task<GeminiResponse> ParseGeminiResponse(string json)
-    {
-        using var doc = JsonDocument.Parse(json);
-        var root = doc.RootElement;
-
-        var text = "";
-        if (root.TryGetProperty("candidates", out var candidates) && candidates.GetArrayLength() > 0)
-        {
-            var first = candidates[0];
-            if (first.TryGetProperty("content", out var content) &&
-                content.TryGetProperty("parts", out var parts) &&
-                parts.GetArrayLength() > 0)
-            {
-                text = parts[0].GetProperty("text").GetString() ?? "";
-            }
-        }
-
-        // Strip markdown code fences if Gemini wraps JSON in ```json ... ```
-        if (text.StartsWith("```"))
-        {
-            var newline = text.IndexOf('\n');
-            var lastFence = text.LastIndexOf("```");
-            if (newline >= 0 && lastFence > newline)
-                text = text[(newline + 1)..lastFence].Trim();
-        }
-        // Ensure text starts at first '{' or '[' (remove any preamble)
-        var jsonStart = text.IndexOfAny(['{', '[']);
-        if (jsonStart > 0)
-            text = text[jsonStart..];
-
-        var usage = new GeminiUsage();
-        if (root.TryGetProperty("usageMetadata", out var usageMeta))
-        {
-            usage.PromptTokenCount = usageMeta.TryGetProperty("promptTokenCount", out var ptc) ? ptc.GetInt32() : 0;
-            usage.CandidatesTokenCount = usageMeta.TryGetProperty("candidatesTokenCount", out var ctc) ? ctc.GetInt32() : 0;
-            usage.TotalTokenCount = usageMeta.TryGetProperty("totalTokenCount", out var ttc) ? ttc.GetInt32() : 0;
-        }
-
-        return new GeminiResponse
-        {
-            Text = text,
-            Usage = usage,
-            RawResponse = json
-        };
-    }
-
-    private static async Task<GeminiChatResponse> ParseChatResponse(string json)
-    {
-        using var doc = JsonDocument.Parse(json);
-        var root = doc.RootElement;
-
-        var text = "";
-        if (root.TryGetProperty("candidates", out var candidates) && candidates.GetArrayLength() > 0)
-        {
-            var first = candidates[0];
-            if (first.TryGetProperty("content", out var content) &&
-                content.TryGetProperty("parts", out var parts) &&
-                parts.GetArrayLength() > 0)
-            {
-                text = parts[0].GetProperty("text").GetString() ?? "";
-            }
-        }
-
-        var finishReason = "";
-        if (candidates.GetArrayLength() > 0 && candidates[0].TryGetProperty("finishReason", out var fr))
-        {
-            finishReason = fr.GetString() ?? "";
-        }
-
+        var result = await vertexClient.GenerarContenidoAsync(ModelName, request, ct);
         return new GeminiChatResponse
         {
-            Text = text,
-            FinishReason = finishReason
+            Text = result.Text,
+            FinishReason = result.FinishReason
         };
     }
 
-    private static string GetAnalisisPrompt()
+    private static string GetAnalisisPrompt(int documentCount = 1)
     {
-        return @"Eres un analista experto en licitaciones públicas chilenas (Ley 19.886). Analiza TÉCNICAMENTE el siguiente documento de evaluación de licitación y extrae TODA la información relevante estructurada en el siguiente JSON. No omitas ningún campo disponible.
+        var contextoDocumentos = documentCount > 1
+            ? $"Se te están proporcionando {documentCount} documentos del MISMO workspace de análisis (se espera que sean de la misma licitación). Trátalos como un conjunto: sintetiza la información de TODOS ellos en UN ÚNICO objeto JSON de salida (no describas solo el primero, y NUNCA respondas con un array/lista de objetos -- tu respuesta completa debe ser el único objeto JSON descrito más abajo, sin importar cuántos documentos recibiste). Presta atención especial a si alguno de los documentos posteriores REVOCA, DEJA SIN EFECTO, o corrige formalmente una conclusión de otro documento anterior del mismo conjunto (ver sección \"revocacion\" del JSON) -- en ese caso, el resultado final vigente es el del documento que revoca, no el revocado. Si tras leerlos notas que en realidad describen licitaciones DISTINTAS (no deberían estar en el mismo workspace), usa como base la licitación del documento más reciente/completo para el JSON principal, y deja constancia de la discrepancia en `riesgos_identificados` -- igual debes devolver un único objeto, nunca un array."
+            : "Se te está proporcionando un único documento de evaluación de licitación.";
+
+        // NOTA: el bloque grande de abajo es un string verbatim NO interpolado (@"...") a
+        // propósito -- contiene el JSON de ejemplo completo, lleno de llaves { } literales que
+        // romperían la interpolación de C# ($"...") si se mezclaran. Por eso el contexto
+        // multi-documento se concatena aparte en vez de insertarse inline.
+        return contextoDocumentos + "\n\n" + @"Eres un analista experto en licitaciones públicas chilenas (Ley 19.886). Analiza TÉCNICAMENTE el/los documento(s) y extrae TODA la información relevante estructurada en el siguiente JSON. No omitas ningún campo disponible.
 
 REGLAS GENERALES:
-- Extrae SOLO información explícitamente presente en el documento
+- Extrae SOLO información explícitamente presente en el/los documento(s)
 - Si un dato no está disponible, usa null (nunca inventes)
 - Textos siempre en español, formato claro y analítico
 - Los montos deben ser numéricos (sin puntos ni separadores)
 - Las fechas en formato YYYY-MM-DD
 - Sé exhaustivo: cada criterio, subcriterio, ponderación y puntaje debe capturarse individualmente
+- MONEDA (crítico): para cada monto, identifica la moneda REAL indicada explícitamente junto a esa cifra en el texto fuente (CLP/USD/UF/EUR). NUNCA asumas dólares (USD) por defecto -- si el texto no indica moneda explícita para una cifra, usa ""NO_DETERMINADA"" en el campo `_moneda` correspondiente, no adivines.
+- ADMISIBILIDAD (crítico): marca a un oferente como ""Inadmisible"" ÚNICAMENTE cuando el documento lo declara explícitamente así con esas palabras o equivalentes (ej. ""se declara inadmisible"", ""queda fuera de bases""). NO confundas ""sin puntaje/monto visible en esta sección del documento"" con ""declarado inadmisible"" -- son cosas distintas; usa ""Desconocido"" cuando no haya declaración explícita.
+- MONTO ESTIMADO vs. MONTO OFERTADO (crítico): `licitacion.monto_estimado` es el PRESUPUESTO que el organismo fijó ANTES de recibir ofertas (aparece típicamente en las bases o en la ficha de la licitación, antes de la apertura de ofertas) -- es un valor independiente de lo que cualquier participante ofertó. NUNCA copies ahí el monto ofertado por TIVIT ni por ningún competidor (`adjudicacion.ofertantes[].monto_ofertado`, `analisis_tivit.monto_ofertado`) aunque sean el primer monto relevante que encuentres en el texto.
+- METRICAS_CLAVE (crítico): `metricas_clave.diferencia_puntaje_total` y `metricas_clave.diferencia_monto_ofertado` se calculan SIEMPRE como (TIVIT - ganador): un valor positivo significa que TIVIT obtuvo/ofertó más que el ganador, negativo que obtuvo/ofertó menos. No uses ninguna otra base de comparación (ej. contra el promedio de ofertantes o contra el segundo lugar) para estos dos campos.
 
 {
   ""licitacion"": {
@@ -249,6 +185,7 @@ REGLAS GENERALES:
       ""adjudicacion"": ""YYYY-MM-DD o null""
     },
     ""monto_estimado"": 0.0,
+    ""monto_estimado_moneda"": ""CLP/USD/UF/EUR/NO_DETERMINADA -- la moneda REAL indicada junto a esta cifra en el texto, nunca asumida"",
     ""duracion_contrato"": ""Ej: 36 Meses"",
     ""renovacion"": ""SI/NO o null"",
     ""toma_razon_contraloria"": ""SI/NO o null"",
@@ -260,6 +197,7 @@ REGLAS GENERALES:
       ""nombre"": ""Nombre del proveedor adjudicado"",
       ""rut"": ""RUT del adjudicatario"",
       ""monto_adjudicado"": 0.0,
+      ""monto_adjudicado_moneda"": ""CLP/USD/UF/EUR/NO_DETERMINADA -- moneda real de esta cifra, nunca asumida"",
       ""cantidad_ofertas_recibidas"": 0
     },
     ""ofertantes"": [
@@ -267,9 +205,10 @@ REGLAS GENERALES:
         ""nombre"": ""Nombre del ofertante"",
         ""rut"": ""RUT del ofertante"",
         ""monto_ofertado"": 0.0,
+        ""monto_ofertado_moneda"": ""CLP/USD/UF/EUR/NO_DETERMINADA -- moneda real de esta cifra, nunca asumida"",
         ""puntaje_total"": 0.0,
-        ""resultado"": ""Adjudicado/No adjudicado/Inadmisible/Desistido"",
-        ""motivo_inadmisibilidad"": ""Si aplica, texto del motivo (null si no)""
+        ""resultado"": ""Adjudicado/No adjudicado/Inadmisible/Desistido -- SOLO 'Inadmisible' si el documento lo declara explícitamente así; si simplemente no hay puntaje/monto visible para este oferente en esta sección, usa 'Desconocido' en vez de asumir Inadmisible"",
+        ""motivo_inadmisibilidad"": ""Si resultado='Inadmisible', el texto exacto (o parafraseado) que declara la inadmisibilidad; null si no aplica""
       }
     ]
   },
@@ -318,6 +257,7 @@ REGLAS GENERALES:
     ""participa"": true,
     ""es_ganador"": false,
     ""monto_ofertado"": 0.0,
+    ""monto_ofertado_moneda"": ""CLP/USD/UF/EUR/NO_DETERMINADA -- moneda real de esta cifra, nunca asumida"",
     ""puntaje_obtenido"": 0.0,
     ""puntaje_maximo_posible"": 0.0,
     ""resultado"": ""Adjudicado/No adjudicado/Inadmisible"",
@@ -385,8 +325,21 @@ REGLAS GENERALES:
   ],
   ""riesgos_identificados"": [
     { ""riesgo"": ""Descripción del riesgo"", ""nivel"": ""Alto/Medio/Bajo"", ""mitigacion"": ""Cómo mitigarlo"", ""impacto_estimado"": 0.0 }
-  ]
+  ],
+  ""revocacion"": {
+    ""detectada"": false,
+    ""documento_que_revoca"": ""Nombre/identificador del documento que declara la revocación (null si detectada=false)"",
+    ""documento_revocado"": ""Nombre/identificador del documento cuya conclusión queda sin efecto (null si detectada=false)"",
+    ""motivo"": ""Texto (o paráfrasis) de por qué se revoca (null si detectada=false)"",
+    ""resultado_vigente"": ""El resultado/conclusión que debe considerarse vigente tras la revocación (null si detectada=false)""
+  }
 }
+
+REVOCACIÓN ENTRE DOCUMENTOS (sección revocacion — crítica, solo aplica con más de un documento):
+- Si y solo si uno de los documentos proporcionados declara EXPLÍCITAMENTE que otro documento anterior del mismo conjunto queda sin efecto, se revoca, se deja sin efecto, o se anula (ej. ""DÉJESE sin efecto la Resolución Exenta N°...""), completa esta sección con detectada=true y el detalle.
+- NO infieras revocación de una simple discrepancia o contradicción entre documentos que no la declaren explícitamente -- eso no es revocación, es fuera de alcance de esta sección.
+- Si detectada=true, el resto del análisis (analisis_tivit.resultado, adjudicacion, etc.) debe reflejar el resultado_vigente (posterior a la revocación), no la conclusión ya revocada.
+- Con un solo documento, o sin revocación explícita detectada, deja detectada=false y el resto de los campos en null.
 
 VALIDACIÓN DOCUMENTAL (sección validacion_documental — crítica):
 - Contrasta los documentos adjuntos entregados (documentos_adjuntos) contra los antecedentes requeridos (requisitos.antecedentes_requeridos) y contra lo que el acta declara como faltante u observado.

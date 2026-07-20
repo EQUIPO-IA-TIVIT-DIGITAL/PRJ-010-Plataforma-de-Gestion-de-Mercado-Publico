@@ -1,8 +1,15 @@
+using System.Net;
+using System.Text;
 using System.Text.Json;
 using FluentAssertions;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging.Abstractions;
+using Moq;
+using MPM.Core.Data;
 using MPM.Modules.Competidores.Data;
 using MPM.Modules.Competidores.Models;
 using MPM.Modules.Competidores.Services;
+using MPM.Shared.Services;
 using Xunit;
 
 namespace MPM.Modules.Competidores.Tests.Services;
@@ -19,7 +26,7 @@ public class CompetidorAnalysisServiceTests
     {
         var source = File.ReadAllText(FindSourceFile("CompetidorAnalysisService.cs")).Replace("\r\n", "\n");
 
-        var inicioMetodo = source.IndexOf("public async Task<AnalisisCompetidorResponse> ObtenerOGenerarAnalisisAsync(", StringComparison.Ordinal);
+        var inicioMetodo = source.IndexOf("public async Task<(AnalisisCompetidorResponse? Resultado, string? ErrorCode)> ObtenerOGenerarAnalisisAsync(", StringComparison.Ordinal);
         inicioMetodo.Should().BeGreaterThanOrEqualTo(0);
 
         var indiceConfirmarCheck = source.IndexOf("if (!request.Confirmar)", inicioMetodo, StringComparison.Ordinal);
@@ -37,7 +44,7 @@ public class CompetidorAnalysisServiceTests
     {
         var source = File.ReadAllText(FindSourceFile("CompetidorAnalysisService.cs")).Replace("\r\n", "\n");
 
-        var inicioMetodo = source.IndexOf("public async Task<AnalisisCompetidorResponse> ObtenerOGenerarAnalisisAsync(", StringComparison.Ordinal);
+        var inicioMetodo = source.IndexOf("public async Task<(AnalisisCompetidorResponse? Resultado, string? ErrorCode)> ObtenerOGenerarAnalisisAsync(", StringComparison.Ordinal);
         var indiceBuscarCacheado = source.IndexOf("analisisHandler.BuscarCacheadoAsync", inicioMetodo, StringComparison.Ordinal);
         var indiceContar = source.IndexOf("ofertasHandler.ContarPorCompetidorYRangoAsync", inicioMetodo, StringComparison.Ordinal);
 
@@ -75,6 +82,60 @@ public class CompetidorAnalysisServiceTests
         indiceLista.Should().BeGreaterThanOrEqualTo(0, "debe existir un endpoint GET /lista para poblar el dropdown del frontend");
         indiceLista.Should().BeLessThan(indiceBuscarPorNombre,
             "la ruta explícita \"lista\" debe declararse antes que la ruta raíz para evitar ambigüedad de routing");
+    }
+
+    // 029-fix-hallazgos-code-review-competidores-alertas (FR-003/US3): a diferencia de los tests
+    // source-guard de arriba, este SÍ ejercita el comportamiento real -- usa Postgres real
+    // (localhost:5433, mismo patrón que LicitacionSearchTests) para los handlers y un HttpClient
+    // fake solo para Gemini (candidates vacío, simula contenido bloqueado por el filtro de
+    // seguridad), confirmando que ObtenerOGenerarAnalisisAsync no deja escapar la excepción.
+    [Fact]
+    public async Task ObtenerOGenerarAnalisisAsync_CandidatesVacio_RetornaErrorManejado_NoLanzaExcepcion()
+    {
+        const string TestConnectionString = "Host=localhost;Port=5433;Database=mpm;Username=mpm;Password=mpm_password";
+        Dapper.DefaultTypeMap.MatchNamesWithUnderscores = true;
+
+        var ofertasHandler = new OfertasHandler(new DbConnectionFactory(TestConnectionString));
+        var analisisHandler = new CompetidorAnalisisHandler(new DbConnectionFactory(TestConnectionString));
+
+        var config = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["GOOGLE_CLOUD_PROJECT"] = "tivit-cu010",
+                ["Vertex:Region"] = "us-central1",
+            })
+            .Build();
+        var tokenProviderMock = new Mock<GoogleAdcTokenProvider>();
+        tokenProviderMock.Setup(m => m.GetAccessTokenAsync(It.IsAny<CancellationToken>())).ReturnsAsync("fake-token");
+        var handler = new EmptyCandidatesHandler();
+        var vertexClient = new VertexGeminiClient(new HttpClient(handler), config, tokenProviderMock.Object, NullLogger<VertexGeminiClient>.Instance);
+        var geminiService = new CompetidorGeminiService(vertexClient, NullLogger<CompetidorGeminiService>.Instance);
+
+        var service = new CompetidorAnalysisService(ofertasHandler, analisisHandler, geminiService);
+
+        // Nombre de competidor único (no debe existir en el caché real) para forzar el camino
+        // que llega hasta Gemini en vez de devolver un análisis ya cacheado.
+        var request = new AnalizarCompetidorRequest(
+            NombreCompetidor: $"Competidor-Test-029-{Guid.NewGuid():N}",
+            FechaDesde: new DateOnly(2025, 1, 1),
+            FechaHasta: new DateOnly(2025, 12, 31),
+            Confirmar: true);
+
+        var act = () => service.ObtenerOGenerarAnalisisAsync(request, "test-user");
+        await act.Should().NotThrowAsync("el caller debe recibir un resultado manejado, no una excepción sin capturar");
+
+        var (resultado, errorCode) = await act();
+        resultado.Should().BeNull();
+        errorCode.Should().Be("gemini_contenido_bloqueado");
+    }
+
+    private class EmptyCandidatesHandler : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) =>
+            Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(@"{ ""candidates"": [] }", Encoding.UTF8, "application/json")
+            });
     }
 
     private static string FindSourceFile(string fileName)

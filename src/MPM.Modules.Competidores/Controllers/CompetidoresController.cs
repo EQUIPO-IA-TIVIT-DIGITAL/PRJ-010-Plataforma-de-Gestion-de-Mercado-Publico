@@ -53,6 +53,7 @@ public class CompetidoresController(CompetidorAnalysisService service) : Control
     /// </summary>
     [HttpPost("analisis")]
     [ProducesResponseType(typeof(ApiResponse<AnalisisCompetidorResponse>), 200)]
+    [ProducesResponseType(typeof(ApiResponse<object>), 422)]
     public async Task<ActionResult<ApiResponse<AnalisisCompetidorResponse>>> AnalizarCompetidor([FromBody] AnalizarCompetidorRequest request)
     {
         var tenant = GetTenant();
@@ -64,7 +65,19 @@ public class CompetidoresController(CompetidorAnalysisService service) : Control
         if (request.FechaHasta < request.FechaDesde)
             return BadRequest(ApiResponse<object>.Fail("fechaHasta no puede ser anterior a fechaDesde"));
 
-        var resultado = await service.ObtenerOGenerarAnalisisAsync(request, tenant.UserId);
-        return Ok(ApiResponse<AnalisisCompetidorResponse>.Ok(resultado));
+        var (resultado, errorCode) = await service.ObtenerOGenerarAnalisisAsync(request, tenant.UserId);
+
+        // 029-fix-hallazgos-code-review-competidores-alertas (FR-003/US3): antes, una respuesta
+        // de Gemini sin candidates (contenido bloqueado por el filtro de seguridad) llegaba sin
+        // capturar hasta ErrorHandlingMiddleware y salía como 500 genérico. Ahora es un 422
+        // explícito que el frontend puede distinguir (ver contracts/competidores-analisis-api.md).
+        if (errorCode == "gemini_contenido_bloqueado")
+        {
+            return UnprocessableEntity(ApiResponse<object>.Fail(
+                "No fue posible generar el análisis para este competidor: el contenido fue bloqueado por el filtro de seguridad de Gemini. Puedes reintentar o contactar soporte si persiste.",
+                [new ErrorDetail { Code = errorCode }]));
+        }
+
+        return Ok(ApiResponse<AnalisisCompetidorResponse>.Ok(resultado!));
     }
 }

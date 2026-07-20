@@ -64,7 +64,12 @@ export function ComparativaDocumentos({ validacion }: Props) {
 
   const documentos = validacion.documentos ?? []
   const inconsistencias = validacion.inconsistencias ?? []
-  const coherente = validacion.coherente !== false
+  // 029-fix-hallazgos-code-review-competidores-alertas (FR-017/US13, QA BUG-007): el badge se
+  // deriva de la misma lista que renderiza la sección de abajo, no de `validacion.coherente` (un
+  // campo independiente que el backend solo actualiza cuando hay una inconsistencia de severidad
+  // "alta" -- con severidad media/baja el badge decía "✓ Coherente" mientras la sección de abajo
+  // sí mostraba inconsistencias, una contradicción visible en el mismo dashboard).
+  const coherente = inconsistencias.length === 0
 
   return (
     <Card>

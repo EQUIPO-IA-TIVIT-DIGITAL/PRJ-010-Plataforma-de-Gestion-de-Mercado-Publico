@@ -1,6 +1,7 @@
 using System.Text.Json;
 using MPM.Modules.Competidores.Data;
 using MPM.Modules.Competidores.Models;
+using MPM.Shared.Services;
 
 namespace MPM.Modules.Competidores.Services;
 
@@ -30,17 +31,24 @@ public class CompetidorAnalysisService(
     /// nuevo. Si no existe y `confirmar` es false, solo devuelve el conteo de licitaciones que
     /// entrarían, para que el usuario decida antes de gastar tokens de Gemini.
     /// </summary>
-    public async Task<AnalisisCompetidorResponse> ObtenerOGenerarAnalisisAsync(
+    /// <returns>
+    /// 029-fix-hallazgos-code-review-competidores-alertas (FR-003/US3, QA relacionado con el
+    /// límite de tokens): si Gemini bloquea el contenido (<see cref="GeminiRespuestaBloqueadaException"/>,
+    /// ver <see cref="VertexGeminiClient"/>), <c>Resultado</c> es null y <c>ErrorCode</c> es
+    /// <c>"gemini_contenido_bloqueado"</c> -- no se guarda ningún análisis parcial, el caller
+    /// puede reintentar limpiamente. El controller traduce esto a un 422, no a un 500.
+    /// </returns>
+    public async Task<(AnalisisCompetidorResponse? Resultado, string? ErrorCode)> ObtenerOGenerarAnalisisAsync(
         AnalizarCompetidorRequest request, string usuarioId, CancellationToken ct = default)
     {
         var cacheado = await analisisHandler.BuscarCacheadoAsync(request.NombreCompetidor, request.FechaDesde, request.FechaHasta, ct);
         if (cacheado != null)
         {
-            return new AnalisisCompetidorResponse(
+            return (new AnalisisCompetidorResponse(
                 Cacheado: true,
                 CantidadLicitaciones: cacheado.Value.CantidadLicitaciones,
                 Contenido: JsonSerializer.Deserialize<object>(cacheado.Value.Contenido.RootElement.GetRawText()),
-                RequiereConfirmacion: false);
+                RequiereConfirmacion: false), null);
         }
 
         var cantidad = await ofertasHandler.ContarPorCompetidorYRangoAsync(request.NombreCompetidor, request.FechaDesde, request.FechaHasta, ct);
@@ -48,14 +56,22 @@ public class CompetidorAnalysisService(
         if (!request.Confirmar)
         {
             // FR-006: mostrar el volumen antes de gastar en Gemini -- no se genera nada todavía.
-            return new AnalisisCompetidorResponse(Cacheado: false, CantidadLicitaciones: cantidad, Contenido: null, RequiereConfirmacion: true);
+            return (new AnalisisCompetidorResponse(Cacheado: false, CantidadLicitaciones: cantidad, Contenido: null, RequiereConfirmacion: true), null);
         }
 
         var ofertas = await ofertasHandler.ListarParaAnalisisAsync(request.NombreCompetidor, request.FechaDesde, request.FechaHasta, ct);
         var resumen = string.Join("\n", ofertas.Select(o =>
             $"- {o.CodigoExterno} | {o.NombreLicitacion} | {o.Organismo} | Monto: {o.MontoOferta} | Estado: {o.EstadoOferta}"));
 
-        var contenidoJson = await geminiService.AnalizarCompetidorAsync(request.NombreCompetidor, resumen, ct);
+        string contenidoJson;
+        try
+        {
+            contenidoJson = await geminiService.AnalizarCompetidorAsync(request.NombreCompetidor, resumen, ct);
+        }
+        catch (GeminiRespuestaBloqueadaException)
+        {
+            return (null, "gemini_contenido_bloqueado");
+        }
 
         await analisisHandler.GuardarAsync(request.NombreCompetidor, request.FechaDesde, request.FechaHasta, contenidoJson, cantidad, usuarioId, ct);
 
@@ -65,10 +81,10 @@ public class CompetidorAnalysisService(
         var final = await analisisHandler.BuscarCacheadoAsync(request.NombreCompetidor, request.FechaDesde, request.FechaHasta, ct)
             ?? throw new InvalidOperationException("El análisis se generó pero no se pudo releer tras guardarlo.");
 
-        return new AnalisisCompetidorResponse(
+        return (new AnalisisCompetidorResponse(
             Cacheado: false,
             CantidadLicitaciones: final.CantidadLicitaciones,
             Contenido: JsonSerializer.Deserialize<object>(final.Contenido.RootElement.GetRawText()),
-            RequiereConfirmacion: false);
+            RequiereConfirmacion: false), null);
     }
 }

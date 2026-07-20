@@ -10,7 +10,7 @@ namespace MPM.Modules.Licitaciones.Services;
 
 /// <summary>
 /// Obtiene y cachea las cookies de sesión del portal de Mercado Público, reutilizando el
-/// login Node/Playwright existente (<c>tools/scraper-mp/exportar-sesion.js</c>) en vez de
+/// login Node/Playwright existente (<c>tools/scraper-mp-v2/exportar-sesion.js</c>) en vez de
 /// reimplementar el flujo de Keycloak/Heimdall en C#. Ver research.md R2 de
 /// 016-extraccion-documentos-api.
 /// </summary>
@@ -79,8 +79,12 @@ public class MpSessionProvider(
 
     private async Task<MpSession> EjecutarLoginNodeAsync(CancellationToken ct)
     {
+        // 029-fix-hallazgos-code-review-competidores-alertas (FR-008): el fallback apuntaba al
+        // scraper v1 deprecado (tools/scraper-mp/DEPRECATED.md) -- si algún día ese código muerto
+        // dejara de existir o la config esperada faltara, el login fallaría contra un script que
+        // ya no se mantiene. Apunta ahora al v2, la implementación vigente.
         var scriptPath = config["Extraccion:ExportarSesionScriptPath"]
-            ?? Path.Combine(AppContext.BaseDirectory, "tools", "scraper-mp", "exportar-sesion.js");
+            ?? Path.Combine(AppContext.BaseDirectory, "tools", "scraper-mp-v2", "exportar-sesion.js");
 
         if (!Path.IsPathRooted(scriptPath))
         {
