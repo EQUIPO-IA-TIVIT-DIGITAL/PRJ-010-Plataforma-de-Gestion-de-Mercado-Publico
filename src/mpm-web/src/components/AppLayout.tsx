@@ -8,6 +8,7 @@ import {
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import NotificationBell from './NotificationBell';
+import { AnalisisCompletionWatcher } from './AnalisisCompletionWatcher';
 
 
 const { Sider, Content } = Layout;
@@ -58,6 +59,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <Layout style={{ minHeight: '100vh', background: 'var(--bg-base)' }}>
+      <AnalisisCompletionWatcher />
       {/* ---- Sidebar ---- */}
       <Sider
         collapsible

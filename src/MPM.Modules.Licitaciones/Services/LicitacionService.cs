@@ -111,6 +111,7 @@ public class LicitacionService(
         short? estadoEfectivo = estado;
         decimal? montoDesde = null;
         decimal? montoHasta = null;
+        DateTime? fechaDesde = null;
         DateTime? fechaHasta = null;
 
         var interpretacion = await consultaSemanticaService.InterpretarAsync(queryTrim, ct);
@@ -119,13 +120,17 @@ public class LicitacionService(
             terminosExpandidos = interpretacion.TerminosExpandidos;
             montoDesde = interpretacion.MontoDesde;
             montoHasta = interpretacion.MontoHasta;
+            // 029-fix-hallazgos-code-review-competidores-alertas (FR-002): FechaDesde ya se
+            // calculaba acá, pero nunca se pasaba al handler -- BuscarNaturalAsync la
+            // hardcodeaba a 2026-01-01, bloqueando cualquier búsqueda NL de un período anterior.
+            fechaDesde = interpretacion.FechaDesde;
             fechaHasta = interpretacion.FechaHasta;
             // El estado explícito del usuario siempre tiene prioridad sobre el inferido (US2).
             estadoEfectivo = estado ?? interpretacion.EstadoInferido;
         }
 
         var (items, totalCount) = await licitacionHandler.BuscarNaturalAsync(
-            queryTrim, page, pageSize, estadoEfectivo, terminosExpandidos, montoDesde, montoHasta, fechaHasta, ct);
+            queryTrim, page, pageSize, estadoEfectivo, terminosExpandidos, montoDesde, montoHasta, fechaDesde, fechaHasta, ct);
 
         return (new PaginatedResult<LicitacionNaturalSearchResult>
         {

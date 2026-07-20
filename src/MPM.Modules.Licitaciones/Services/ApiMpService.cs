@@ -104,7 +104,9 @@ public class ApiMpService(HttpClient httpClient, ILogger<ApiMpService> logger)
         }
     }
 
-    private static string ParseTipoDesdeCodigo(string? codigoExterno)
+    // 029-fix-hallazgos-code-review-competidores-alertas (FR-010): internal (no private) para que
+    // ImportBackfillService reutilice la misma derivación de tipo por sufijo, en vez de duplicarla.
+    internal static string ParseTipoDesdeCodigo(string? codigoExterno)
     {
         if (string.IsNullOrWhiteSpace(codigoExterno)) return "Licitacion";
         var partes = codigoExterno.Split('-');

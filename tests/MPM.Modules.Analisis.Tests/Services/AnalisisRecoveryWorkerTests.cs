@@ -109,7 +109,11 @@ public class AnalisisRecoveryWorkerTests : IAsyncLifetime
 
         await worker.RecuperarHuerfanosAsync(TimeSpan.FromMinutes(5), CancellationToken.None);
 
-        mock.Verify(b => b.EnqueueAnalisis(workspaceId, documentoId, "test.pdf", $"local/test-{workspaceId}.pdf"), Times.Once);
+        mock.Verify(b => b.EnqueueAnalisis(
+            workspaceId, documentoId,
+            It.Is<List<(long Id, string Nombre, string RutaStorage)>>(docs =>
+                docs.Count == 1 && docs[0].Id == documentoId && docs[0].Nombre == "test.pdf" && docs[0].RutaStorage == $"local/test-{workspaceId}.pdf")),
+            Times.Once);
     }
 
     [Fact]
@@ -123,7 +127,7 @@ public class AnalisisRecoveryWorkerTests : IAsyncLifetime
 
         await worker.RecuperarHuerfanosAsync(TimeSpan.FromMinutes(5), CancellationToken.None);
 
-        mock.Verify(b => b.EnqueueAnalisis(workspaceId, It.IsAny<long>(), It.IsAny<string>(), It.IsAny<string>()), Times.Never);
+        mock.Verify(b => b.EnqueueAnalisis(workspaceId, It.IsAny<long>(), It.IsAny<List<(long Id, string Nombre, string RutaStorage)>>()), Times.Never);
     }
 
     [Fact]
@@ -140,7 +144,7 @@ public class AnalisisRecoveryWorkerTests : IAsyncLifetime
 
         await worker.RecuperarHuerfanosAsync(TimeSpan.FromMinutes(5), CancellationToken.None);
 
-        mock.Verify(b => b.EnqueueAnalisis(workspaceId, It.IsAny<long>(), It.IsAny<string>(), It.IsAny<string>()), Times.Never);
+        mock.Verify(b => b.EnqueueAnalisis(workspaceId, It.IsAny<long>(), It.IsAny<List<(long Id, string Nombre, string RutaStorage)>>()), Times.Never);
     }
 
     /// <summary>Envuelve un ServiceProvider de test como IServiceScopeFactory sin crear scopes reales anidados.</summary>

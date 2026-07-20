@@ -1,6 +1,6 @@
-import { useState, useCallback, useRef, useEffect, useRef as useRefHook } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 import { Card, Space, Typography, Table, Button, Tag, App, Descriptions, Alert } from 'antd'
-import { UploadOutlined, PlayCircleOutlined, ArrowLeftOutlined, BarChartOutlined, LoadingOutlined, BellOutlined } from '@ant-design/icons'
+import { UploadOutlined, PlayCircleOutlined, ArrowLeftOutlined, BarChartOutlined, LoadingOutlined } from '@ant-design/icons'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useWorkspaceDetalle, useListarDocumentos, useSubirDocumento, useAnalizar } from '../hooks/useAnalisis'
 import type { DocumentoItem } from '../types/analisis'
@@ -17,7 +17,6 @@ export function AnalisisWorkspacePage() {
   const navigate = useNavigate()
   const { message, notification } = App.useApp()
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const prevEstadoRef = useRefHook<string | undefined>(undefined)
 
   const { data: workspaceData, isLoading: workspaceLoading } = useWorkspaceDetalle(workspaceId)
   const { data: docsData, isLoading: docsLoading } = useListarDocumentos(workspaceId)
@@ -28,27 +27,9 @@ export function AnalisisWorkspacePage() {
   const documentos = docsData?.data ?? []
   const isAnalizando = workspace?.estado === 'analizando'
 
-  useEffect(() => {
-    const prev = prevEstadoRef.current
-    const curr = workspace?.estado
-    if (prev === 'analizando' && curr === 'completado') {
-      notification.success({
-        message: 'Análisis completado',
-        description: `El dashboard del workspace "${workspace?.nombre}" está listo para revisar.`,
-        placement: 'topRight',
-        icon: <BellOutlined style={{ color: '#52c41a' }} />,
-        duration: 0,
-      })
-    } else if (prev === 'analizando' && curr === 'error') {
-      notification.error({
-        message: 'Análisis falló',
-        description: 'Hubo un error al procesar el PDF. Revisa la consola del API para más detalles.',
-        placement: 'topRight',
-        duration: 0,
-      })
-    }
-    prevEstadoRef.current = curr
-  }, [workspace?.estado, workspace?.nombre, notification])
+  // 029-fix-hallazgos-code-review-competidores-alertas (FR-016/US12, QA BUG-004): el seguimiento
+  // de la transición "analizando" → "completado"/"error" ya no vive acá -- se movió a
+  // AnalisisCompletionWatcher (montado en AppLayout, sobrevive a la navegación entre páginas).
 
   useEffect(() => {
     if (typeof Notification !== 'undefined' && Notification.permission === 'default') {

@@ -134,7 +134,7 @@ Key variables used by `docker-compose.yml` and the API:
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at specs/028-fix-estado-tipo-scraper-tivit/spec.md
+at specs/029-fix-hallazgos-code-review-competidores-alertas/plan.md
 
 For the current phase roadmap and priority order across `specs/`, see `specs/ROADMAP.md`. The highest applied DB migration is tracked by the newest `VXXX__*.sql` file in `src/MPM.Api/Database/Scripts/` — check there rather than relying on any number written here, since it changes frequently.
 <!-- SPECKIT END -->

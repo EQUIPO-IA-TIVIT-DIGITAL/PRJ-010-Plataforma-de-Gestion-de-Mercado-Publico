@@ -14,6 +14,7 @@ public static class ModuleRegistration
         services.AddScoped<SyncEngineHandler>();
         services.AddScoped<SeguimientoHandler>();
         services.AddScoped<LicitacionService>();
+        services.AddScoped<ImportBackfillService>();
         services.AddScoped<SyncService>();
         services.AddHttpClient<ApiMpService>();
         // 018-buscador-inteligente-nl: interpretación de consultas en lenguaje natural vía Gemini
