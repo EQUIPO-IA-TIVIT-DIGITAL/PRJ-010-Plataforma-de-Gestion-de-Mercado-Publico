@@ -51,5 +51,17 @@ playwright/.cache/
 
 # Salida de corridas del scraper (datos descargados, capturas de error) --
 # se regenera en cada ejecución, no es código ni debe versionarse
-tools/scraper-mp/descargas/
 tools/scraper-mp-v2/descargas/
+
+# Almacenamiento local de adjuntos subidos (runtime, no versionar)
+src/MPM.Api/uploads/
+
+# Screenshots de debug de Chrome MCP
+.playwright-mcp/
+
+# Scripts sueltos de scratch/debug
+scratch-*
+
+# Artefactos de prueba sueltos en la raíz
+/*.pdf
+/*.png

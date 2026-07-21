@@ -92,7 +92,7 @@ El scraper corre 30 segundos después del arranque y luego cada `SCRAPER_INTERVA
 ### Ejecutar el scraper manualmente (fuera de Docker)
 
 ```bash
-cd tools/scraper-mp
+cd tools/scraper-mp-v2
 cp .env.example .env    # completar con tus credenciales
 npm install
 npx playwright install chromium
@@ -189,9 +189,11 @@ MPM/
 │   ├── MPM.Modules.Mensajeria/         # Chat SignalR
 │   ├── MPM.Modules.Notificaciones/     # Notificaciones in-app
 │   ├── MPM.Modules.Catalogo/           # Datos de referencia
+│   ├── MPM.Modules.Alertas/            # Alertas por keyword (Telegram/email)
+│   ├── MPM.Modules.Competidores/       # Inteligencia de competidores
 │   └── mpm-web/                        # Frontend React 18
 ├── tools/
-│   └── scraper-mp/                     # Scraper Node.js + Playwright
+│   └── scraper-mp-v2/                  # Scraper Node.js + Playwright
 ├── tests/                              # Tests xUnit + Playwright E2E
 ├── specs/                              # Especificaciones de features
 ├── docs/                               # Documentación técnica
