@@ -37,8 +37,9 @@ cd src/mpm-web
 npm install
 npm run dev          # Dev server on http://localhost:3000
 npm run build        # Production build
-npm run test:e2e     # Playwright E2E tests (headless)
-npm run test:e2e:ui  # Playwright with UI runner
+npm run test:e2e         # Playwright E2E tests (headless)
+npm run test:e2e:ui      # Playwright with UI runner
+npm run test:e2e:headed  # Playwright with visible browser
 ```
 
 ### Docker (full stack)

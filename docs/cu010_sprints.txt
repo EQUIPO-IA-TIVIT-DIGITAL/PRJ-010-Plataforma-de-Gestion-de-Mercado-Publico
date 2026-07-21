@@ -1,9 +1,10 @@
 CU010 - PLATAFORMA DE GESTION Y ANALISIS DE LICITACIONES PUBLICAS
 SPRINTS
-Version: v2
-Generado: 2026-07-12
-Fuente(s): specs/*/spec.md, specs/ROADMAP.md, CLAUDE.md, ppt-sprints-mpm.md,
-sprints pasados por el usuario en chat (2026-07-12)
+Version: v3
+Generado: 2026-07-21
+Fuente(s): specs/*/spec.md, specs/ROADMAP.md, git log, CLAUDE.md,
+ppt-sprints-mpm.md, sprints pasados por el usuario en chat (2026-07-12 y
+2026-07-21, mismo contenido en ambas pasadas)
 Regla: specs/ es la fuente de verdad. Ver docs/cu010_formato.txt.
 
 ===========================================================
@@ -166,20 +167,87 @@ spec 023-fix-bugs-produccion
 
 ===========================================================
 SPRINT "INTELIGENCIA DE COMPETENCIA + ALERTAS INTERACTIVAS + EMAIL"
-(09/07/2026 - en curso) - spec 024-inteligencia-competencia-alertas
+(09/07/2026 - 12/07/2026) - spec 024-inteligencia-competencia-alertas
 ===========================================================
   >> AGREGADO: no vino en el input, existe en specs/ y es el trabajo
      activo real de hoy.
-- [EN CURSO] US1 (P1): panel de inteligencia de competencia (busqueda de
+  >> CORRECCION (2026-07-21): estaba [EN CURSO] -> pasa a [OK], mergeado.
+     Fuente: git log (commits 9f2ba21 "feat: Inteligencia de competencia
+     (US1), boton Telegram interactivo (US2), canal de alertas por correo
+     (US3)", ed76e20, 43c59a1, 8bddd6c fixes posteriores).
+- [OK] US1 (P1): panel de inteligencia de competencia (busqueda de
   competidor, ofertas del "Cuadro de Ofertas" publico, analisis Gemini
   bajo demanda, cacheado por competidor+periodo)
-- [EN CURSO] US2 (P2): boton inline "Me interesa" en alertas de Telegram
-  (webhook debe manejar callback_query)
-- [EN CURSO] US3 (P3): canal de alertas por correo electronico
-- [PENDIENTE] Migraciones V097 (licitaciones_ofertas), V098
-  (competidores_analisis), V099 (columna email_alertas) — diseñadas, sin
-  aplicar
-- [EN CURSO] tasks.md generado, avance aproximado ~28 de 33 tareas
+- [OK] US2 (P2): boton inline "Me interesa" en alertas de Telegram
+  (webhook maneja callback_query)
+- [OK] US3 (P3): canal de alertas por correo electronico
+- [OK] Migraciones V097 (licitaciones_ofertas), V098
+  (competidores_analisis), V099 (columna email_alertas) — aplicadas
+
+===========================================================
+SPRINT "CIERRE DE HALLAZGOS QA + CODE REVIEW" (posterior a spec 024)
+spec 029-fix-hallazgos-code-review-competidores-alertas
+===========================================================
+  >> AGREGADO: no vino en el input, existe en specs/ y esta mergeada.
+     Fuente: git log (commits 9fc9dcf, 66b2d5c "Merge spec 029: cierra 18
+     hallazgos de code review + 12 bugs de QA").
+- [OK] 18 hallazgos de code review + 12 bugs de QA cerrados sobre
+  Licitaciones, Analisis, Mensajeria, Dashboard, Competidores, Alertas y
+  scraper v2
+
+===========================================================
+SPRINT 6 (20/07/2026 - 24/07/2026) — ACTUALIZACION DE ESTADO
+spec 018-buscador-inteligente-nl
+===========================================================
+  >> CORRECCION (2026-07-21): todos los items pasan de [PENDIENTE] a
+     [OK]. Fuente: specs/ROADMAP.md ("N3 — Cerrado 2026-07-16": endpoint
+     buscar-natural reemplazado por interpretacion semantica via Gemini
+     2.5 Flash-Lite, validado en vivo con Docker + Vertex AI real,
+     degradacion FR-005 confirmada con un 429 real de cuota). Tambien
+     incluye, en el mismo commit (755c13a), el cierre de
+     027-catalogo-frontend-licitaciones-generales (reconciliacion del
+     catalogo de tipos/estados de licitaciones con el real de Mercado
+     Publico) y de 025/026.
+- [OK] Endpoint real de busqueda semantica conectado al frontend
+- [OK] Interpretacion de consultas: sinonimos, conceptos, filtros
+  implicitos
+- [OK] Filtro por estado (activa/cerrada/adjudicada/todas)
+- [OK] Resultados por relevancia semantica con resumen sin descargar
+  adjuntos
+- [OK] Degradacion controlada a busqueda full-text si falla el
+  componente semantico
+- [PENDIENTE] Historial de sesion de busqueda (FR-007)
+  >> CORRECCION (2026-07-21): confirmado NO implementado, con matiz.
+     FR-007 (specs/018-buscador-inteligente-nl/spec.md linea 95) pedia
+     "repetir la busqueda sin perder el contexto de la consulta
+     anterior". El propio spec lo redujo en diseño
+     (data-model.md lineas 35-37): "no requiere persistencia en
+     backend, se resuelve en el frontend manteniendo el estado de la
+     ultima consulta en el hook useBuscarNatural" — es decir, ya no es
+     un historial real, solo recordar la ultima consulta. Ni siquiera
+     esa version reducida se construyo: useBuscarNatural
+     (src/mpm-web/src/hooks/useLicitaciones.ts) es un useQuery sin
+     estado de sesion, no existe componente de historial en el
+     frontend ni migracion/tabla para ello, y tasks.md no tiene ninguna
+     tarea para FR-007 (se cayo del tasks.md sin quedar registrado). El
+     spec quedo marcado "CERRADO" el 2026-07-16 sin reflejar este
+     descope.
+
+===========================================================
+SPRINT "AJUSTES QOL FRONTEND + FIX SCRAPER 0 LICITACIONES"
+(hasta 20/07/2026) - spec 030-qol-frontend-y-fix-scraper
+===========================================================
+  >> AGREGADO: no vino en el input, existe en specs/ y ROADMAP.md la
+     marca "Cerrado 2026-07-20". Fuente: git log (2d78ea5, f8e0a02
+     "Merge spec 030").
+- [OK] Desambiguacion del ranking de competidores en /ejecutivo
+- [OK] Fix de timezone en /notificaciones
+- [OK] Filtro/orden/fecha en /analisis, rediseño de /analisis/:id,
+  /analisis/:id/dashboard y /alertas
+- [OK] Fix scraper: reportaba "0 licitaciones" con codigo de salida 0
+  (causa raiz: buscarLicitaciones() fallaba sin propagar error en los 5
+  estados de busqueda, y el catch de scheduler.js en modo --daemon no
+  marcaba process.exitCode)
 
 ===========================================================
 SPRINT 5 - VENTANA ORIGINAL (13/07/2026 - 17/07/2026) - SIN TAREAS
@@ -189,17 +257,10 @@ SPRINT 5 - VENTANA ORIGINAL (13/07/2026 - 17/07/2026) - SIN TAREAS
      trabajo ya se ejecuto antes (ver bloque de Alertas arriba). No hay
      tareas nuevas formalmente planificadas para esta ventana especifica.
 
-===========================================================
-SPRINT 6 (20/07/2026 - 24/07/2026)
-spec 018-buscador-inteligente-nl
-===========================================================
-- [PENDIENTE] Endpoint real de busqueda semantica conectado al frontend
-- [PENDIENTE] Interpretacion de consultas: sinonimos, conceptos, filtros
-  implicitos
-- [PENDIENTE] Filtro por estado (activa/cerrada/adjudicada/todas)
-- [PENDIENTE] Resultados por relevancia semantica con resumen
-- [PENDIENTE] Degradacion controlada a busqueda full-text
-- [PENDIENTE] Historial de sesion de busqueda
+  >> CORRECCION (2026-07-21): el bloque original de "SPRINT 6" que iba
+     aqui (fechas 20/07-24/07, todo [PENDIENTE]) se elimino por quedar
+     duplicado y contradictorio con el bloque "SPRINT 6 — ACTUALIZACION
+     DE ESTADO" ya corregido mas arriba, que es el vigente.
 
 ===========================================================
 SPRINT 7 (27/07/2026 - 31/07/2026)
@@ -240,23 +301,37 @@ OMITIDOS (specs que existen pero no ocupan linea de sprint)
      cu010_roadmap.txt en vez de inventarles fecha de sprint.
 
 ===========================================================
+DEPLOY EN PRODUCCION (GCP) — spec 002-fase5-deploy-gcp
+===========================================================
+  >> CORRECCION (2026-07-21): confirmado directamente por el usuario:
+     v1.0.0 esta en produccion. Es el motivo por el que se pide esta
+     documentacion ahora (repo listo para entrega/revision del
+     cliente).
+- [OK] Despliegue en GCP (Cloud Run + Cloud Run Jobs), v1.0.0 en
+  produccion
+
+===========================================================
 PENDIENTES
 ===========================================================
-- [BLOQUEADO] Deploy en GCP (Sprint 4) — infraestructura Nicolas Valdivia
-- [EN CURSO] Inteligencia de Competencia + alertas interactivas + email
-  (spec 024) — migraciones V097/V098/V099 sin aplicar
-- [PENDIENTE] Buscador Inteligente NL (Sprint 6)
-- [PENDIENTE] Pipeline de Oportunidades / Kanban (Sprint 7)
+  >> CORRECCION (2026-07-21): Deploy en GCP, Inteligencia de Competencia
+     y Buscador NL se mueven de esta lista a sus bloques [OK] arriba —
+     ver correcciones fechadas 2026-07-21.
+- [PENDIENTE] Pipeline de Oportunidades / Kanban (Sprint 7,
+  spec 004-fase7-pipeline-oportunidades)
 - [DRAFT] Rediseño del chat de Analisis con Ant Design X (spec 025)
 - [PENDIENTE] Rediseño Frontend general de MPM (spec 019), paralelo, sin
   fecha fija
 - [PENDIENTE] Hardening scraper TIVIT (spec 021): falta hornear
   Xvfb+xauth en Dockerfile para Cloud Run Jobs
+- [PENDIENTE] Historial de sesion de busqueda, FR-007 (spec 018) — ver
+  correccion en el bloque de Sprint 6 arriba: confirmado no
+  implementado, ni siquiera en su version reducida a nivel de frontend
 
 ===========================================================
 PROXIMO PASO
 ===========================================================
-Confirmar con el usuario si las ventanas de fecha agregadas para los
-sprints que no vinieron en su input (Ajustes urgentes, QA, Fix
-produccion, Competidores, Rediseño chat) son aceptables o si prefiere
-fechas distintas.
+Confirmar con el usuario:
+1. Si las ventanas de fecha agregadas para los sprints que no vinieron
+   en su input original (Ajustes urgentes, QA, Fix produccion,
+   Competidores, Rediseño chat) son aceptables o prefiere fechas
+   distintas.

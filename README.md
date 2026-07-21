@@ -1,212 +1,129 @@
-# Framework Agéntico — TIVIT Digital
+# MPM — Mercado Público Management
 
-> Framework interno de skills y agentes para desarrollo asistido por IA
+> Plataforma de gestión e inteligencia de licitaciones públicas chilenas. Sincroniza, analiza y da seguimiento a licitaciones de [mercadopublico.cl](https://www.mercadopublico.cl), con análisis asistido por IA sobre documentos de evaluación y alertas automáticas de nuevas oportunidades.
+>
+> **v1.0.0 en producción** (GCP Cloud Run).
 
-## Información del Proyecto
+> **Nota**: la raíz de este repositorio también contiene un framework agéntico interno de TIVIT para OpenCode (`AGENTS.md`, `.opencode/`, `opencode.json`, `README.opencode.md`), no relacionado con la aplicación MPM. El código de MPM vive en `src/`, `tests/` y `tools/`, descritos abajo.
 
-- **Organización**: TIVIT
-- **Área**: Digital
-- **Clasificación**: Proyecto privado interno
-- **Autor**: Manuel Aliaga ([manuel.aliaga@tivit.com](mailto:manuel.aliaga@tivit.com))
-- **Revisado por**: Miguel Martinez ([miguel.martinez@tivit.com](mailto:miguel.martinez@tivit.com))
-- **Última actualización**: 23 de mayo de 2026
+## Problema que resuelve
 
-## Confidencialidad
+El seguimiento de licitaciones en Mercado Público es hoy un proceso manual: revisar el portal a diario, descargar y leer actas de evaluación en PDF para entender por qué se ganó o perdió una oferta, y monitorear a mano lo que hacen los competidores. MPM automatiza ese ciclo completo — sincroniza licitaciones desde la API oficial, extrae y analiza documentos con IA, y notifica proactivamente sobre oportunidades relevantes y actividad de la competencia.
 
-Este repositorio contiene propiedad intelectual de **TIVIT** y está destinado exclusivamente para uso interno del área Digital. 
+## Funcionalidades
 
-**No compartir fuera de TIVIT sin autorización expresa.**
+### Licitaciones
+- Sincronización diaria automática desde la API oficial de Mercado Público
+- Búsqueda por palabra clave y búsqueda semántica en lenguaje natural (Gemini)
+- Filtros por estado, tipo, organismo y fecha
+- Seguimiento de licitaciones puntuales con detección automática de aclaraciones
 
----
+### Análisis con IA
+- Workspace de análisis por licitación con carga de documentos (actas de evaluación en PDF)
+- Extracción automática de criterios, puntajes, competidores y conclusión vía Gemini
+- Chat contextual para preguntar sobre los documentos analizados
+- Dashboard ejecutivo: licitaciones ganadas/perdidas, ranking de competidores, diferencial económico
 
-## Inicio Rápido
+### Alertas
+- Reglas configurables por palabra clave, monto, tipo y organismo
+- Expansión de keywords a sinónimos y conceptos relacionados vía IA
+- Notificaciones enriquecidas (requisitos, presupuesto, competidores, señales de renovación) por canal in-app, Telegram y email
 
-**¿Primera vez usando el framework?**
+### Inteligencia de competidores
+- Scraping del Cuadro de Ofertas público por competidor
+- Análisis con IA on-demand sobre el historial de ofertas de un competidor en un rango de fechas (cacheado)
 
-1. **Instalar y verificar** → Lee [.opencode/docs/QUICKSTART.md](.opencode/docs/QUICKSTART.md) (15 min)
-2. **Primer módulo** → Sigue la guía paso a paso
-3. **Workflows comunes** → Consulta [.opencode/docs/WORKFLOW-GUIDE.md](.opencode/docs/WORKFLOW-GUIDE.md)
-4. **Preguntas frecuentes** → Revisa [.opencode/docs/FAQ.md](.opencode/docs/FAQ.md)
+### Mensajería y notificaciones
+- Chat interno en tiempo real (SignalR)
+- Centro de notificaciones in-app
 
-**¿Ya conoces el framework?**
+## Tecnologías
 
-- [Catálogo de Skills](.opencode/framework/SKILLS-MANIFEST.md) — 58 skills disponibles
-- [Flujo End-to-End](.opencode/framework/SKILL-FLOW.md) — Ejemplo completo
-- [Protocolo de Ejecución](.opencode/framework/SKILL-EXECUTION-PROTOCOL.md) — Cómo usar skills
+**Backend**
+- .NET 8 (monolito modular), C#
+- PostgreSQL 16 + Dapper, acceso exclusivamente vía stored procedures (`usp_*`)
+- Autenticación JWT
+- SignalR con backplane Redis (chat en tiempo real)
+- Swagger / Swashbuckle
 
----
+**Frontend**
+- React 18 + TypeScript, Vite
+- Ant Design 5 + Ant Design X (componentes de chat con IA)
+- TanStack Query
+- React Router 6
+- Playwright (tests E2E)
 
-## Estructura del Proyecto
+**Inteligencia artificial**
+- Google Gemini vía Vertex AI + Application Default Credentials (ADC)
 
-| Carpeta | Descripción |
-|---------|-------------|
-| `.opencode/` | **Framework agéntico** — 58 skills, 4 agentes, protocolos, documentación operativa |
-| `opencode.json` | Configuración principal de OpenCode — MCP servers, agentes, permisos |
-| `AGENTS.md` | Instrucciones base del framework para OpenCode |
+**Infraestructura**
+- Docker Compose (Postgres, Redis, API, Web) para desarrollo local
+- Despliegue en GCP (Cloud Run + Cloud Run Jobs), almacenamiento de adjuntos en Google Cloud Storage
 
----
+## Arquitectura
 
-## ¿Qué es este Framework?
-
-Un sistema de **skills y agentes** que permite a desarrolladores de TIVIT Digital construir aplicaciones guiadas por IA de forma consistente, escalable y siguiendo las mejores prácticas.
-
-### Incluye:
-
-- **58 Skills**: 12 framework skills + 46 stack skills (DB, Backend, Frontend, Testing, Proceso)
-- **4 Agentes especializados**: Orchestrator, Design, Control, Delivery
-- **Activación automática via OpenCode
-- **Workflow modular**: Trabaja módulo por módulo sin repetir pasos innecesarios
-
-### Stack Tecnológico Soportado:
-
-| Capa | Tecnologías |
-|------|-------------|
-| **Backend** | .NET 8, Java Spring Boot, Python FastAPI, Node.js |
-| **Frontend** | React 19, TypeScript, Ant Design 5, Rsbuild |
-| **Database** | SQL Server, PostgreSQL, MySQL |
-| **Testing** | Playwright (E2E), xUnit/.NET, Jest, Pytest |
-| **Infraestructura** | Docker, Kubernetes, Ocelot Gateway |
-| **Arquitectura** | Vertical Slice, Modular Monolith, Microfrontends |
-
----
-
-## Documentación
-
-### Para Nuevos Usuarios
-
-| Documento | Tiempo | Descripción |
-|-----------|--------|-------------|
-| [QUICKSTART.md](.opencode/docs/QUICKSTART.md) | 15 min | Tu primer módulo paso a paso |
-| [WORKFLOW-GUIDE.md](.opencode/docs/WORKFLOW-GUIDE.md) | 10 min | Cómo trabajar módulo por módulo |
-| [FAQ.md](.opencode/docs/FAQ.md) | 5 min | Respuestas a preguntas comunes |
-| [TROUBLESHOOTING.md](.opencode/docs/TROUBLESHOOTING.md) | - | Solución de problemas frecuentes |
-
-### Para Usuarios Avanzados
-
-| Documento | Propósito |
-|-----------|-----------|
-| [SKILLS-MANIFEST.md](.opencode/framework/SKILLS-MANIFEST.md) | Catálogo completo de las 58 skills con metadata |
-| [SKILL-FLOW.md](.opencode/framework/SKILL-FLOW.md) | Flujo end-to-end con ejemplo de pack NOC |
-| [SKILL-EXECUTION-PROTOCOL.md](.opencode/framework/SKILL-EXECUTION-PROTOCOL.md) | Protocolo de 7 pasos para ejecutar skills |
-| [SKILL-ROUTING.md](.opencode/framework/SKILL-ROUTING.md) | Cuándo y cómo activar cada skill |
-
-### Para Arquitectos y Tech Leads
-
-| Documento | Propósito |
-|-----------|-----------|
-| [AGENT-MODEL.md](.opencode/framework/AGENT-MODEL.md) | Roles, responsabilidades y límites de agentes |
-| [MCP-GOVERNANCE.md](.opencode/framework/MCP-GOVERNANCE.md) | Gobernanza de herramientas MCP externas |
-| [VALIDATION-PROFILES.md](.opencode/framework/VALIDATION-PROFILES.md) | Perfiles de validación por skill |
-| [HOOKS-AND-GUARDRAILS.md](.opencode/framework/HOOKS-AND-GUARDRAILS.md) | Interceptores y guardrails del framework |
-
----
-
-## Requisitos Previos
-
-- **OpenCode** — instalado y configurado como herramienta CLI
-- **Node.js** 18+ (para servidores MCP)
-- **Docker** (opcional, para entornos locales)
-- **Git** configurado con credenciales TIVIT
-- **.NET SDK 8** / **JDK 17+** / **Python 3.12+** (según stack del proyecto)
-
----
-
-## Cómo Funciona
-
-El framework se activa **automáticamente** al iniciar OpenCode en este workspace. Las instrucciones base se cargan desde `AGENTS.md` y las skills son auto-descubiertas desde `.opencode/skills/` No necesitas comandos especiales.
-
-### Ejemplo simple:
+Monolito modular: cada dominio de negocio es una librería de clases independiente con su propio `Controllers/`, `Services/`, `Data/` y `Models/`, registrada vía `AddXxxModule()` en `Program.cs`.
 
 ```
-Usuario escribe: "Quiero crear el módulo de Gestión de Contratos"
-
-Framework ejecuta automáticamente:
-Define estructura (api-first-spec)
-Crea base de datos (database-sp)
-Implementa backend (backend-api)
-Implementa frontend (react)
-Genera tests (agent-qa)
-Crea PR (pull-request)
-
-Resultado: Módulo completo en 15-30 minutos
+MPM.Shared          Modelos compartidos, IStorageService
+MPM.Core            DbConnectionFactory, middlewares (error handling, multi-tenancy)
+MPM.Modules.Auth            Autenticación JWT, recuperación de contraseña
+MPM.Modules.Licitaciones    Sync con API de Mercado Público, scraper, búsqueda
+MPM.Modules.Catalogo        Datos de referencia (estados, tipos, monedas)
+MPM.Modules.Mensajeria      Chat en tiempo real (SignalR)
+MPM.Modules.Analisis        Workspace de análisis de documentos + IA
+MPM.Modules.Notificaciones  Notificaciones in-app
+MPM.Modules.Alertas         Alertas por keyword, entrega multicanal
+MPM.Modules.Competidores    Inteligencia de competidores
 ```
 
-**No necesitas saber qué skills ejecutar** — el framework lo resuelve por ti.
+Detalle técnico completo (flujos de datos, background services, convenciones) en [CLAUDE.md](CLAUDE.md).
 
----
+## Inicio rápido
 
-## Soporte y Contacto
+Requiere Docker Desktop y un archivo `.env` en la raíz (ver `docker-compose.yml` para las variables).
 
-### ¿Necesitas ayuda?
+```bash
+cp .env.example .env    # completar credenciales
+docker compose up --build
+```
 
-| Tipo de consulta | Contacto |
-|------------------|----------|
-| **Problemas técnicos** | Manuel Aliaga ([manuel.aliaga@tivit.com](mailto:manuel.aliaga@tivit.com)) |
-| **Revisión de diseño** | Miguel Martinez ([miguel.martinez@tivit.com](mailto:miguel.martinez@tivit.com)) |
-| **Documentación técnica** | Ver carpeta [.opencode/docs/](.opencode/docs/) |
-| **Errores comunes** | Ver [TROUBLESHOOTING.md](.opencode/docs/TROUBLESHOOTING.md) |
+| Servicio   | URL                            |
+|------------|---------------------------------|
+| Frontend   | http://localhost:8181          |
+| API        | http://localhost:5001          |
+| Swagger    | http://localhost:5001/swagger  |
+| PostgreSQL | localhost:5433                 |
+| Redis      | localhost:6379                 |
 
----
+Guía completa de desarrollo local (sin Docker), estructura del proyecto y variables de entorno en [QUICKSTART.md](QUICKSTART.md).
 
-## Seguridad y Buenas Prácticas
+## Testing
 
-El framework incluye skills de seguridad obligatorias:
+```bash
+# Backend
+dotnet test MPM.sln
 
-- **Prevención de SQL Injection** — Queries parametrizadas siempre
-- **Prevención de XSS** — Sanitización de contenido
-- **OWASP Top 10** — Controles integrados
-- **Gestión de Secretos** — Nunca en código fuente
-- **Code Review automatizado** — Checklist antes de cada PR
+# Frontend E2E
+cd src/mpm-web && npm run test:e2e
+```
 
-Ver [security skill](.opencode/skills/security/SKILL.md) para detalles completos.
+## Estructura del repositorio
 
----
+```
+src/            Módulos backend (.NET 8) y frontend (mpm-web)
+tests/          Tests unitarios/integración (xUnit) y E2E (Playwright)
+tools/          Scraper de licitaciones (scraper-mp-v2) y procesador de documentos
+specs/          Especificaciones de features (Spec Kit) y roadmap
+docs/           Documentación técnica
+scripts/        Scripts de despliegue y operación
+QA/             Reportes de control de calidad
+```
 
-## Métricas y Beneficios
+## Roadmap / Sprints
 
-### Tiempo promedio de desarrollo:
+Historial completo de sprints y su estado en [docs/cu010_sprints.txt](docs/cu010_sprints.txt). Roadmap técnico vivo por fases en [specs/ROADMAP.md](specs/ROADMAP.md).
 
-| Tarea | Sin Framework | Con Framework | Ahorro |
-|-------|--------------|---------------|--------|
-| Módulo CRUD completo | 2-3 días | 15-30 min | **95%** |
-| Endpoint + SP + Tests | 4-6 horas | 10-15 min | **92%** |
-| Componente UI + Hooks | 3-4 horas | 5-10 min | **90%** |
-| Code Review + PR | 30-60 min | 5 min | **85%** |
+## Licencia
 
-### Consistencia:
-
-- Todos los módulos siguen las mismas convenciones
-- Patrones de seguridad aplicados automáticamente
-- Documentación actualizada en cada cambio
-- Tests incluidos por defecto
-
----
-
-## Roadmap
-
-### Próximas mejoras:
-
-- [ ] Skill de Angular (actualmente solo React)
-- [ ] Skill de documentación técnica automatizada (ADR, diagramas)
-- [ ] Skill de diseño UX (wireframes, user flows)
-- [ ] Validadores automáticos por perfil
-- [ ] Integración con CI/CD de TIVIT
-
----
-
-## Licencia y Uso
-
-© 2024-2026 TIVIT. Todos los derechos reservados.
-
-**Uso exclusivo interno** del área Digital de TIVIT.  
-Prohibida su distribución, copia o uso fuera de TIVIT sin autorización expresa.
-
----
-
-## Historial de Cambios
-
-Ver [CHANGELOG.md](.opencode/docs/CHANGELOG.md) para el historial completo de cambios del framework.
-
----
-
-**¿Listo para empezar?** → [QUICKSTART.md](.opencode/docs/QUICKSTART.md)
+Uso interno — proyecto privado, no distribuir fuera del equipo del cliente.
