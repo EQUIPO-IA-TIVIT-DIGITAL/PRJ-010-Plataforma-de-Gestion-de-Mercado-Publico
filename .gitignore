@@ -65,3 +65,16 @@ scratch-*
 # Artefactos de prueba sueltos en la raíz
 /*.pdf
 /*.png
+
+# Reportes QA y PDFs de ejemplo (documentos de trabajo, no codigo)
+/QA/
+/examples/
+
+# Scaffolding de herramientas agenticas (Claude Code, OpenCode, Spec Kit) —
+# configuracion/skills locales, no forman parte de la app MPM
+/.claude/
+/.opencode/
+/.specify/
+/AGENTS.md
+/opencode.json
+/README.opencode.md

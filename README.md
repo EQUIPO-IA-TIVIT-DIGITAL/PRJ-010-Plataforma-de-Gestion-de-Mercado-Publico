@@ -4,8 +4,6 @@
 >
 > **v1.0.0 en producción** (GCP Cloud Run).
 
-> **Nota**: la raíz de este repositorio también contiene un framework agéntico interno de TIVIT para OpenCode (`AGENTS.md`, `.opencode/`, `opencode.json`, `README.opencode.md`), no relacionado con la aplicación MPM. El código de MPM vive en `src/`, `tests/` y `tools/`, descritos abajo.
-
 ## Problema que resuelve
 
 El seguimiento de licitaciones en Mercado Público es hoy un proceso manual: revisar el portal a diario, descargar y leer actas de evaluación en PDF para entender por qué se ganó o perdió una oferta, y monitorear a mano lo que hacen los competidores. MPM automatiza ese ciclo completo — sincroniza licitaciones desde la API oficial, extrae y analiza documentos con IA, y notifica proactivamente sobre oportunidades relevantes y actividad de la competencia.
@@ -117,7 +115,6 @@ tools/          Scraper de licitaciones (scraper-mp-v2) y procesador de document
 specs/          Especificaciones de features (Spec Kit) y roadmap
 docs/           Documentación técnica
 scripts/        Scripts de despliegue y operación
-QA/             Reportes de control de calidad
 ```
 
 ## Roadmap / Sprints

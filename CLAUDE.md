@@ -2,8 +2,6 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-> **Note**: This repo root also contains an unrelated TIVIT "Framework Agéntico" for OpenCode (`AGENTS.md`, `.opencode/`, `opencode.json`, `README.md`). That framework is not part of the MPM application — the MPM source lives under `src/` and `tests/`, described below.
-
 ## Project Overview
 
 **MPM (Mercado Público Management)** — A .NET 8 modular monolith + React frontend for managing and analyzing Chilean public procurement tenders (licitaciones) from [mercadopublico.cl](https://www.mercadopublico.cl). The system syncs tenders via the Mercado Público API, supports internal messaging, and uses Gemini AI to analyze PDF evaluation documents.
