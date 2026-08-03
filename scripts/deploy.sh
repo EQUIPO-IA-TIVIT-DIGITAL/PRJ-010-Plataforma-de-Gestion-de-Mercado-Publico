@@ -179,7 +179,10 @@ common_app_env_vars() {
   # default, gcloud intenta parsear cada dominio extra como un par KEY=VALUE y falla con
   # "Bad syntax for dict arg" (encontrado en vivo el 2026-07-10). Los call-sites deben prefijar
   # el valor completo con "^##^" (ver `gcloud topic escaping`) para que esto funcione.
-  echo "ASPNETCORE_URLS=http://+:80##ConnectionStrings__Redis=${REDIS_HOST}:${REDIS_PORT}##Storage__Provider=gcs##Storage__Bucket=${GCS_BUCKET}##GOOGLE_CLOUD_PROJECT=${GCP_PROJECT}##Vertex__Region=${GCP_REGION}##JWT__Issuer=TIVIT.MPM##JWT__Audience=MPM.Users##Cors__AllowedOrigins=${cors_origins}##Telegram__BotUsername=${TELEGRAM_BOT_USERNAME}##Smtp__Host=${smtp_host}##Smtp__Port=${smtp_port}##Smtp__Username=${smtp_username}##Smtp__FromEmail=${smtp_from_email}##Smtp__FromName=${smtp_from_name}##Smtp__EnableSsl=${smtp_enable_ssl}"
+  # DB_SSL=true: consumido por tools/scraper-mp-v2/modulos/db.js (el Pool crudo de node-postgres
+  # del scraper, separado de ConnectionStrings__PostgreSQL de .NET) -- Cloud SQL exige TLS.
+  # Sin efecto en .NET ni en Docker Compose local (docker-compose.yml no setea esta variable).
+  echo "ASPNETCORE_URLS=http://+:80##ConnectionStrings__Redis=${REDIS_HOST}:${REDIS_PORT}##Storage__Provider=gcs##Storage__Bucket=${GCS_BUCKET}##GOOGLE_CLOUD_PROJECT=${GCP_PROJECT}##Vertex__Region=${GCP_REGION}##JWT__Issuer=TIVIT.MPM##JWT__Audience=MPM.Users##Cors__AllowedOrigins=${cors_origins}##Telegram__BotUsername=${TELEGRAM_BOT_USERNAME}##Smtp__Host=${smtp_host}##Smtp__Port=${smtp_port}##Smtp__Username=${smtp_username}##Smtp__FromEmail=${smtp_from_email}##Smtp__FromName=${smtp_from_name}##Smtp__EnableSsl=${smtp_enable_ssl}##DB_SSL=true"
 }
 
 # Telegram__BotToken/WebhookSecret opcionales -- si no existen todavía en Secret Manager (p.ej.
@@ -259,7 +262,20 @@ deploy_web() {
 deploy_job() {
   local job_name="$1" worker_mode="$2"
   build_and_push src/MPM.Api/Dockerfile "$API_IMAGE" .
-  echo "→ gcloud run jobs deploy $job_name (WORKER_MODE=$worker_mode)"
+  # scraper-job corre Chromium "headed" dentro de Xvfb (no headless -- Mercado Público penaliza
+  # el fingerprint headless con reCAPTCHA, ver ScraperBackgroundService.cs) + el proceso .NET
+  # completo en el mismo contenedor. El default de Cloud Run Jobs (512Mi/1 CPU, el mismo que
+  # mpm-api, que no abre navegador) no alcanza -- confirmado 2026-08-03 con "Out-of-memory event
+  # detected in container" en una ejecucion real, y reproducido localmente limitando el
+  # contenedor a 512Mi (memoria llegando a 88-89% solo con login+primera busqueda, "Target
+  # crashed" del renderer de Chromium al llegar a Cuadro de Ofertas). sync-job no abre navegador
+  # -- se queda en el default.
+  local memory="512Mi" cpu="1"
+  if [ "$job_name" = "scraper-job" ]; then
+    memory="2Gi"
+    cpu="2"
+  fi
+  echo "→ gcloud run jobs deploy $job_name (WORKER_MODE=$worker_mode, memory=$memory, cpu=$cpu)"
   gcloud run jobs deploy "$job_name" \
     --project="$GCP_PROJECT" \
     --region="$GCP_REGION" \
@@ -268,6 +284,8 @@ deploy_job() {
     --network="$VPC_NETWORK" \
     --subnet="$VPC_SUBNET" \
     --vpc-egress=private-ranges-only \
+    --memory="$memory" \
+    --cpu="$cpu" \
     --set-env-vars="^##^WORKER_MODE=${worker_mode}##$(common_app_env_vars)" \
     --set-secrets="$(common_app_secrets)" \
     --max-retries=1 \
