@@ -14,11 +14,12 @@ interface Props {
   onSearchModeChange: (mode: SearchMode) => void;
   naturalQuery: string;
   onNaturalQueryChange: (q: string) => void;
+  onNaturalQuerySubmit: () => void;
 }
 
 export function LicitacionFilterBar({
   filter, onChange, onReset,
-  searchMode, onSearchModeChange, naturalQuery, onNaturalQueryChange,
+  searchMode, onSearchModeChange, naturalQuery, onNaturalQueryChange, onNaturalQuerySubmit,
 }: Props) {
   const { data: catalogos } = useCatalogos();
 
@@ -48,11 +49,12 @@ export function LicitacionFilterBar({
       {searchMode === 'inteligente' ? (
         <Col xs={24} sm={12} md={7}>
           <Input
-            placeholder="Ej: ciberseguridad para el sector salud, mayores a 10 millones..."
+            placeholder="Ej: ciberseguridad para el sector salud, mayores a 10 millones... (Enter para buscar)"
             prefix={<BulbOutlined />}
             allowClear
             value={naturalQuery}
             onChange={e => onNaturalQueryChange(e.target.value)}
+            onPressEnter={onNaturalQuerySubmit}
             data-testid="filter-busqueda-natural"
           />
         </Col>

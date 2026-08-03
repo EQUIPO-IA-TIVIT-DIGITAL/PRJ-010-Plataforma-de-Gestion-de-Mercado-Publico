@@ -166,7 +166,12 @@ public class LicitacionController(
         return Ok(ApiResponse<List<LicitacionSeguidaDto>>.Ok(items.ToList()));
     }
 
+    // Bug crítico (hallado durante grabación de demo, 2026-07-22): este endpoint llama a Gemini
+    // en cada request y estaba sin [Authorize] -- cualquiera podía invocarlo sin sesión y generar
+    // costo real de la API. Los demás endpoints que cuestan dinero o exponen datos de usuario en
+    // este controller ya llevan [Authorize]; a este se le había quedado afuera.
     [HttpGet("buscar-natural")]
+    [Authorize]
     [ProducesResponseType(typeof(ApiResponse<PaginatedResult<LicitacionNaturalSearchResult>>), 200)]
     [ProducesResponseType(typeof(ApiResponse<object>), 400)]
     public async Task<ActionResult<ApiResponse<PaginatedResult<LicitacionNaturalSearchResult>>>> BuscarNatural(
