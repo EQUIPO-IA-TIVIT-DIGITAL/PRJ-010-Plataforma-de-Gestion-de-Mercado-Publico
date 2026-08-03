@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import {
   Card, Row, Col, Statistic, Table, Tag, Select, Spin, Empty,
-  Typography, Collapse, Progress, Tooltip, Space,
+  Typography, Collapse, Progress, Tooltip, Space, Tabs,
 } from 'antd'
 import {
   TrophyOutlined, FallOutlined, RiseOutlined, TeamOutlined,
@@ -262,77 +262,103 @@ export default function EjecutivoDashboardPage() {
         </Row>
       )}
 
-      {/* Ranking competidores */}
-      <Card
-        title={<><TeamOutlined /> Ranking de competidores</>}
+      {/* ---- Tabs Section (Competidores vs Licitaciones) ---- */}
+      <Tabs
+        defaultActiveKey="1"
         style={{ marginBottom: 24 }}
-        extra={<Text type="secondary">{dash.rankingCompetidores.length} competidores únicos</Text>}
-      >
-        <Collapse
-          items={dash.rankingCompetidores.map((comp, i) => ({
-            key: i,
+        items={[
+          {
+            key: '1',
             label: (
-              <div style={{ display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap' }}>
-                <Text strong style={{ minWidth: 200 }}>{comp.nombre}</Text>
-                <Tag color="blue">{comp.vecesCompetidor}× competidor</Tag>
-                {comp.vecesGanador > 0 && (
-                  <Tag color="gold">
-                    <TrophyOutlined /> {comp.vecesGanador} licitación{comp.vecesGanador === 1 ? '' : 'es'} ganada{comp.vecesGanador === 1 ? '' : 's'} por {comp.nombre}
-                  </Tag>
-                )}
-                {comp.montoTotalAdjudicado > 0 && <Tag color="green">{fmt(comp.montoTotalAdjudicado)}</Tag>}
-              </div>
+              <span style={{ fontWeight: 600, fontSize: 14 }}>
+                <TeamOutlined style={{ marginRight: 6 }} />
+                Ranking de Competidores
+              </span>
             ),
             children: (
-              <Table
-                dataSource={comp.licitaciones}
-                columns={[
-                  {
-                    title: 'Licitación',
-                    dataIndex: 'nombre',
-                    render: (n: string, row: LicitacionResumenEjecutivo) => (
-                      <a onClick={() => navigate(`/analisis/${row.workspaceId}/dashboard`)}>{n}</a>
+              <Card
+                bordered={false}
+                extra={<Text type="secondary">{dash.rankingCompetidores.length} competidores únicos</Text>}
+                style={{ borderRadius: 14, boxShadow: 'var(--shadow-card)' }}
+              >
+                <Collapse
+                  items={dash.rankingCompetidores.map((comp, i) => ({
+                    key: i,
+                    label: (
+                      <div style={{ display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap' }}>
+                        <Text strong style={{ minWidth: 200 }}>{comp.nombre}</Text>
+                        <Tag color="blue">{comp.vecesCompetidor}× competidor</Tag>
+                        {comp.vecesGanador > 0 && (
+                          <Tag color="gold">
+                            <TrophyOutlined style={{ marginRight: 4 }} />
+                            Ganó {comp.vecesGanador} {comp.vecesGanador === 1 ? 'vez' : 'veces'}
+                          </Tag>
+                        )}
+                        {comp.montoTotalAdjudicado > 0 && <Tag color="green">{fmt(comp.montoTotalAdjudicado)}</Tag>}
+                      </div>
                     ),
-                  },
-                  {
-                    title: 'Resultado TIVIT',
-                    render: (_: unknown, row: LicitacionResumenEjecutivo) =>
-                      row.tivitGano
-                        ? <Tag color="success">Ganó TIVIT</Tag>
-                        : <Tag color="error">Perdió TIVIT</Tag>,
-                    width: 130,
-                  },
-                  {
-                    title: 'Monto adj.',
-                    dataIndex: 'montoAdjudicado',
-                    render: (v: number | null) => fmt(v),
-                    align: 'right' as const,
-                    width: 160,
-                  },
-                ]}
-                rowKey="workspaceId"
-                size="small"
-                pagination={false}
-              />
+                    children: (
+                      <Table
+                        dataSource={comp.licitaciones}
+                        columns={[
+                          {
+                            title: 'Licitación',
+                            dataIndex: 'nombre',
+                            render: (n: string, row: LicitacionResumenEjecutivo) => (
+                              <a onClick={() => navigate(`/analisis/${row.workspaceId}/dashboard`)}>{n}</a>
+                            ),
+                          },
+                          {
+                            title: 'Resultado TIVIT',
+                            render: (_: unknown, row: LicitacionResumenEjecutivo) =>
+                              row.tivitGano
+                                ? <Tag color="success">Ganó TIVIT</Tag>
+                                : <Tag color="error">Perdió TIVIT</Tag>,
+                            width: 130,
+                          },
+                          {
+                            title: 'Monto adj.',
+                            dataIndex: 'montoAdjudicado',
+                            render: (v: number | null) => fmt(v),
+                            align: 'right' as const,
+                            width: 160,
+                          },
+                        ]}
+                        rowKey="workspaceId"
+                        size="small"
+                        pagination={false}
+                      />
+                    ),
+                  }))}
+                />
+                {dash.rankingCompetidores.length === 0 && (
+                  <Empty description="No hay datos de competidores en los análisis disponibles" />
+                )}
+              </Card>
+            )
+          },
+          {
+            key: '2',
+            label: (
+              <span style={{ fontWeight: 600, fontSize: 14 }}>
+                <BarChartOutlined style={{ marginRight: 6 }} />
+                Todas las Licitaciones Analizadas
+              </span>
             ),
-          }))}
-        />
-        {dash.rankingCompetidores.length === 0 && (
-          <Empty description="No hay datos de competidores en los análisis disponibles" />
-        )}
-      </Card>
-
-      {/* Tabla de licitaciones */}
-      <Card title={<><BarChartOutlined /> Todas las licitaciones analizadas</>}>
-        <Table
-          dataSource={dash.licitaciones}
-          columns={licitacionesColumns}
-          rowKey="workspaceId"
-          size="small"
-          pagination={{ pageSize: 20 }}
-          rowClassName={(row) => row.tivitGano ? '' : 'ant-table-row-danger'}
-        />
-      </Card>
+            children: (
+              <Card bordered={false} style={{ borderRadius: 14, boxShadow: 'var(--shadow-card)' }}>
+                <Table
+                  dataSource={dash.licitaciones}
+                  columns={licitacionesColumns}
+                  rowKey="workspaceId"
+                  size="small"
+                  pagination={{ pageSize: 20 }}
+                />
+              </Card>
+            )
+          }
+        ]}
+      />
     </div>
   )
 }

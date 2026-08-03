@@ -45,7 +45,7 @@ export function MensajeriaPage() {
     <div
       style={{
         display: 'flex',
-        height: 'calc(100vh - 64px)',
+        height: 'calc(100vh - 112px)',
         background: 'var(--bg-muted)',
         borderRadius: 14,
         overflow: 'hidden',
