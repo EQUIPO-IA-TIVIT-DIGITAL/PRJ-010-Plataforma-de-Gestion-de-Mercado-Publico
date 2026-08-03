@@ -17,6 +17,13 @@
 #   scripts/deploy.sh prod scraper-job execute   # ejecuta scraper-job ahora (fuera de su Scheduler)
 #   scripts/deploy.sh prod all up                # api + web + sync-job + scraper-job, en ese orden
 #
+# Cloud Schedulers configurados en GCP (America/Santiago):
+#   sync-job-scheduler    → 0 3,15 * * *  (3am y 3pm)  → sincroniza API MP cada 12h
+#   scraper-job-scheduler → 0 2 */2  * *  (2am cada 2 dias par) → scraper Playwright cada 48h
+#   Comandos para gestionar:
+#     gcloud scheduler jobs list --project=tivit-cu010 --location=us-central1
+#     gcloud scheduler jobs run sync-job-scheduler --project=tivit-cu010 --location=us-central1
+#
 # ⚠️ REESCRITO 2026-07-06 para el pivote de Compute Engine a Cloud Run. Requiere que exista:
 #   - VPC custom + subred (Nicolás confirmó 2026-07-07: vpc-cu010 / sn-cu010-prd, 10.0.0.0/24,
 #     us-central1 — verificado con `gcloud compute networks/subnets list`)
@@ -256,7 +263,8 @@ deploy_job() {
     --vpc-egress=private-ranges-only \
     --set-env-vars="^##^WORKER_MODE=${worker_mode}##$(common_app_env_vars)" \
     --set-secrets="$(common_app_secrets)" \
-    --max-retries=1
+    --max-retries=1 \
+    --task-timeout=60m
 }
 
 job_para_scope() {

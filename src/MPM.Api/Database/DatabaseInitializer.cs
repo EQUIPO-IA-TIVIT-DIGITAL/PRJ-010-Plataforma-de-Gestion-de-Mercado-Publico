@@ -14,6 +14,7 @@ public class DatabaseInitializer(ILogger<DatabaseInitializer> logger, DbConnecti
     public async Task InitializeAsync()
     {
         await using var conn = dbFactory.Create();
+        conn.Notice += (_, e) => logger.LogInformation("PG NOTICE: {Message}", e.Notice.MessageText);
         conn.Open();
 
         await conn.ExecuteAsync(

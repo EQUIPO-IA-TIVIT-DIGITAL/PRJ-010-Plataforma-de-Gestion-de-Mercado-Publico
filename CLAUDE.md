@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**MPM (Mercado Público Management)** — A .NET 8 modular monolith + React frontend for managing and analyzing Chilean public procurement tenders (licitaciones) from [mercadopublico.cl](https://www.mercadopublico.cl). The system syncs tenders via the Mercado Público API, supports internal messaging, and uses Gemini AI to analyze PDF evaluation documents.
+**MPM (Mercado Público Management)** — A .NET 8 modular monolith + React frontend for managing and analyzing Chilean public procurement tenders (licitaciones) from [mercadopublico.cl](https://www.mercadopublico.cl). The system syncs tenders via the Mercado Público API, supports internal messaging, and uses Gemini AI to analyze PDF evaluation documents. Deployed to production on GCP (Cloud Run + Cloud Run Jobs, GCS for attachment storage); see `scripts/deploy.sh`.
 
 ## Commands
 
@@ -51,6 +51,21 @@ docker compose up --build
 ### Database migrations
 
 Migrations run automatically on startup via `DatabaseInitializer`. To add a migration, create a `.sql` file in `src/MPM.Api/Database/Scripts/` following the naming convention `VXXX__Description.sql` (e.g. `V075__Add_something.sql`, continuing from the highest existing `VXXX`). The file is embedded as a resource and applied in alphabetical order.
+
+### Scraper (standalone Node.js + Playwright, `tools/scraper-mp-v2/`)
+
+Not part of the .NET solution — invoked by `ScraperBackgroundService` as a child process, or run manually:
+
+```bash
+cd tools/scraper-mp-v2
+npm install
+npx playwright install chromium
+
+node agente-mp.js                       # scraping only
+MP_ANALISIS_IA=true node agente-mp.js   # scraping + Gemini analysis
+```
+
+Requires `MP_RUT`/`MP_PASSWORD` (mercadopublico.cl login) in its own `.env`. See `QUICKSTART.md` for the full pipeline verification steps (checking scraped licitaciones, workspaces, and the `scraper_config_error` notification path if Node/the script isn't found).
 
 ## Architecture
 
@@ -120,9 +135,10 @@ Key variables used by `docker-compose.yml` and the API:
 - `REDIS_PASSWORD`
 - `JWT_SECRET`, `JWT_ISSUER`, `JWT_AUDIENCE`
 - `MP_TICKET` — Mercado Público API authentication ticket
-- `GEMINI_API_KEY` — Google Gemini API key
 - `Storage__Provider` — `local` or `gcs`
 - `Storage__Bucket` — GCS bucket name (when using GCS)
+
+**Gemini AI**: Calls go through Vertex AI authenticated with Application Default Credentials (ADC) — not a `GEMINI_API_KEY` (migrated in spec 020, see `GeminiService.cs`). Vertex AI lacks the Developer API's ephemeral File API, which shapes how documents are sent for analysis. Requires GCP credentials to be available in the environment (e.g. `gcloud auth application-default login` locally, or the Cloud Run service account in production).
 
 ### Testing
 
