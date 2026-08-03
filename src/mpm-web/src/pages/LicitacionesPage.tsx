@@ -1,12 +1,12 @@
 import { useState, useCallback, useMemo } from 'react';
-import { Alert, Space, Tag } from 'antd';
-import { FileTextOutlined } from '@ant-design/icons';
+import { Alert, Space, Tag, Card, Row, Col, Statistic } from 'antd';
+import { FileTextOutlined, StarOutlined, ClockCircleOutlined, SyncOutlined } from '@ant-design/icons';
 import { LicitacionFilterBar } from '../components/LicitacionFilterBar';
 import type { SearchMode } from '../components/LicitacionFilterBar';
 import { LicitacionesTable } from '../components/LicitacionesTable';
 import { NaturalSearchResults } from '../components/NaturalSearchResults';
 import { LicitacionDetailDrawer } from '../components/LicitacionDetailDrawer';
-import { useLicitaciones, useBuscarNatural } from '../hooks/useLicitaciones';
+import { useLicitaciones, useBuscarNatural, useLicitacionesSeguidas } from '../hooks/useLicitaciones';
 import { useLicitacionDetalle } from '../hooks/useLicitacionDetalle';
 import type { LicitacionResumen, LicitacionFilter } from '../types/licitacion';
 
@@ -25,14 +25,23 @@ export function LicitacionesPage() {
   // estructurados existentes en vez de reemplazarlos -- comparten el mismo selector de Estado.
   const [searchMode, setSearchMode] = useState<SearchMode>('filtros');
   const [naturalQuery, setNaturalQuery] = useState('');
+  // Bug crítico (hallado durante grabación de demo, 2026-07-22): sin esto, cada tecla tipeada
+  // disparaba una llamada real a Gemini vía buscar-natural -- costo y carga innecesarios. Ahora
+  // la búsqueda solo se envía al confirmar con Enter (o al vaciar el campo).
+  const [submittedNaturalQuery, setSubmittedNaturalQuery] = useState('');
+  const handleNaturalQueryChange = useCallback((q: string) => {
+    setNaturalQuery(q);
+    if (q === '') setSubmittedNaturalQuery('');
+  }, []);
 
   // 029-fix-hallazgos-code-review-competidores-alertas (FR-009/QA BUG-002): antes solo se leía
   // data/isLoading -- un 500 real (ej. filtro de fecha mal tipado) se veía idéntico a "sin
   // resultados", la tabla quedaba vacía sin ningún aviso. Ahora se distingue explícitamente.
   const { data, isLoading, isError } = useLicitaciones(filter);
   const { data: naturalData, isLoading: naturalLoading } = useBuscarNatural(
-    naturalQuery, 1, 20, filter.estado ?? undefined);
+    submittedNaturalQuery, 1, 20, filter.estado ?? undefined);
   const { data: detalle, isLoading: detalleLoading } = useLicitacionDetalle(selectedCodigo);
+  const { data: seguidasData } = useLicitacionesSeguidas();
 
   const licitaciones = useMemo(() => data?.data?.items ?? [], [data]);
   const pagination = useMemo(() => {
@@ -53,6 +62,16 @@ export function LicitacionesPage() {
   const totalRecords = searchMode === 'inteligente'
     ? (naturalData?.data?.totalRecords ?? 0)
     : (data?.data?.totalRecords ?? 0);
+
+  const seguidasCount = useMemo(() => seguidasData?.length ?? 0, [seguidasData]);
+
+  const closingSoonCount = useMemo(() => {
+    return licitaciones.filter(l => {
+      if (!l.fechaCierre) return false;
+      const diff = new Date(l.fechaCierre).getTime() - Date.now();
+      return diff > 0 && diff < 3 * 24 * 60 * 60 * 1000;
+    }).length;
+  }, [licitaciones]);
 
   const handleFilterChange = useCallback((partial: Partial<LicitacionFilter>) => {
     setFilter(prev => ({ ...prev, ...partial, page: 1 }));
@@ -116,6 +135,40 @@ export function LicitacionesPage() {
         </div>
       </div>
 
+      {/* ---- Metrics Cards ---- */}
+      <Row gutter={[16, 16]} style={{ marginTop: 8, marginBottom: 8 }}>
+        <Col xs={24} md={8}>
+          <Card bordered={false} style={{ background: '#ffffff', borderRadius: 14, boxShadow: 'var(--shadow-card)' }}>
+            <Statistic
+              title={<span style={{ fontSize: 12, fontWeight: 600, textTransform: 'uppercase', color: 'var(--text-secondary)' }}>Licitaciones disponibles</span>}
+              value={totalRecords}
+              prefix={<FileTextOutlined style={{ color: '#3b82f6', marginRight: 8 }} />}
+              valueStyle={{ fontSize: 22, fontWeight: 700, color: 'var(--text-primary)' }}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} md={8}>
+          <Card bordered={false} style={{ background: '#ffffff', borderRadius: 14, boxShadow: 'var(--shadow-card)' }}>
+            <Statistic
+              title={<span style={{ fontSize: 12, fontWeight: 600, textTransform: 'uppercase', color: 'var(--text-secondary)' }}>Licitaciones seguidas</span>}
+              value={seguidasCount}
+              prefix={<StarOutlined style={{ color: '#f59e0b', marginRight: 8 }} />}
+              valueStyle={{ fontSize: 22, fontWeight: 700, color: 'var(--text-primary)' }}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} md={8}>
+          <Card bordered={false} style={{ background: '#ffffff', borderRadius: 14, boxShadow: 'var(--shadow-card)' }}>
+            <Statistic
+              title={<span style={{ fontSize: 12, fontWeight: 600, textTransform: 'uppercase', color: 'var(--text-secondary)' }}>Cierran pronto (en esta pág)</span>}
+              value={closingSoonCount}
+              prefix={<ClockCircleOutlined style={{ color: '#ef4444', marginRight: 8 }} />}
+              valueStyle={{ fontSize: 22, fontWeight: 700, color: 'var(--text-primary)' }}
+            />
+          </Card>
+        </Col>
+      </Row>
+
       {/* ---- Filters (búsqueda única + reiniciar) ---- */}
       <div className="mpm-filter-bar" style={{ padding: '12px 16px' }}>
         <LicitacionFilterBar
@@ -125,7 +178,8 @@ export function LicitacionesPage() {
           searchMode={searchMode}
           onSearchModeChange={setSearchMode}
           naturalQuery={naturalQuery}
-          onNaturalQueryChange={setNaturalQuery}
+          onNaturalQueryChange={handleNaturalQueryChange}
+          onNaturalQuerySubmit={() => setSubmittedNaturalQuery(naturalQuery)}
         />
       </div>
 
@@ -134,7 +188,7 @@ export function LicitacionesPage() {
         <NaturalSearchResults
           results={naturalResults}
           loading={naturalLoading}
-          query={naturalQuery}
+          query={submittedNaturalQuery}
           onSelect={handleNaturalSelect}
         />
       ) : isError ? (
