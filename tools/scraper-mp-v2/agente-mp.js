@@ -7,9 +7,9 @@ import dotenv from 'dotenv';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-
-dotenv.config({ path: path.join(__dirname, '.env'), override: true });
-dotenv.config({ path: path.join(__dirname, '..', '..', '.env') });
+const hasSystemDb = process.env.DB_HOST && process.env.DB_HOST !== 'localhost';
+dotenv.config({ path: path.join(__dirname, '.env'), override: !hasSystemDb });
+dotenv.config({ path: path.join(__dirname, '..', '..', '.env'), override: !hasSystemDb });
 
 import { launch, close, esperarConDelay } from './modulos/browser.js';
 import { login } from './modulos/login.js';

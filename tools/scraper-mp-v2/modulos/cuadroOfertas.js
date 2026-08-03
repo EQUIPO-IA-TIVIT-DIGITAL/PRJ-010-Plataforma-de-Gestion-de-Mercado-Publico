@@ -130,6 +130,12 @@ export async function extraerCuadroOfertas(fichaPage, context, datosLicitacion, 
         return { ofertas: [], error: 'Icono no disponible para este tipo de licitacion' };
       }
 
+      const isDisabled = await iconoCuadroOfertas.getAttribute('disabled').then(val => val !== null).catch(() => false);
+      if (isDisabled) {
+        console.log(`[CUADRO-OFERTAS] El icono "Cuadro de ofertas" esta deshabilitado (disabled) en la ficha — omitiendo click.`);
+        return { ofertas: [], error: 'Icono deshabilitado en la ficha' };
+      }
+
       const pagesBefore = context.pages().length;
       await iconoCuadroOfertas.click();
       await esperarConDelay(3000);
