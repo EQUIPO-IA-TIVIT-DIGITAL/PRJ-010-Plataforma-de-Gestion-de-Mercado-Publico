@@ -56,8 +56,8 @@
 #   REDIS_HOST            REQUERIDO para api — host de Memorystore
 #   REDIS_PORT            (default: 6379)
 #   GCS_BUCKET            (default: tivit-cu010-mpm-adjuntos)
-#   SECRET_JWT / SECRET_GEMINI / SECRET_MP_TICKET / SECRET_DB_USER / SECRET_DB_PASSWORD
-#                         (defaults: jwt-secret / gemini-api-key / mp-ticket / db-user / db-password
+#   SECRET_JWT / SECRET_MP_TICKET / SECRET_MP_RUT / SECRET_MP_PASSWORD / SECRET_DB_USER / SECRET_DB_PASSWORD
+#                         (defaults: jwt-secret / mp-ticket / mp-rut / mp-password / db-user / db-password
 #                          — nombres de secretos en Secret Manager, ver scripts/setup-secrets.sh)
 
 set -euo pipefail
@@ -85,6 +85,8 @@ GCS_BUCKET="${GCS_BUCKET:-tivit-cu010-mpm-adjuntos}"
 
 SECRET_JWT="${SECRET_JWT:-jwt-secret}"
 SECRET_MP_TICKET="${SECRET_MP_TICKET:-mp-ticket}"
+SECRET_MP_RUT="${SECRET_MP_RUT:-mp-rut}"
+SECRET_MP_PASSWORD="${SECRET_MP_PASSWORD:-mp-password}"
 SECRET_DB_CONNSTRING="${SECRET_DB_CONNSTRING:-postgresql-connection-string}"
 SECRET_TELEGRAM_BOT_TOKEN="${SECRET_TELEGRAM_BOT_TOKEN:-telegram-bot-token}"
 SECRET_TELEGRAM_WEBHOOK_SECRET="${SECRET_TELEGRAM_WEBHOOK_SECRET:-telegram-webhook-secret}"
@@ -185,7 +187,12 @@ common_app_env_vars() {
 # --set-secrets para no romper el deploy; Alertas simplemente no manda a Telegram hasta que
 # existan (ver TelegramNotificationService, falla aislada; TelegramWebhookController fail-closed).
 common_app_secrets() {
-  local secrets="JWT__Secret=${SECRET_JWT}:latest,MP_TICKET=${SECRET_MP_TICKET}:latest,ConnectionStrings__PostgreSQL=${SECRET_DB_CONNSTRING}:latest,DB_HOST=db-host:latest,DB_PORT=db-port:latest,DB_NAME=db-name:latest,DB_USER=db-user:latest,DB_PASSWORD=db-password:latest"
+  # MP_RUT/MP_PASSWORD (login real a mercadopublico.cl del scraper Node, tools/scraper-mp-v2/
+  # modulos/login.js) -- los secretos mp-rut/mp-password existian en Secret Manager desde
+  # 2026-07-09 pero nunca se habian agregado aca, asi que scraper-job nunca pudo loguearse en
+  # ningun deploy hasta ahora (encontrado 2026-08-03 al destapar el bug de SSL de db.js, que
+  # hasta entonces impedia llegar siquiera a este paso).
+  local secrets="JWT__Secret=${SECRET_JWT}:latest,MP_TICKET=${SECRET_MP_TICKET}:latest,MP_RUT=${SECRET_MP_RUT}:latest,MP_PASSWORD=${SECRET_MP_PASSWORD}:latest,ConnectionStrings__PostgreSQL=${SECRET_DB_CONNSTRING}:latest,DB_HOST=db-host:latest,DB_PORT=db-port:latest,DB_NAME=db-name:latest,DB_USER=db-user:latest,DB_PASSWORD=db-password:latest"
   if gcloud secrets describe "$SECRET_TELEGRAM_BOT_TOKEN" --project="$GCP_PROJECT" >/dev/null 2>&1; then
     secrets="${secrets},Telegram__BotToken=${SECRET_TELEGRAM_BOT_TOKEN}:latest"
   fi
