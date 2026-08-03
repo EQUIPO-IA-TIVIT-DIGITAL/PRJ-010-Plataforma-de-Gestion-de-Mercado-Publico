@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react'
 import {
   Space, Typography, Button, Modal, Form, Input, Select, App, Tag, Alert, Empty,
-  Row, Col, Spin, Tooltip, DatePicker,
+  Row, Col, Spin, Tooltip, DatePicker, Popconfirm,
 } from 'antd'
 import {
   PlusOutlined, DeleteOutlined, EyeOutlined, ExclamationCircleOutlined,
@@ -119,7 +119,18 @@ function WorkspaceCard({
         </span>
 
         {/* Delete button */}
-        <Tooltip title="Eliminar workspace">
+        <Popconfirm
+          title="¿Eliminar este workspace?"
+          description="Se ocultará de la lista y no podrás recuperarlo."
+          okText="Eliminar"
+          okButtonProps={{ danger: true }}
+          cancelText="Cancelar"
+          onConfirm={(e) => {
+            e?.stopPropagation();
+            onDelete();
+          }}
+          onCancel={(e) => e?.stopPropagation()}
+        >
           <Button
             size="small"
             danger
@@ -127,7 +138,6 @@ function WorkspaceCard({
             icon={<DeleteOutlined />}
             onClick={(e) => {
               e.stopPropagation()
-              onDelete()
             }}
             style={{
               opacity: 0.5,
@@ -140,7 +150,7 @@ function WorkspaceCard({
               ;(e.currentTarget as HTMLElement).style.opacity = '0.5'
             }}
           />
-        </Tooltip>
+        </Popconfirm>
       </div>
 
       {/* Name */}
@@ -194,7 +204,7 @@ function WorkspaceCard({
         </Space>
         <Button
           size="small"
-          type={isCompletado ? 'primary' : 'default'}
+          type="default"
           icon={<EyeOutlined />}
           onClick={(e) => {
             e.stopPropagation()
@@ -208,6 +218,7 @@ function WorkspaceCard({
               ? {
                   background: 'linear-gradient(135deg, #10b981, #34d399)',
                   border: 'none',
+                  color: 'white',
                   boxShadow: '0 2px 8px rgba(16,185,129,0.3)',
                 }
               : {}),

@@ -10,6 +10,7 @@ public static class AnalisisStoredProcedures
     public const string DocumentosCrear = "CALL usp_AnalisisDocumentos_Crear(@p_workspace_id, @p_nombre_archivo, @p_mime_type, @p_tamanio_bytes, @p_ruta_storage, @p_id, @p_error_msg)";
     public const string DocumentosListar = "SELECT * FROM usp_AnalisisDocumentos_Listar(@p_workspace_id)";
     public const string DocumentosObtener = "SELECT * FROM usp_AnalisisDocumentos_Obtener(@p_id)";
+    public const string DocumentosEliminar = "CALL usp_AnalisisDocumentos_Eliminar(@p_id, @p_workspace_id, @p_error_msg)";
     public const string ResultadosCrear = "CALL usp_AnalisisResultados_Crear(@p_workspace_id, @p_documento_id, @p_contenido_json, @p_modelo_usado, @p_tokens_entrada, @p_tokens_salida, @p_id, @p_error_msg)";
     public const string ResultadosObtenerPorWorkspace = "SELECT * FROM usp_AnalisisResultados_ObtenerPorWorkspace(@p_workspace_id)";
     public const string ResultadosObtenerPorLicitacion = "SELECT * FROM usp_AnalisisResultados_ObtenerPorLicitacion(@p_licitacion_id)";

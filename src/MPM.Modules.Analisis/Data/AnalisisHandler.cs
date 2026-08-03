@@ -115,6 +115,18 @@ public class AnalisisHandler(DbConnectionFactory dbFactory)
             commandType: CommandType.Text);
     }
 
+    public async Task<string?> EliminarDocumentoAsync(long id, long workspaceId, CancellationToken ct = default)
+    {
+        await using var conn = _dbFactory.Create();
+        var p = new DynamicParameters();
+        p.Add("p_id", id);
+        p.Add("p_workspace_id", workspaceId);
+        p.Add("p_error_msg", dbType: DbType.String, size: 1000, direction: ParameterDirection.InputOutput);
+
+        await conn.ExecuteAsync(AnalisisStoredProcedures.DocumentosEliminar, p, commandType: CommandType.Text);
+        return p.Get<string?>("p_error_msg");
+    }
+
     public async Task<(long Id, string? Error)> CrearResultadoAsync(long workspaceId, long documentoId, string contenidoJson, string modeloUsado, int tokensEntrada, int tokensSalida, CancellationToken ct = default)
     {
         await using var conn = _dbFactory.Create();

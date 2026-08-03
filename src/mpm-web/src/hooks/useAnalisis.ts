@@ -99,6 +99,21 @@ export function useSubirDocumento() {
   })
 }
 
+export function useEliminarDocumento() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ workspaceId, documentoId }: { workspaceId: number; documentoId: number }) =>
+      apiFetch<{ data: { result: boolean } }>(`${BASE}/workspaces/${workspaceId}/documentos/${documentoId}`, {
+        method: 'DELETE',
+      }),
+    onSuccess: (_, { workspaceId }) => {
+      queryClient.invalidateQueries({ queryKey: ['analisis-documentos', workspaceId] })
+      queryClient.invalidateQueries({ queryKey: ['analisis-workspace', workspaceId] })
+      queryClient.invalidateQueries({ queryKey: ['analisis-workspaces'] })
+    },
+  })
+}
+
 export function useAnalizar() {
   const queryClient = useQueryClient()
   return useMutation({

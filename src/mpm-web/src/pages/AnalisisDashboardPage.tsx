@@ -931,43 +931,7 @@ export function AnalisisDashboardPage() {
         </Card>
       )}
 
-      {/* ---- Metadata ---- */}
-      <Card style={{ background: 'var(--bg-muted)', border: '1px solid var(--border)' }}>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 24 }}>
-          <div>
-            <p style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: 4 }}>
-              Documento
-            </p>
-            <p style={{ fontSize: 13, fontWeight: 500, margin: 0 }}>{resultado.documentoNombre}</p>
-          </div>
-          <div>
-            <p style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: 4 }}>
-              Modelo
-            </p>
-            <p style={{ fontSize: 13, fontWeight: 500, margin: 0 }}>{resultado.modeloUsado}</p>
-          </div>
-          <div>
-            <p style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: 4 }}>
-              Tokens entrada
-            </p>
-            <p style={{ fontSize: 13, fontWeight: 500, margin: 0 }}>{(resultado.tokensEntrada ?? 0).toLocaleString()}</p>
-          </div>
-          <div>
-            <p style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: 4 }}>
-              Tokens salida
-            </p>
-            <p style={{ fontSize: 13, fontWeight: 500, margin: 0 }}>{(resultado.tokensSalida ?? 0).toLocaleString()}</p>
-          </div>
-          <div>
-            <p style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: 4 }}>
-              Fecha análisis
-            </p>
-            <p style={{ fontSize: 13, fontWeight: 500, margin: 0 }}>
-              {new Date(resultado.createdAt).toLocaleString('es-CL')}
-            </p>
-          </div>
-        </div>
-      </Card>
+
 
       {/* ---- Chat contextual: botón flotante + panel lateral ---- */}
       <FloatButton

@@ -74,6 +74,27 @@ public class AnalisisService(
         return (docs, null);
     }
 
+    public async Task<(bool Success, string? Error)> EliminarDocumentoAsync(long id, long workspaceId, CancellationToken ct = default)
+    {
+        var doc = await _handler.ObtenerDocumentoAsync(id, ct);
+        if (doc == null || doc.WorkspaceId != workspaceId)
+            return (false, "ANA_006:Documento no encontrado");
+
+        var error = await _handler.EliminarDocumentoAsync(id, workspaceId, ct);
+        if (error != null) return (false, error);
+
+        try
+        {
+            await _storageService.DeleteAsync(doc.RutaStorage, ct);
+        }
+        catch
+        {
+            // Opcional: registrar error pero no bloquear si el archivo fisico ya no existe
+        }
+
+        return (true, null);
+    }
+
     public async Task<(AnalisisResumenDto? Resultado, string? Error)> AnalizarAsync(
         long workspaceId, long? documentoId, CancellationToken ct = default)
     {

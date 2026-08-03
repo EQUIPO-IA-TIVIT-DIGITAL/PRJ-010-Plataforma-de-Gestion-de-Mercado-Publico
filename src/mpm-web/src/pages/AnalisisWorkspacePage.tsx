@@ -1,13 +1,13 @@
 import { useCallback, useRef, useEffect } from 'react'
-import { Space, Typography, Table, Button, Tag, App, Alert, Empty } from 'antd'
+import { Space, Typography, Table, Button, Tag, App, Alert, Empty, Popconfirm } from 'antd'
 import {
   UploadOutlined, PlayCircleOutlined, ArrowLeftOutlined, BarChartOutlined, LoadingOutlined,
   FileTextOutlined, ClockCircleOutlined, CheckCircleOutlined, WarningOutlined,
-  FolderOpenOutlined, CalendarOutlined,
+  FolderOpenOutlined, CalendarOutlined, DeleteOutlined,
 } from '@ant-design/icons'
 import { useNavigate, useParams } from 'react-router-dom'
 import dayjs from 'dayjs'
-import { useWorkspaceDetalle, useListarDocumentos, useSubirDocumento, useAnalizar } from '../hooks/useAnalisis'
+import { useWorkspaceDetalle, useListarDocumentos, useSubirDocumento, useAnalizar, useEliminarDocumento } from '../hooks/useAnalisis'
 import type { DocumentoItem } from '../types/analisis'
 
 const STATUS_CONFIG: Record<string, { color: string; bg: string; icon: React.ReactNode; label: string }> = {
@@ -53,6 +53,7 @@ export function AnalisisWorkspacePage() {
   const { data: docsData, isLoading: docsLoading } = useListarDocumentos(workspaceId)
   const subirMutation = useSubirDocumento()
   const analizarMutation = useAnalizar()
+  const eliminarDocMutation = useEliminarDocumento()
 
   const workspace = workspaceData?.data
   const documentos = docsData?.data ?? []
@@ -94,6 +95,16 @@ export function AnalisisWorkspacePage() {
     }
   }, [workspaceId, analizarMutation, message, notification])
 
+  const handleEliminarDocumento = useCallback(async (documentoId: number) => {
+    if (!workspaceId) return
+    try {
+      await eliminarDocMutation.mutateAsync({ workspaceId, documentoId })
+      message.success('Documento eliminado')
+    } catch (e) {
+      message.error(e instanceof Error ? e.message : 'Error al eliminar documento')
+    }
+  }, [workspaceId, eliminarDocMutation, message])
+
   const columns = [
     {
       title: 'Nombre',
@@ -132,16 +143,26 @@ export function AnalisisWorkspacePage() {
       key: 'accion',
       width: 110,
       render: (_: unknown, record: DocumentoItem) => (
-        <Button
-          type="primary"
-          size="small"
-          icon={<BarChartOutlined />}
-          onClick={() => handleAnalizar(record.id)}
+        <Popconfirm
+          title="¿Ocultar este documento?"
+          description="Se ocultará del workspace pero permanecerá registrado en el sistema."
+          onConfirm={() => handleEliminarDocumento(record.id)}
+          okText="Ocultar"
+          okButtonProps={{ danger: true }}
+          cancelText="Cancelar"
           disabled={isAnalizando}
-          style={{ borderRadius: 8, fontSize: 12 }}
         >
-          Analizar
-        </Button>
+          <Button
+            type="text"
+            danger
+            size="small"
+            icon={<DeleteOutlined />}
+            disabled={isAnalizando}
+            style={{ borderRadius: 8 }}
+          >
+            Eliminar
+          </Button>
+        </Popconfirm>
       ),
     },
   ]
@@ -154,7 +175,7 @@ export function AnalisisWorkspacePage() {
     <Space direction="vertical" size={20} style={{ width: '100%' }}>
 
       {/* ---- Page Header ---- */}
-      <div className="mpm-page-header">
+      <div className="mpm-page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: 16 }}>
         <div>
           <Button
             icon={<ArrowLeftOutlined />}
@@ -191,6 +212,25 @@ export function AnalisisWorkspacePage() {
             <p className="mpm-page-subtitle">{workspace.licitacionNombre}</p>
           )}
         </div>
+
+        {/* Header Actions */}
+        {workspace?.estado === 'completado' && (
+          <Button
+            type="primary"
+            icon={<BarChartOutlined />}
+            onClick={() => navigate(`/analisis/${workspaceId}/dashboard`)}
+            style={{
+              borderRadius: 10,
+              height: 38,
+              background: '#10b981',
+              borderColor: '#10b981',
+              fontWeight: 600,
+              boxShadow: '0 4px 12px rgba(16,185,129,0.2)',
+            }}
+          >
+            Ver dashboard de resultados
+          </Button>
+        )}
       </div>
 
       {isAnalizando && (
@@ -200,27 +240,6 @@ export function AnalisisWorkspacePage() {
           type="info"
           showIcon
           icon={<LoadingOutlined spin />}
-          style={{ borderRadius: 12 }}
-        />
-      )}
-
-      {workspace?.estado === 'completado' && (
-        <Alert
-          type="success"
-          showIcon
-          icon={<CheckCircleOutlined />}
-          message="El último análisis terminó correctamente"
-          action={
-            <Button
-              type="primary"
-              size="small"
-              icon={<BarChartOutlined />}
-              onClick={() => navigate(`/analisis/${workspaceId}/dashboard`)}
-              style={{ borderRadius: 8, background: '#10b981', border: 'none' }}
-            >
-              Ver dashboard
-            </Button>
-          }
           style={{ borderRadius: 12 }}
         />
       )}
