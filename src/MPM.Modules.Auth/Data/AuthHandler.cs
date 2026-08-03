@@ -45,4 +45,28 @@ public class AuthHandler(DbConnectionFactory dbFactory)
                     LIMIT 50";
         return await conn.QueryAsync<UsuarioItemDto>(sql, new { p_search = search });
     }
+
+    public async Task<bool> ActualizarNombreUsuarioAsync(long userId, string nuevoNombre, CancellationToken ct = default)
+    {
+        await using var conn = _dbFactory.Create();
+        var sql = "UPDATE usuarios SET nombre = @nombre, updated_at = CURRENT_TIMESTAMP WHERE id = @id AND deleted_at IS NULL";
+        var rows = await conn.ExecuteAsync(sql, new { nombre = nuevoNombre, id = userId });
+        return rows > 0;
+    }
+
+    public async Task<bool> ValidarPasswordAsync(long userId, string passwordActual, CancellationToken ct = default)
+    {
+        await using var conn = _dbFactory.Create();
+        var sql = "SELECT (password_hash = crypt(@passwordActual, password_hash)) AS IsValid FROM usuarios WHERE id = @id AND deleted_at IS NULL";
+        var isValid = await conn.QueryFirstOrDefaultAsync<bool>(sql, new { passwordActual, id = userId });
+        return isValid;
+    }
+
+    public async Task<bool> ActualizarPasswordAsync(long userId, string nuevaPassword, CancellationToken ct = default)
+    {
+        await using var conn = _dbFactory.Create();
+        var sql = "UPDATE usuarios SET password_hash = crypt(@nuevaPassword, gen_salt('bf', 11)), updated_at = CURRENT_TIMESTAMP WHERE id = @id AND deleted_at IS NULL";
+        var rows = await conn.ExecuteAsync(sql, new { nuevaPassword, id = userId });
+        return rows > 0;
+    }
 }

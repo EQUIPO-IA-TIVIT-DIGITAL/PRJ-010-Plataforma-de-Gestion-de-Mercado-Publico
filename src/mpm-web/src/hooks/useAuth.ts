@@ -75,5 +75,17 @@ export function useAuth() {
     }
   };
 
-  return { user, login, logout, loading, rememberedEmail, saveRememberedEmail };
+  const updateUserLocal = (nombre: string) => {
+    const stored = localStorage.getItem('mpm_user');
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored);
+        parsed.nombre = nombre;
+        localStorage.setItem('mpm_user', JSON.stringify(parsed));
+        setUser(parsed);
+      } catch { /* ignore */ }
+    }
+  };
+
+  return { user, login, logout, loading, rememberedEmail, saveRememberedEmail, updateUserLocal };
 }

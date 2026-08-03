@@ -1,12 +1,14 @@
-import { useState } from 'react';
-import { Layout, Avatar, Dropdown, Typography, Tooltip, Badge } from 'antd';
+import { useState, useEffect } from 'react';
+import { Layout, Avatar, Dropdown, Typography, Tooltip, Badge, Modal, Tabs, Input, Button, message, Tag } from 'antd';
 import {
   FileTextOutlined, BarChartOutlined, BellOutlined, MessageOutlined,
   LogoutOutlined, DatabaseOutlined, MenuFoldOutlined, MenuUnfoldOutlined,
   UserOutlined, SettingOutlined, DownOutlined, NotificationOutlined, TeamOutlined,
+  SendOutlined, LockOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import { apiPut, apiPost } from '../lib/apiClient';
 import NotificationBell from './NotificationBell';
 import { AnalisisCompletionWatcher } from './AnalisisCompletionWatcher';
 
@@ -30,8 +32,143 @@ const NAV_ITEMS = [
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, logout } = useAuth();
+  const { user, logout, updateUserLocal } = useAuth();
   const [collapsed, setCollapsed] = useState(false);
+
+  const [settingsModalOpen, setSettingsModalOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<'profile' | 'settings' | 'security'>('profile');
+  const [nombre, setNombre] = useState(user?.nombre ?? '');
+  const [emailAlertas, setEmailAlertas] = useState('');
+  const [telegramChatId, setTelegramChatId] = useState('');
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [savingEmail, setSavingEmail] = useState(false);
+  const [savingTelegram, setSavingTelegram] = useState(false);
+  const [generatingTelegramLink, setGeneratingTelegramLink] = useState(false);
+
+  // Password change states
+  const [passwordActual, setPasswordActual] = useState('');
+  const [nuevaPassword, setNuevaPassword] = useState('');
+  const [confirmarPassword, setConfirmarPassword] = useState('');
+  const [savingPassword, setSavingPassword] = useState(false);
+
+  // Sync state with user when it changes
+  useEffect(() => {
+    if (user) {
+      setNombre(user.nombre);
+    }
+  }, [user]);
+
+  const handleUpdatePassword = async () => {
+    if (!passwordActual) {
+      message.error('Ingresa tu contraseña actual');
+      return;
+    }
+    if (!nuevaPassword || nuevaPassword.length < 6) {
+      message.error('La nueva contraseña debe tener al menos 6 caracteres');
+      return;
+    }
+    if (nuevaPassword !== confirmarPassword) {
+      message.error('La confirmación de la nueva contraseña no coincide');
+      return;
+    }
+
+    setSavingPassword(true);
+    try {
+      await apiPut('/api/v1/usuarios/mi-password', {
+        passwordActual,
+        nuevaPassword,
+        confirmarPassword,
+      });
+      message.success('Contraseña actualizada correctamente');
+      setPasswordActual('');
+      setNuevaPassword('');
+      setConfirmarPassword('');
+    } catch (err) {
+      message.error(err instanceof Error ? err.message : 'Error al actualizar la contraseña');
+    } finally {
+      setSavingPassword(false);
+    }
+  };
+
+  const handleUpdateName = async () => {
+    if (!nombre.trim()) {
+      message.error('El nombre no puede estar vacío');
+      return;
+    }
+    setSavingProfile(true);
+    try {
+      await apiPut('/api/v1/usuarios/mi-perfil', { nombre: nombre.trim() });
+      updateUserLocal(nombre.trim());
+      message.success('Perfil actualizado correctamente');
+    } catch (err) {
+      message.error(err instanceof Error ? err.message : 'Error al actualizar el perfil');
+    } finally {
+      setSavingProfile(false);
+    }
+  };
+
+  const handleUpdateEmail = async () => {
+    if (!emailAlertas.trim() || !emailAlertas.includes('@')) {
+      message.error('Ingresá un correo electrónico válido');
+      return;
+    }
+    setSavingEmail(true);
+    try {
+      await apiPost('/api/v1/alertas/mi-email', { emailAlertas: emailAlertas.trim() });
+      message.success('Canal de correo configurado');
+      setEmailAlertas('');
+    } catch (err) {
+      message.error(err instanceof Error ? err.message : 'Error al guardar el correo');
+    } finally {
+      setSavingEmail(false);
+    }
+  };
+
+  const handleUpdateTelegram = async () => {
+    if (!telegramChatId.trim()) {
+      message.error('Ingresá tu Chat ID');
+      return;
+    }
+    setSavingTelegram(true);
+    try {
+      await apiPost('/api/v1/alertas/mi-telegram', { telegramChatId: telegramChatId.trim() });
+      message.success('Chat de Telegram guardado');
+      setTelegramChatId('');
+    } catch (err) {
+      message.error(err instanceof Error ? err.message : 'Error al guardar Telegram');
+    } finally {
+      setSavingTelegram(false);
+    }
+  };
+
+  const handleLinkTelegram = async () => {
+    setGeneratingTelegramLink(true);
+    try {
+      const res = await apiPost<{ data: { url: string } }>('/api/v1/alertas/mi-telegram/link');
+      if (res?.data?.url) {
+        window.open(res.data.url, '_blank', 'noopener,noreferrer');
+      } else {
+        message.error('No se pudo generar el link');
+      }
+    } catch (err) {
+      message.error(err instanceof Error ? err.message : 'Error al generar el link');
+    } finally {
+      setGeneratingTelegramLink(false);
+    }
+  };
+
+  const handleMenuClick = (e: { key: string }) => {
+    if (e.key === 'profile') {
+      setActiveTab('profile');
+      setSettingsModalOpen(true);
+    } else if (e.key === 'settings') {
+      setActiveTab('settings');
+      setSettingsModalOpen(true);
+    } else if (e.key === 'security') {
+      setActiveTab('security');
+      setSettingsModalOpen(true);
+    }
+  };
 
   const initials = user?.nombre
     ? user.nombre.split(' ').map((n: string) => n[0]).slice(0, 2).join('').toUpperCase()
@@ -47,6 +184,11 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       key: 'settings',
       icon: <SettingOutlined />,
       label: <span style={{ fontWeight: 500 }}>Configuración</span>,
+    },
+    {
+      key: 'security',
+      icon: <LockOutlined />,
+      label: <span style={{ fontWeight: 500 }}>Cambiar contraseña</span>,
     },
     { type: 'divider' as const },
     {
@@ -368,7 +510,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           />
 
           {/* User dropdown */}
-          <Dropdown menu={{ items: userMenuItems }} placement="bottomRight" trigger={['click']}>
+          <Dropdown menu={{ items: userMenuItems, onClick: handleMenuClick }} placement="bottomRight" trigger={['click']}>
             <div
               style={{
                 display: 'flex',
@@ -431,6 +573,186 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           </div>
         </Content>
       </Layout>
+
+      {/* ---- User Profile & Settings Modal ---- */}
+      <Modal
+        title={
+          <span style={{ fontSize: 16, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <UserOutlined style={{ color: '#E30613' }} /> Mi Perfil y Configuración
+          </span>
+        }
+        open={settingsModalOpen}
+        onCancel={() => setSettingsModalOpen(false)}
+        footer={null}
+        width={500}
+        style={{ borderRadius: 14 }}
+      >
+        <Tabs
+          activeKey={activeTab}
+          onChange={(key) => setActiveTab(key as any)}
+          items={[
+            {
+              key: 'profile',
+              label: 'Mi Perfil',
+              children: (
+                <div style={{ padding: '8px 0', display: 'flex', flexDirection: 'column', gap: 16 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 16, paddingBottom: 16, borderBottom: '1px solid var(--border)' }}>
+                    <Avatar
+                      size={64}
+                      style={{
+                        background: 'linear-gradient(135deg, #E30613, #ff3a46)',
+                        fontSize: 24,
+                        fontWeight: 700,
+                      }}
+                    >
+                      {initials}
+                    </Avatar>
+                    <div>
+                      <Typography.Title level={5} style={{ margin: 0, fontWeight: 700 }}>
+                        {user?.nombre ?? 'Usuario'}
+                      </Typography.Title>
+                      <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                        {user?.email ?? 'correo@tivit.cl'}
+                      </Typography.Text>
+                      <div style={{ marginTop: 4 }}>
+                        {user?.roles?.map((r: string) => (
+                          <Tag key={r} color="red" style={{ borderRadius: 6, fontSize: 10 }}>
+                            {r.toUpperCase()}
+                          </Tag>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                  <div>
+                    <Typography.Text strong style={{ fontSize: 13, display: 'block', marginBottom: 8 }}>
+                      Modificar Nombre
+                    </Typography.Text>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <Input
+                        value={nombre}
+                        onChange={(e) => setNombre(e.target.value)}
+                        placeholder="Ingresa tu nombre..."
+                        style={{ borderRadius: 8 }}
+                      />
+                      <Button
+                        type="primary"
+                        onClick={handleUpdateName}
+                        loading={savingProfile}
+                        style={{ borderRadius: 8, background: '#E30613', border: 'none', fontWeight: 600 }}
+                      >
+                        Guardar
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              ),
+            },
+            {
+              key: 'settings',
+              label: 'Configuración Alertas',
+              children: (
+                <div style={{ padding: '8px 0', display: 'flex', flexDirection: 'column', gap: 20 }}>
+                  {/* Correo */}
+                  <div>
+                    <Typography.Text strong style={{ fontSize: 13.5, display: 'block', marginBottom: 2 }}>
+                      ✉️ Canal de Correo
+                    </Typography.Text>
+                    <Typography.Text type="secondary" style={{ fontSize: 11.5, display: 'block', marginBottom: 10 }}>
+                      Configura una dirección de correo adicional para recibir alertas detalladas del scraper.
+                    </Typography.Text>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <Input
+                        value={emailAlertas}
+                        onChange={(e) => setEmailAlertas(e.target.value)}
+                        placeholder="ej. alertas-tivit@tivit.cl"
+                        style={{ borderRadius: 8 }}
+                      />
+                      <Button
+                        type="primary"
+                        onClick={handleUpdateEmail}
+                        loading={savingEmail}
+                        style={{ borderRadius: 8, background: '#E30613', border: 'none', fontWeight: 600 }}
+                      >
+                        Guardar
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              ),
+            },
+            {
+              key: 'security',
+              label: 'Seguridad',
+              children: (
+                <div style={{ padding: '8px 0', display: 'flex', flexDirection: 'column', gap: 16 }}>
+                  <div>
+                    <Typography.Text strong style={{ fontSize: 13.5, display: 'block', marginBottom: 2 }}>
+                      Cambiar Contraseña
+                    </Typography.Text>
+                    <Typography.Text type="secondary" style={{ fontSize: 11.5, display: 'block', marginBottom: 12 }}>
+                      Ingresa tu contraseña actual y luego la nueva contraseña con su respectiva confirmación.
+                    </Typography.Text>
+                    
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                      <div>
+                        <Typography.Text style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>
+                          Contraseña actual
+                        </Typography.Text>
+                        <Input.Password
+                          value={passwordActual}
+                          onChange={(e) => setPasswordActual(e.target.value)}
+                          placeholder="Tu contraseña actual..."
+                          style={{ borderRadius: 8 }}
+                        />
+                      </div>
+                      
+                      <div>
+                        <Typography.Text style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>
+                          Nueva contraseña
+                        </Typography.Text>
+                        <Input.Password
+                          value={nuevaPassword}
+                          onChange={(e) => setNuevaPassword(e.target.value)}
+                          placeholder="Mínimo 6 caracteres..."
+                          style={{ borderRadius: 8 }}
+                        />
+                      </div>
+                      
+                      <div>
+                        <Typography.Text style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>
+                          Confirmar nueva contraseña
+                        </Typography.Text>
+                        <Input.Password
+                          value={confirmarPassword}
+                          onChange={(e) => setConfirmarPassword(e.target.value)}
+                          placeholder="Repite la nueva contraseña..."
+                          style={{ borderRadius: 8 }}
+                        />
+                      </div>
+
+                      <Button
+                        type="primary"
+                        onClick={handleUpdatePassword}
+                        loading={savingPassword}
+                        style={{
+                          borderRadius: 8,
+                          background: '#E30613',
+                          border: 'none',
+                          fontWeight: 600,
+                          marginTop: 8,
+                          alignSelf: 'flex-start',
+                        }}
+                      >
+                        Actualizar contraseña
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              ),
+            },
+          ]}
+        />
+      </Modal>
     </Layout>
   );
 }
