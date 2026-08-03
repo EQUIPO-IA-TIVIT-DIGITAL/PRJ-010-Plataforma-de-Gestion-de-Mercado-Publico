@@ -1,0 +1,13 @@
+{
+  "name": "mpm-demo",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Script de Puppeteer para grabar una demo del aplicativo MPM",
+  "main": "demo-mpm.js",
+  "scripts": {
+    "demo": "node demo-mpm.js"
+  },
+  "dependencies": {
+    "puppeteer": "^23.11.1"
+  }
+}
