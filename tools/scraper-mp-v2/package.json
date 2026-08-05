@@ -14,6 +14,7 @@
     "extraer": "node extraer.js"
   },
   "dependencies": {
+    "cheerio": "^1.0.0",
     "dotenv": "^16.6.1",
     "pg": "^8.13.0",
     "playwright": "^1.50.0"
