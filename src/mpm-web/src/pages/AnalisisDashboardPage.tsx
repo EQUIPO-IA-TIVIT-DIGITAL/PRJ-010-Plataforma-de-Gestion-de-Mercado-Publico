@@ -15,6 +15,9 @@ import { useDashboard } from '../hooks/useAnalisis'
 import { AnalisisChat, SparklesIcon } from '../components/AnalisisChat'
 import { ComparativaDocumentos, type ValidacionDocumental } from '../components/ComparativaDocumentos'
 import { generarPdfAnalisis } from '../lib/analisisPdf'
+import { PageHeader } from '../components/PageHeader'
+import { StatusBadge } from '../components/StatusBadge'
+import type { StatusBadgeVariant } from '../components/StatusBadge'
 
 interface Organismo {
   nombre?: string | null
@@ -199,13 +202,14 @@ function formatNumber(value?: number | null, suffix = ''): string {
   return `${value}${suffix}`
 }
 
-function impactoColor(impacto?: string | null): { color: string; bg: string } {
-  if (!impacto) return { color: '#64748b', bg: '#f8fafc' }
+// US2 (spec 019): impacto -> variante de StatusBadge (antes hex propio por pantalla).
+function impactoVariant(impacto?: string | null): StatusBadgeVariant {
+  if (!impacto) return 'neutral'
   const i = impacto.toLowerCase()
-  if (i.includes('alto')) return { color: '#ef4444', bg: '#fef2f2' }
-  if (i.includes('medio')) return { color: '#f59e0b', bg: '#fffbeb' }
-  if (i.includes('bajo')) return { color: '#10b981', bg: '#f0fdf4' }
-  return { color: '#64748b', bg: '#f8fafc' }
+  if (i.includes('alto')) return 'error'
+  if (i.includes('medio')) return 'warning'
+  if (i.includes('bajo')) return 'success'
+  return 'neutral'
 }
 
 function nivelColor(nivel?: string | null): string {
@@ -340,86 +344,24 @@ export function AnalisisDashboardPage() {
     <Space direction="vertical" size={20} style={{ width: '100%' }} id="dashboard-content">
 
       {/* ---- Page Header ---- */}
-      <div className="mpm-page-header">
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
-            <Button
-              icon={<ArrowLeftOutlined />}
-              onClick={() => navigate(`/analisis/${workspaceId}`)}
-              style={{ borderRadius: 10, height: 36 }}
-            >
-              Volver
-            </Button>
-            <div
-              style={{
-                width: 32,
-                height: 32,
-                borderRadius: 8,
-                background: 'linear-gradient(135deg, #10b981, #34d399)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                boxShadow: '0 4px 10px rgba(16,185,129,0.3)',
-              }}
-            >
-              <BarChartOutlined style={{ color: 'white', fontSize: 15 }} />
-            </div>
-            <h1 className="mpm-page-title" style={{ fontSize: 18 }}>
-              {lic?.nombre ?? 'Dashboard de Análisis'}
-            </h1>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingLeft: 96 }}>
-            <span
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 4,
-                padding: '3px 10px',
-                borderRadius: 999,
-                fontSize: 11,
-                fontWeight: 600,
-                color: '#10b981',
-                background: '#f0fdf4',
-                border: '1px solid rgba(16,185,129,0.2)',
-              }}
-            >
-              <CheckCircleOutlined /> Completado
-            </span>
-            {lic?.id && (
-              <span
-                style={{
-                  fontSize: 12,
-                  color: '#3b82f6',
-                  background: '#eff6ff',
-                  padding: '3px 8px',
-                  borderRadius: 6,
-                  fontFamily: 'monospace',
-                  fontWeight: 600,
-                }}
-              >
-                {lic.id}
-              </span>
-            )}
-          </div>
-        </div>
-
-        <Button
-          icon={<ReloadOutlined />}
-          onClick={() => navigate(0)}
-          style={{ borderRadius: 10, height: 36 }}
-        >
-          Recargar
+      <div>
+        <Button icon={<ArrowLeftOutlined />} onClick={() => navigate(`/analisis/${workspaceId}`)} type="text" style={{ marginBottom: 8, paddingLeft: 0 }}>
+          Volver
         </Button>
-        <Button
-          icon={<FileTextOutlined />}
-          onClick={handleDownloadPDF}
-          style={{
-            borderRadius: 10, height: 36,
-            background: '#0f172a', color: 'white', border: 'none',
-          }}
-        >
-          Exportar PDF
-        </Button>
+        <PageHeader
+          icon={<BarChartOutlined />}
+          title={lic?.nombre ?? 'Dashboard de Análisis'}
+          actions={
+            <>
+              <Button icon={<ReloadOutlined />} onClick={() => navigate(0)}>Recargar</Button>
+              <Button icon={<FileTextOutlined />} onClick={handleDownloadPDF}>Exportar PDF</Button>
+            </>
+          }
+        />
+        <Space size={8}>
+          <StatusBadge variant="success" label="Completado" icon={<CheckCircleOutlined />} />
+          {lic?.id && <Typography.Text code>{lic.id}</Typography.Text>}
+        </Space>
       </div>
 
       {/* ---- Revocación detectada (FR-012/US8) ---- */}
@@ -703,7 +645,6 @@ export function AnalisisDashboardPage() {
           <SectionTitle icon={<AlertOutlined />} title="Brechas identificadas" color="#f59e0b" />
           <Space direction="vertical" size={12} style={{ width: '100%' }}>
             {at.brechas_identificadas.map((f, i) => {
-              const cfg = impactoColor(f.impacto)
               return (
                 <div
                   key={i}
@@ -736,25 +677,13 @@ export function AnalisisDashboardPage() {
                   </div>
                   <div style={{ flex: 1 }}>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
-                      {f.area && (
-                        <span style={{ fontSize: 11, fontWeight: 600, color: '#64748b', background: '#f1f5f9', padding: '2px 8px', borderRadius: 999 }}>
-                          {f.area}
-                        </span>
-                      )}
-                      {f.impacto && (
-                        <span style={{ fontSize: 11, fontWeight: 600, color: cfg.color, background: cfg.bg, padding: '2px 8px', borderRadius: 999 }}>
-                          Impacto: {f.impacto}
-                        </span>
-                      )}
+                      {f.area && <StatusBadge variant="neutral" label={f.area} />}
+                      {f.impacto && <StatusBadge variant={impactoVariant(f.impacto)} label={`Impacto: ${f.impacto}`} />}
                       {f.diferencia_puntaje != null && (
-                        <span style={{ fontSize: 11, fontWeight: 600, color: '#8b5cf6', background: '#faf5ff', padding: '2px 8px', borderRadius: 999 }}>
-                          Diferencia: {f.diferencia_puntaje} pts
-                        </span>
+                        <StatusBadge variant="tertiary" label={`Diferencia: ${f.diferencia_puntaje} pts`} />
                       )}
                       {f.se_puede_mitigar != null && (
-                        <span style={{ fontSize: 11, fontWeight: 600, color: f.se_puede_mitigar ? '#10b981' : '#ef4444', background: f.se_puede_mitigar ? '#f0fdf4' : '#fef2f2', padding: '2px 8px', borderRadius: 999 }}>
-                          {f.se_puede_mitigar ? 'Mitigable' : 'No mitigable'}
-                        </span>
+                        <StatusBadge variant={f.se_puede_mitigar ? 'success' : 'error'} label={f.se_puede_mitigar ? 'Mitigable' : 'No mitigable'} />
                       )}
                     </div>
                     <Typography.Text style={{ fontSize: 13, color: 'var(--text-primary)' }}>

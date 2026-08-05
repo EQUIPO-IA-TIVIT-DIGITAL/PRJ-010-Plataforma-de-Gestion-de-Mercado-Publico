@@ -9,6 +9,15 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
 ### Added
 
+- **019 — Rediseño frontend por pantalla**
+  - Dos componentes compartidos nuevos en `src/mpm-web/src/components/`: `StatusBadge.tsx` (6 variantes semánticas — `neutral/info/warning/success/error/tertiary` — sobre los tokens del theme de `main.tsx`) y `PageHeader.tsx` (chip de ícono siempre en `colorPrimary`), reemplazando 5 implementaciones de badge de estado y 3 estructuras de header divergentes encontradas en una auditoría de consistencia
+  - **Licitaciones**: corregida la grilla de tarjetas de estadísticas por estado (dejaba un hueco de alineación cuando el número de estados no completaba la fila, ej. junto a "Revocada"); densidad visual reducida — las tarjetas de resumen pasan de `Card`+`Statistic` a una fila compacta
+  - **Análisis** (lista, workspace, dashboard, chat): rediseño completo del módulo de mayor prioridad — `StatusBadge`/`PageHeader` en las 4 pantallas, tarjetas de workspace migradas a `Card` de Ant Design, botones con gradiente inline reemplazados por el estilo `primary` del theme, emojis reemplazados por `@ant-design/icons`
+  - **Catálogos, Mensajería, Ejecutivo, Alertas, Competidores**: mismos componentes compartidos adoptados; `MensajeriaPage.tsx` reconstruida sobre `Layout`/`Layout.Sider` de Ant Design en vez de `div`+estilos inline, sin tocar los hooks de tiempo real (`useChatLogic`, `usePresencia`)
+  - Notificaciones queda explícitamente fuera de alcance
+  - Diferido: comparativa nueva de "cobertura de mercado" en Ejecutivo (requiere endpoint backend nuevo, `contracts/ejecutivo-cobertura-mercado.md`) — no implementada en esta pasada
+  - Trabajo hecho en una rama dedicada (no en `src/mpm-web` de `dev` directamente) tras descartar un intento previo de otro agente que había anidado un proyecto duplicado dentro del mismo `src/mpm-web`
+
 - **031 — Feedback ChileCompra (filtro por área, estadísticas de estado, orden de análisis, competidores ampliado, flujo colaborativo go/no-go)**
   - **Filtro por área de negocio (US1)**: catálogo `areas_negocio` (migración V118, semilla Cloud/Ciberseguridad/Digital) + función `fn_licitacion_area_codigos` que clasifica licitaciones en consulta contra el `search_vector` (tsvector) ya existente, sin columna nueva en `licitaciones`; parámetros `area`/`sinClasificar` en `usp_Licitaciones_Listar` (V119, reparado en V125 — ver Fixed) y `GET /api/v1/licitaciones`; endpoint `GET /api/v1/catalogos/areas-negocio`; selector de área + toggle "sin clasificar" en `LicitacionFilterBar.tsx`
   - **Estadísticas de estado con drill-down (US2)**: nuevo SP `usp_Licitaciones_ContarPorEstado` (V120) — los 5 estados reales (Publicada/Cerrada/Desierta/Adjudicada/Revocada) siempre aparecen, incluso con conteo 0; endpoint `GET /api/v1/licitaciones/estadisticas-estado`; tarjetas clicables en `LicitacionesPage.tsx` que navegan al listado filtrado por ese estado

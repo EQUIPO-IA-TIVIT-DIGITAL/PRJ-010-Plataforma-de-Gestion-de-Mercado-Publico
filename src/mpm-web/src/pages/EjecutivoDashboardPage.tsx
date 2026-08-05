@@ -10,6 +10,7 @@ import {
 import { useNavigate } from 'react-router-dom'
 import { useEjecutivoDashboard } from '../hooks/useAnalisis'
 import type { CompetidorRanking, LicitacionResumenEjecutivo } from '../types/analisis'
+import { PageHeader } from '../components/PageHeader'
 
 const { Title, Text } = Typography
 const { Option } = Select
@@ -139,37 +140,22 @@ export default function EjecutivoDashboardPage() {
   return (
     <div className="mpm-page-container" style={{ padding: '24px 32px', maxWidth: 1400, margin: '0 auto' }}>
       {/* Header */}
-      <div className="mpm-page-header" style={{ marginBottom: 24 }}>
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
-            <div
-              style={{
-                width: 32,
-                height: 32,
-                borderRadius: 8,
-                background: 'linear-gradient(135deg, #0f172a, #334155)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                boxShadow: '0 4px 10px rgba(15,23,42,0.3)',
-              }}
-            >
-              <BarChartOutlined style={{ color: 'white', fontSize: 15 }} />
-            </div>
-            <h1 className="mpm-page-title">Dashboard Ejecutivo</h1>
-          </div>
-          <p className="mpm-page-subtitle">Análisis histórico de licitaciones TIVIT vs. competidores</p>
-        </div>
-        <Select
-          placeholder="Todos los años"
-          allowClear
-          style={{ width: 160 }}
-          value={anioFiltro ?? undefined}
-          onChange={(v) => setAnioFiltro(v ?? null)}
-        >
-          {dash.aniosDisponibles.map(a => <Option key={a} value={a}>{a}</Option>)}
-        </Select>
-      </div>
+      <PageHeader
+        icon={<BarChartOutlined />}
+        title="Dashboard Ejecutivo"
+        subtitle="Análisis histórico de licitaciones TIVIT vs. competidores"
+        actions={
+          <Select
+            placeholder="Todos los años"
+            allowClear
+            style={{ width: 160 }}
+            value={anioFiltro ?? undefined}
+            onChange={(v) => setAnioFiltro(v ?? null)}
+          >
+            {dash.aniosDisponibles.map(a => <Option key={a} value={a}>{a}</Option>)}
+          </Select>
+        }
+      />
 
       {/* KPIs */}
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
