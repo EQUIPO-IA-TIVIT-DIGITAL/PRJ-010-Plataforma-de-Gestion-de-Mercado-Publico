@@ -197,9 +197,11 @@ function WorkspaceCard({
             <FileTextOutlined style={{ marginRight: 4 }} />
             {workspace.documentosCount ?? 0} documento{workspace.documentosCount !== 1 ? 's' : ''}
           </span>
-          <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+          <span style={{ fontSize: 11, color: 'var(--text-muted)' }} title={`Análisis generado el ${dayjs(workspace.createdAt).format('DD-MM-YYYY')}`}>
             <CalendarOutlined style={{ marginRight: 4 }} />
-            {dayjs(workspace.createdAt).format('DD-MM-YYYY')}
+            {workspace.fechaAdjudicacion
+              ? `Adjudicada el ${dayjs(workspace.fechaAdjudicacion).format('DD-MM-YYYY')}`
+              : `Sin fecha de adjudicación · análisis del ${dayjs(workspace.createdAt).format('DD-MM-YYYY')}`}
           </span>
         </Space>
         <Button

@@ -30,6 +30,11 @@ public class CatalogoService
         return await _catalogoHandler.GetMonedasAsync(ct);
     }
 
+    public async Task<List<AreaNegocioItemDto>> GetAreasNegocioAsync(CancellationToken ct = default)
+    {
+        return await _catalogoHandler.GetAreasNegocioAsync(ct);
+    }
+
     public async Task<CatalogosResponseDto> GetAllAsync(CancellationToken ct = default)
     {
         return await _catalogoHandler.GetAllAsync(ct);

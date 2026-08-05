@@ -16,6 +16,11 @@ export interface MonedaItem {
   codigoIso: string;
 }
 
+export interface AreaNegocioItem {
+  codigo: number;
+  nombre: string;
+}
+
 export interface CatalogosResponse {
   estadosLicitacion: EstadoItem[];
   tiposLicitacion: TipoLicitacionItem[];

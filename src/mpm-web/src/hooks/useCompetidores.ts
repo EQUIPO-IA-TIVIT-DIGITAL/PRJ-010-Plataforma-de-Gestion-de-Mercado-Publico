@@ -1,6 +1,6 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { apiGet, apiPost } from '../lib/apiClient';
-import type { AnalisisCompetidorResponse, AnalizarCompetidorRequest, OfertaCompetidor } from '../types/competidores';
+import type { ActividadMercadoResponse, AnalisisCompetidorResponse, AnalizarCompetidorRequest, OfertaCompetidor } from '../types/competidores';
 
 const BASE = '/api/v1/competidores';
 
@@ -23,5 +23,27 @@ export function useAnalizarCompetidor() {
   return useMutation({
     mutationFn: (request: AnalizarCompetidorRequest) =>
       apiPost<{ data: AnalisisCompetidorResponse }>(`${BASE}/analisis`, request),
+  });
+}
+
+// US4 (spec 031): actividad total de mercado -- polling mientras estado === 'generando'
+// (mismo patrón que useAnalisisWorkspace para un análisis en curso)
+export function useActividadMercado(
+  nombreCompetidor: string | null,
+  area: number | null,
+  fechaDesde: string,
+  fechaHasta: string,
+) {
+  return useQuery({
+    queryKey: ['competidores', nombreCompetidor, 'actividad-mercado', area, fechaDesde, fechaHasta],
+    queryFn: async () => {
+      const params = new URLSearchParams({ fechaDesde, fechaHasta });
+      if (area) params.set('area', String(area));
+      const json = await apiGet<{ data: ActividadMercadoResponse }>(
+        `${BASE}/${encodeURIComponent(nombreCompetidor!)}/actividad-mercado?${params.toString()}`);
+      return json.data;
+    },
+    enabled: !!nombreCompetidor,
+    refetchInterval: (query) => (query.state.data?.estado === 'generando' ? 15_000 : false),
   });
 }

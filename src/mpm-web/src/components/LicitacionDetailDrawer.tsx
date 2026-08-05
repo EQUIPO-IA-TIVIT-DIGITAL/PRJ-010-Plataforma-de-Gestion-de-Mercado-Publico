@@ -1,5 +1,6 @@
 import { Drawer, Descriptions, Table, Tag, Typography, Empty, Spin } from 'antd';
 import type { LicitacionDetalle } from '../types/licitacion';
+import { LicitacionInteresPanel } from './LicitacionInteresPanel';
 
 const STATUS_COLORS: Record<number, string> = {
   1: 'blue', 2: 'orange', 3: 'default', 4: 'red',
@@ -68,6 +69,12 @@ export function LicitacionDetailDrawer({ open, data, loading, onClose }: Props) 
               </Descriptions.Item>
             )}
           </Descriptions>
+
+          {/* spec 031 (US5): flujo colaborativo go/no-go */}
+          <Typography.Title level={5} style={{ marginTop: 24 }}>
+            Interés y colaboración
+          </Typography.Title>
+          <LicitacionInteresPanel licitacionId={data.id} licitacionNombre={data.nombre} />
 
           {data.items && data.items.length > 0 && (
             <>

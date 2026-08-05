@@ -1,0 +1,327 @@
+{
+  "licitacion": {
+    "id": "622-11-I226",
+    "nombre": "CRÉDITOS CLOUD COMPUTING AWS PARA LAS PLATAFORMAS DE TESORERÍA GENERAL DE LA REPÚBLICA",
+    "descripcion": "Adquisición de créditos en la nube para las plataformas de la Tesorería General de la República.",
+    "organismo": {
+      "nombre": "Tesorería General de la República",
+      "rut": null,
+      "unidad": "División de Tecnologías de la Información",
+      "region": null
+    },
+    "tipo_licitacion": "Privada",
+    "tipo_convocatoria": "Cerrado",
+    "codigo_etapa": null,
+    "estado": "Adjudicada",
+    "moneda": "CLP",
+    "fechas": {
+      "publicacion": null,
+      "cierre_ofertas": null,
+      "apertura_tecnica": null,
+      "apertura_economica": null,
+      "adjudicacion": "2026-03-30"
+    },
+    "monto_estimado": null,
+    "monto_estimado_moneda": null,
+    "duracion_contrato": null,
+    "renovacion": null,
+    "toma_razon_contraloria": null,
+    "prohibicion_subcontratacion": null,
+    "plazo_pago": null
+  },
+  "adjudicacion": {
+    "adjudicatario": {
+      "nombre": "TIVIT CHILE TERCERIZACIÓN DE PROCESOS, SERVICIOS Y TECNOLOGÍA SPA",
+      "rut": "76.130.712-6",
+      "monto_adjudicado": 480000000,
+      "monto_adjudicado_moneda": "CLP",
+      "cantidad_ofertas_recibidas": null
+    },
+    "ofertantes": [
+      {
+        "nombre": "TIVIT CHILE TERCERIZACIÓN DE PROCESOS, SERVICIOS Y TECNOLOGÍA SPA",
+        "rut": "76.130.712-6",
+        "monto_ofertado": 366692131,
+        "monto_ofertado_moneda": "CLP",
+        "puntaje_total": 100.0,
+        "resultado": "Adjudicado",
+        "motivo_inadmisibilidad": null
+      }
+    ]
+  },
+  "evaluacion": {
+    "metodologia": "Evaluación técnica, económica y administrativa basada en criterios y ponderaciones establecidos en las Bases de Licitación, incluyendo experiencia en sector privado y público, cumplimiento formal, programa de integridad y comportamiento contractual.",
+    "criterios": [
+      {
+        "nombre": "Oferta Económica: Precio",
+        "ponderacion": 70.0,
+        "subcriterios": [
+          {
+            "nombre": "Precio Créditos Netos",
+            "ponderacion": 100.0,
+            "descripcion": "Evaluación del monto destinado a la adquisición de créditos.",
+            "puntaje_maximo": 100.0,
+            "puntaje_tivit": 100.0,
+            "puntaje_ganador": 100.0,
+            "comentario_evaluacion": "TIVIT obtuvo nota 100 por su oferta de $366.692.131"
+          }
+        ],
+        "puntaje_maximo_total": 70.0,
+        "puntaje_tivit_total": 70.0,
+        "puntaje_ganador_total": 70.0,
+        "brecha": 0.0
+      },
+      {
+        "nombre": "Experiencia Sector Privado",
+        "ponderacion": 10.0,
+        "subcriterios": [
+          {
+            "nombre": "Experiencia en Venta Créditos en la Nube",
+            "ponderacion": 10.0,
+            "descripcion": "Evaluación de contratos de adquisición de servicios Cloud Computing AWS en Chile prestados en el sector privado en los últimos 4 años.",
+            "puntaje_maximo": 100.0,
+            "puntaje_tivit": 100.0,
+            "puntaje_ganador": 100.0,
+            "comentario_evaluacion": "TIVIT presentó 10 antecedentes válidos, alcanzando el tramo máximo de 100 puntos."
+          }
+        ],
+        "puntaje_maximo_total": 10.0,
+        "puntaje_tivit_total": 10.0,
+        "puntaje_ganador_total": 10.0,
+        "brecha": 0.0
+      },
+      {
+        "nombre": "Experiencia Sector Público",
+        "ponderacion": 15.0,
+        "subcriterios": [
+          {
+            "nombre": "Experiencia en Venta Créditos en la Nube",
+            "ponderacion": 15.0,
+            "descripcion": "Evaluación de contratos de adquisición de servicios Cloud Computing AWS en Chile prestados en el sector público en los últimos 4 años.",
+            "puntaje_maximo": 100.0,
+            "puntaje_tivit": 100.0,
+            "puntaje_ganador": 100.0,
+            "comentario_evaluacion": "TIVIT presentó 5 antecedentes válidos, alcanzando el tramo máximo de 100 puntos."
+          }
+        ],
+        "puntaje_maximo_total": 15.0,
+        "puntaje_tivit_total": 15.0,
+        "puntaje_ganador_total": 15.0,
+        "brecha": 0.0
+      },
+      {
+        "nombre": "Cumplimiento de los requisitos formales",
+        "ponderacion": 3.0,
+        "subcriterios": [
+          {
+            "nombre": "Cumplimiento Administrativo",
+            "ponderacion": 3.0,
+            "descripcion": "Verificación de la entrega íntegra de propuestas técnicas, económicas y anexos en el portal.",
+            "puntaje_maximo": 100.0,
+            "puntaje_tivit": 100.0,
+            "puntaje_ganador": 100.0,
+            "comentario_evaluacion": "Cumplió con todos los requisitos formales de presentación."
+          }
+        ],
+        "puntaje_maximo_total": 3.0,
+        "puntaje_tivit_total": 3.0,
+        "puntaje_ganador_total": 3.0,
+        "brecha": 0.0
+      },
+      {
+        "nombre": "Existencia de programa de integridad",
+        "ponderacion": 2.0,
+        "subcriterios": [
+          {
+            "nombre": "Programa de Integridad y Compliance",
+            "ponderacion": 2.0,
+            "descripcion": "Evaluación de la existencia y conocimiento del programa de integridad por parte del personal.",
+            "puntaje_maximo": 100.0,
+            "puntaje_tivit": 100.0,
+            "puntaje_ganador": 100.0,
+            "comentario_evaluacion": "Presentó declaración jurada y antecedentes que acreditan la aplicación del programa."
+          }
+        ],
+        "puntaje_maximo_total": 2.0,
+        "puntaje_tivit_total": 2.0,
+        "puntaje_ganador_total": 2.0,
+        "brecha": 0.0
+      },
+      {
+        "nombre": "Comportamiento contractual anterior",
+        "ponderacion": null,
+        "subcriterios": [
+          {
+            "nombre": "Sanciones en Registro de Proveedores",
+            "ponderacion": null,
+            "descripcion": "Descuento de puntaje por sanciones en los últimos 2 años.",
+            "puntaje_maximo": null,
+            "puntaje_tivit": 0.0,
+            "puntaje_ganador": 0.0,
+            "comentario_evaluacion": "TIVIT no registra sanciones, por lo tanto, no se efectúa descuento."
+          }
+        ],
+        "puntaje_maximo_total": null,
+        "puntaje_tivit_total": 0.0,
+        "puntaje_ganador_total": 0.0,
+        "brecha": 0.0
+      }
+    ],
+    "desglose_puntajes": {
+      "tivit": {
+        "puntaje_tecnico": 25.0,
+        "puntaje_economico": 70.0,
+        "puntaje_administrativo": 3.0,
+        "puntaje_total": 100.0,
+        "porcentaje_cumplimiento": 100.0
+      },
+      "ganador": {
+        "puntaje_tecnico": 25.0,
+        "puntaje_economico": 70.0,
+        "puntaje_administrativo": 3.0,
+        "puntaje_total": 100.0,
+        "porcentaje_cumplimiento": 100.0
+      }
+    }
+  },
+  "requisitos": {
+    "antecedentes_requeridos": [
+      "Propuesta Técnica",
+      "Oferta Económica",
+      "Anexos de experiencia",
+      "Anexo N°6 (Declaración principios éticos)",
+      "Declaración Jurada Programa de Integridad"
+    ],
+    "requisitos_contratacion": [],
+    "garantias": []
+  },
+  "analisis_tivit": {
+    "participa": true,
+    "es_ganador": true,
+    "monto_ofertado": 366692131,
+    "monto_ofertado_moneda": "CLP",
+    "puntaje_obtenido": 100.0,
+    "puntaje_maximo_posible": 100.0,
+    "resultado": "Adjudicado",
+    "fortalezas": [
+      "Obtuvo puntaje máximo (100) en todos los criterios evaluados.",
+      "Experiencia sólida acreditada tanto en sector público como privado.",
+      "Ausencia de sanciones contractuales previas."
+    ],
+    "debilidades": [],
+    "brechas_identificadas": []
+  },
+  "documentos_adjuntos": [
+    {
+      "nombre": "Anexo N°6",
+      "tipo": "Declaración",
+      "descripcion": "Declaración de conocimiento y cumplimiento de principios éticos y transparencia.",
+      "tamanio_kb": 0
+    },
+    {
+      "nombre": "Mail corporativo Programa Integridad.pdf",
+      "tipo": "Otros",
+      "descripcion": "Evidencia de conocimiento del programa de integridad por el personal.",
+      "tamanio_kb": 0
+    },
+    {
+      "nombre": "Programa Integridad respaldo mail corporativo.pdf",
+      "tipo": "Otros",
+      "descripcion": "Respaldo de comunicación del programa de integridad.",
+      "tamanio_kb": 0
+    },
+    {
+      "nombre": "PROGRAMA INTEGRIDAD-CÓDIGO DE CONDUCTA.PDF",
+      "tipo": "Otros",
+      "descripcion": "Documento del programa de integridad de la empresa.",
+      "tamanio_kb": 0
+    }
+  ],
+  "validacion_documental": {
+    "documentos": [
+      {
+        "nombre": "Anexo N°6 (Principios Éticos)",
+        "requerido": true,
+        "enviado": true,
+        "observado_en_acta": "conforme",
+        "estado": "ok"
+      },
+      {
+        "nombre": "Programa de Integridad",
+        "requerido": true,
+        "enviado": true,
+        "observado_en_acta": "conforme",
+        "estado": "ok"
+      },
+      {
+        "nombre": "Antecedentes Experiencia Privada",
+        "requerido": true,
+        "enviado": true,
+        "observado_en_acta": "conforme",
+        "estado": "ok"
+      },
+      {
+        "nombre": "Antecedentes Experiencia Pública",
+        "requerido": true,
+        "enviado": true,
+        "observado_en_acta": "conforme",
+        "estado": "ok"
+      }
+    ],
+    "inconsistencias": [],
+    "resumen": "Toda la documentación requerida fue presentada y validada por la comisión evaluadora sin observaciones.",
+    "coherente": true
+  },
+  "metricas_clave": {
+    "diferencia_puntaje_total": 0.0,
+    "diferencia_monto_ofertado": 0.0,
+    "diferencia_porcentaje_cumplimiento": 0.0,
+    "cantidad_ofertantes": 1,
+    "ranking_tivit": 1,
+    "margen_mejora_tecnico": 0.0,
+    "margen_mejora_economico": 0.0
+  },
+  "dashboard_kpis": [
+    {
+      "indicador": "Puntaje TIVIT vs Máximo",
+      "valor": "100%",
+      "tendencia": "estable",
+      "color": "green"
+    },
+    {
+      "indicador": "Brecha vs Ganador",
+      "valor": "0 puntos",
+      "tendencia": "estable",
+      "color": "green"
+    },
+    {
+      "indicador": "Diferencia Monto",
+      "valor": "$0",
+      "tendencia": "estable",
+      "color": "green"
+    },
+    {
+      "indicador": "Ranking",
+      "valor": "#1 de 1",
+      "tendencia": "estable",
+      "color": "green"
+    },
+    {
+      "indicador": "Cumplimiento Técnico",
+      "valor": "100%",
+      "tendencia": "estable",
+      "color": "green"
+    }
+  ],
+  "recomendaciones_estrategicas": [
+    "Mantener los estándares de cumplimiento administrativo y de integridad, ya que han permitido alcanzar el puntaje máximo."
+  ],
+  "riesgos_identificados": [],
+  "revocacion": {
+    "detectada": false,
+    "documento_que_revoca": null,
+    "documento_revocado": null,
+    "motivo": null,
+    "resultado_vigente": null
+  }
+}

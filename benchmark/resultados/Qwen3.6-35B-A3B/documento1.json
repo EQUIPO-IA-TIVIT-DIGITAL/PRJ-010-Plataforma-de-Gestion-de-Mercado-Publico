@@ -1,0 +1,262 @@
+{
+  "licitacion": {
+    "id": "622-11-I226",
+    "nombre": "CRÉDITOS CLOUD COMPUTING AWS PARA LAS PLATAFORMAS DE TESORERÍA GENERAL DE LA REPÚBLICA",
+    "descripcion": "Licitación privada para la adquisición de créditos Cloud Computing AWS para soportar las plataformas tecnológicas de la Tesorería General de la República.",
+    "organismo": {
+      "nombre": "Tesorería General de la República",
+      "rut": null,
+      "unidad": "División de Tecnologías de la Información",
+      "region": "Región Metropolitana de Santiago"
+    },
+    "tipo_licitacion": "Licitación Privada",
+    "tipo_convocatoria": "Cerrado",
+    "codigo_etapa": "LR",
+    "estado": "Adjudicada",
+    "moneda": "CLP",
+    "fechas": {
+      "publicacion": null,
+      "cierre_ofertas": "2026-03-25",
+      "apertura_tecnica": "2026-03-25",
+      "apertura_economica": "2026-03-25",
+      "adjudicacion": "2026-03-30"
+    },
+    "monto_estimado": null,
+    "monto_estimado_moneda": "NO_DETERMINADA",
+    "duracion_contrato": null,
+    "renovacion": null,
+    "toma_razon_contraloria": null,
+    "prohibicion_subcontratacion": null,
+    "plazo_pago": null
+  },
+  "adjudicacion": {
+    "adjudicatario": {
+      "nombre": "TIVIT CHILE TERCERIZACIÓN DE PROCESOS, SERVICIOS Y TECNOLOGÍA SPA",
+      "rut": "76.130.712-6",
+      "monto_adjudicado": 480000000,
+      "monto_adjudicado_moneda": "CLP",
+      "cantidad_ofertas_recibidas": 1
+    },
+    "ofertantes": [
+      {
+        "nombre": "TIVIT CHILE TERCERIZACIÓN DE PROCESOS, SERVICIOS Y TECNOLOGÍA SPA",
+        "rut": "76.130.712-6",
+        "monto_ofertado": 480000000,
+        "monto_ofertado_moneda": "CLP",
+        "puntaje_total": 100.0,
+        "resultado": "Adjudicado",
+        "motivo_inadmisibilidad": null
+      }
+    ]
+  },
+  "evaluacion": {
+    "metodologia": "Evaluación técnico-económica basada en criterios de precio, experiencia de mercado (público y privado), cumplimiento formal y programa de integridad. Se asignaron puntajes ponderados según tablas de valoración establecidas en las bases.",
+    "criterios": [
+      {
+        "nombre": "Oferta Económica",
+        "ponderacion": 70.0,
+        "subcriterios": [
+          {
+            "nombre": "Precio",
+            "ponderacion": 70.0,
+            "descripcion": "Comparativa del monto neto destinado a créditos frente al mayor monto ofertado.",
+            "puntaje_maximo": 70.0,
+            "puntaje_tivit": 70.0,
+            "puntaje_ganador": 70.0,
+            "comentario_evaluacion": "Único oferente, obtiene el puntaje máximo."
+          }
+        ],
+        "puntaje_maximo_total": 70.0,
+        "puntaje_tivit_total": 70.0,
+        "puntaje_ganador_total": 70.0,
+        "brecha": 0.0
+      },
+      {
+        "nombre": "Experiencia Sector Privado",
+        "ponderacion": 10.0,
+        "subcriterios": [
+          {
+            "nombre": "Contratos de Créditos en la Nube AWS",
+            "ponderacion": 10.0,
+            "descripcion": "Antecedentes en Venta de Créditos Cloud Computing AWS en Chile durante los últimos 4 años.",
+            "puntaje_maximo": 10.0,
+            "puntaje_tivit": 10.0,
+            "puntaje_ganador": 10.0,
+            "comentario_evaluacion": "Cumplió con 10 contratos requeridos para el puntaje máximo."
+          }
+        ],
+        "puntaje_maximo_total": 10.0,
+        "puntaje_tivit_total": 10.0,
+        "puntaje_ganador_total": 10.0,
+        "brecha": 0.0
+      },
+      {
+        "nombre": "Experiencia Sector Público",
+        "ponderacion": 15.0,
+        "subcriterios": [
+          {
+            "nombre": "Contratos de Créditos en la Nube AWS",
+            "ponderacion": 15.0,
+            "descripcion": "Antecedentes en Venta de Créditos Cloud Computing AWS en el sector público chileno.",
+            "puntaje_maximo": 15.0,
+            "puntaje_tivit": 15.0,
+            "puntaje_ganador": 15.0,
+            "comentario_evaluacion": "Cumplió con 5 contratos requeridos para el puntaje máximo."
+          }
+        ],
+        "puntaje_maximo_total": 15.0,
+        "puntaje_tivit_total": 15.0,
+        "puntaje_ganador_total": 15.0,
+        "brecha": 0.0
+      },
+      {
+        "nombre": "Cumplimiento de Requisitos Formales",
+        "ponderacion": 3.0,
+        "subcriterios": [
+          {
+            "nombre": "Presentación de documentos",
+            "ponderacion": 3.0,
+            "descripcion": "Entrega íntegra de antecedentes administrativos en plataforma digital.",
+            "puntaje_maximo": 3.0,
+            "puntaje_tivit": 3.0,
+            "puntaje_ganador": 3.0,
+            "comentario_evaluacion": "Todos los antecedentes cumplen requisitos formales."
+          }
+        ],
+        "puntaje_maximo_total": 3.0,
+        "puntaje_tivit_total": 3.0,
+        "puntaje_ganador_total": 3.0,
+        "brecha": 0.0
+      },
+      {
+        "nombre": "Programa de Integridad",
+        "ponderacion": 2.0,
+        "subcriterios": [
+          {
+            "nombre": "Políticas éticas y capacitación",
+            "ponderacion": 2.0,
+            "descripcion": "Existencia y aplicación de programas de integridad/compliance.",
+            "puntaje_maximo": 2.0,
+            "puntaje_tivit": 2.0,
+            "puntaje_ganador": 2.0,
+            "comentario_evaluacion": "Declaración jurada y respaldo de conocimiento por personal presentados."
+          }
+        ],
+        "puntaje_maximo_total": 2.0,
+        "puntaje_tivit_total": 2.0,
+        "puntaje_ganador_total": 2.0,
+        "brecha": 0.0
+      }
+    ],
+    "desglose_puntajes": {
+      "tivit": {
+        "puntaje_tecnico": 25.0,
+        "puntaje_economico": 70.0,
+        "puntaje_administrativo": 5.0,
+        "puntaje_total": 100.0,
+        "porcentaje_cumplimiento": 100.0
+      },
+      "ganador": {
+        "puntaje_tecnico": 25.0,
+        "puntaje_economico": 70.0,
+        "puntaje_administrativo": 5.0,
+        "puntaje_total": 100.0,
+        "porcentaje_cumplimiento": 100.0
+      }
+    }
+  },
+  "requisitos": {
+    "antecedentes_requeridos": [
+      "Propuesta Técnica y Oferta Económica en portal Mercado Público",
+      "Anexo N°3 Formato para acreditar la experiencia",
+      "Ordenes de compra / Facturas / Contratos como respaldo de ejecución",
+      "Anexo N°6 Declaración Jurada Programa de Integridad"
+    ],
+    "requisitos_contratacion": [
+      "Estar inscrito y en estado hábil en el Registro de Proveedores del Estado (ChileProveedores)"
+    ],
+    "garantias": []
+  },
+  "analisis_tivit": {
+    "participa": true,
+    "es_ganador": true,
+    "monto_ofertado": 480000000,
+    "monto_ofertado_moneda": "CLP",
+    "puntaje_obtenido": 100.0,
+    "puntaje_maximo_posible": 100.0,
+    "resultado": "Adjudicado",
+    "fortalezas": [
+      "Ofrecimiento de 10 contratos privados de AWS, superando el umbral mínimo para obtener el puntaje máximo en experiencia privada.",
+      "Contar con 5 contratos públicos vigentes o terminados, garantizando el puntaje completo en experiencia pública.",
+      "Historial contractual limpio sin sanciones ejecutoriadas.",
+      "Excelente nivel de cumplimiento formal y documental."
+    ],
+    "debilidades": [],
+    "brechas_identificadas": []
+  },
+  "documentos_adjuntos": [
+    {
+      "nombre": "Acta de Evaluación Técnico-Económica N° 31-DST",
+      "tipo": "Acta",
+      "descripcion": "Documento oficial de evaluación y recomendación de adjudicación del proceso.",
+      "tamanio_kb": 0
+    }
+  ],
+  "validacion_documental": {
+    "documentos": [
+      {
+        "nombre": "Anexo N°3 Formato de Experiencia",
+        "requerido": true,
+        "enviado": true,
+        "observado_en_acta": "Sin observaciones. Se evaluaron correctamente 10 antecedentes privados y 5 públicos.",
+        "estado": "ok"
+      },
+      {
+        "nombre": "Antecedentes de Ejecución (Facturas/OCS)",
+        "requerido": true,
+        "enviado": true,
+        "observado_en_acta": "Presentados y validados para ambos sectores (privado y público).",
+        "estado": "ok"
+      },
+      {
+        "nombre": "Programa de Integridad",
+        "requerido": true,
+        "enviado": true,
+        "observado_en_acta": "Se validó declaración jurada y documentos de aplicación (mail corporativo, código de conducta).",
+        "estado": "ok"
+      }
+    ],
+    "inconsistencias": [],
+    "resumen": "El proceso muestra coherencia completa; todos los documentos requeridos fueron presentados, validados técnicamente y declarados conformes sin observaciones críticas.",
+    "coherente": true
+  },
+  "metricas_clave": {
+    "diferencia_puntaje_total": 0.0,
+    "diferencia_monto_ofertado": 0.0,
+    "diferencia_porcentaje_cumplimiento": 0.0,
+    "cantidad_ofertantes": 1,
+    "ranking_tivit": 1,
+    "margen_mejora_tecnico": 0.0,
+    "margen_mejora_economico": 0.0
+  },
+  "dashboard_kpis": [
+    { "indicador": "Puntaje TIVIT vs Máximo", "valor": "100%", "tendencia": "excelente", "color": "green" },
+    { "indicador": "Brecha vs Ganador", "valor": "0 puntos", "tendencia": "nula", "color": "green" },
+    { "indicador": "Diferencia Monto", "valor": "$0", "tendencia": "igual", "color": "green" },
+    { "indicador": "Ranking", "valor": "#1 de 1", "tendencia": "ganador", "color": "green" },
+    { "indicador": "Cumplimiento Técnico", "valor": "100%", "tendencia": "estable", "color": "green" }
+  ],
+  "recomendaciones_estrategicas": [
+    "Mantener el portafolio actualizado de contratos AWS tanto en el sector público como privado para asegurar la renovación constante de la experiencia certificada.",
+    "Continuar con la rigurosidad en la documentación administrativa (Anexos y Respaldos) para evitar cualquier observación formal en licitaciones futuras.",
+    "Monitorear proactivamente el Registro de Proveedores para garantizar el estado 'hábil' y cero infracciones durante los procesos de postulación."
+  ],
+  "riesgos_identificados": [],
+  "revocacion": {
+    "detectada": false,
+    "documento_que_revoca": null,
+    "documento_revocado": null,
+    "motivo": null,
+    "resultado_vigente": null
+  }
+}

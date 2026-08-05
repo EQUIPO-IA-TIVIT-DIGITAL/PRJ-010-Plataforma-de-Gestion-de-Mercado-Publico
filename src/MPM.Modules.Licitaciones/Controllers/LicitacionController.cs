@@ -30,6 +30,8 @@ public class LicitacionController(
         [FromQuery] string? fechaHasta = null,
         [FromQuery] string sortBy = "fecha_publicacion",
         [FromQuery] string sortDir = "desc",
+        [FromQuery] short? area = null,
+        [FromQuery] bool? sinClasificar = null,
         CancellationToken ct = default)
     {
         DateTime? fechaDesdeDt = null;
@@ -42,7 +44,7 @@ public class LicitacionController(
 
         var (items, totalCount) = await licitacionService.ListarAsync(
             page, pageSize, search, estado, tipo, organismo,
-            fechaDesdeDt, fechaHastaDt, sortBy, sortDir, ct);
+            fechaDesdeDt, fechaHastaDt, sortBy, sortDir, area, sinClasificar, ct);
 
         var paginatedResult = new PaginatedResult<LicitacionResumenDto>
         {
@@ -53,6 +55,17 @@ public class LicitacionController(
         };
 
         return Ok(ApiResponse<PaginatedResult<LicitacionResumenDto>>.Ok(paginatedResult));
+    }
+
+    // US2 (spec 031): estadísticas por estado, mismo filtro de área que Listar
+    [HttpGet("estadisticas-estado")]
+    public async Task<ActionResult<ApiResponse<List<EstadoConteoDto>>>> EstadisticasEstado(
+        [FromQuery] short? area = null,
+        [FromQuery] bool? sinClasificar = null,
+        CancellationToken ct = default)
+    {
+        var stats = await licitacionService.ContarPorEstadoAsync(area, sinClasificar, ct);
+        return Ok(ApiResponse<List<EstadoConteoDto>>.Ok(stats));
     }
 
     [HttpGet("{codigoExterno}")]

@@ -23,10 +23,7 @@ const NAV_ITEMS = [
   { key: '/mensajes', icon: <MessageOutlined />, label: 'Mensajes', badge: null },
   { key: '/notificaciones', icon: <BellOutlined />, label: 'Notificaciones', disabled: false, badge: null },
   { key: '/alertas', icon: <NotificationOutlined />, label: 'Alertas', badge: null },
-  // Oculto temporalmente para el deploy 2026-07-10: el dataset de licitaciones_ofertas todavia
-  // no tiene volumen suficiente para una demo (el scraper sigue acotado por el limite de
-  // Mercado Publico). La ruta /competidores sigue activa por URL directa -- ver App.tsx.
-  // { key: '/competidores', icon: <TeamOutlined />, label: 'Competidores', badge: null },
+  { key: '/competidores', icon: <TeamOutlined />, label: 'Competidores', badge: null },
 ];
 
 export function AppLayout({ children }: { children: React.ReactNode }) {

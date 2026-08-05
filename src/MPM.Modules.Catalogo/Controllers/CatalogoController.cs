@@ -39,4 +39,11 @@ public class CatalogoController(CatalogoService catalogoService) : ControllerBas
         var monedas = await catalogoService.GetMonedasAsync(ct);
         return Ok(ApiResponse<List<MonedaItemDto>>.Ok(monedas));
     }
+
+    [HttpGet("areas-negocio")]
+    public async Task<ActionResult<ApiResponse<List<AreaNegocioItemDto>>>> GetAreasNegocio(CancellationToken ct)
+    {
+        var areas = await catalogoService.GetAreasNegocioAsync(ct);
+        return Ok(ApiResponse<List<AreaNegocioItemDto>>.Ok(areas));
+    }
 }

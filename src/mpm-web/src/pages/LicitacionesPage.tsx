@@ -6,7 +6,7 @@ import type { SearchMode } from '../components/LicitacionFilterBar';
 import { LicitacionesTable } from '../components/LicitacionesTable';
 import { NaturalSearchResults } from '../components/NaturalSearchResults';
 import { LicitacionDetailDrawer } from '../components/LicitacionDetailDrawer';
-import { useLicitaciones, useBuscarNatural, useLicitacionesSeguidas } from '../hooks/useLicitaciones';
+import { useLicitaciones, useBuscarNatural, useLicitacionesSeguidas, useEstadisticasEstado } from '../hooks/useLicitaciones';
 import { useLicitacionDetalle } from '../hooks/useLicitacionDetalle';
 import type { LicitacionResumen, LicitacionFilter } from '../types/licitacion';
 
@@ -38,6 +38,8 @@ export function LicitacionesPage() {
   // data/isLoading -- un 500 real (ej. filtro de fecha mal tipado) se veía idéntico a "sin
   // resultados", la tabla quedaba vacía sin ningún aviso. Ahora se distingue explícitamente.
   const { data, isLoading, isError } = useLicitaciones(filter);
+  // US2 (spec 031): desglose por estado, acotado por el mismo filtro de área activo
+  const { data: estadisticasEstado } = useEstadisticasEstado(filter.area, filter.sinClasificar);
   const { data: naturalData, isLoading: naturalLoading } = useBuscarNatural(
     submittedNaturalQuery, 1, 20, filter.estado ?? undefined);
   const { data: detalle, isLoading: detalleLoading } = useLicitacionDetalle(selectedCodigo);
@@ -182,6 +184,35 @@ export function LicitacionesPage() {
           onNaturalQuerySubmit={() => setSubmittedNaturalQuery(naturalQuery)}
         />
       </div>
+
+      {/* ---- Estadísticas por estado, con drill-down (US2) ---- */}
+      {estadisticasEstado && estadisticasEstado.length > 0 && (
+        <Row gutter={[10, 10]} data-testid="estadisticas-estado">
+          {estadisticasEstado.map(e => (
+            <Col xs={12} sm={8} md={4} key={e.codigoEstado}>
+              <Card
+                bordered={false}
+                size="small"
+                hoverable
+                onClick={() => handleFilterChange({ estado: e.codigoEstado })}
+                style={{
+                  background: filter.estado === e.codigoEstado ? '#eef2ff' : '#ffffff',
+                  borderRadius: 12,
+                  boxShadow: 'var(--shadow-card)',
+                  cursor: 'pointer',
+                }}
+                data-testid={`estadistica-estado-${e.codigoEstado}`}
+              >
+                <Statistic
+                  title={<span style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', color: 'var(--text-secondary)' }}>{e.nombreEstado}</span>}
+                  value={e.cantidad}
+                  valueStyle={{ fontSize: 18, fontWeight: 700, color: 'var(--text-primary)' }}
+                />
+              </Card>
+            </Col>
+          ))}
+        </Row>
+      )}
 
       {/* ---- Results ---- */}
       {searchMode === 'inteligente' ? (

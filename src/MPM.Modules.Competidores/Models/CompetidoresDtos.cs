@@ -47,3 +47,23 @@ internal record AnalisisCacheadoRow(
     string p_contenido_json,
     int p_cantidad_licitaciones,
     DateTime p_created_at);
+
+// US4 (spec 031): actividad total de mercado de un competidor
+public record ActividadMercadoRequest(
+    short? Area,
+    DateOnly FechaDesde,
+    DateOnly FechaHasta);
+
+public record ActividadMercadoResponse(
+    string Estado, // "generando" | "listo" | "error"
+    string NombreCompetidor,
+    int? CantidadLicitaciones,
+    decimal? MontoTotalAdjudicado,
+    object? Licitaciones);
+
+public record ActividadMercadoCacheRow(
+    string Estado,
+    int? CantidadLicitaciones,
+    decimal? MontoTotalAdjudicado,
+    string? ContenidoJson,
+    DateTime? GeneradoAt);

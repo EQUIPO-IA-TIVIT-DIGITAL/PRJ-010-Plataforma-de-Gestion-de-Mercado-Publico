@@ -31,3 +31,20 @@ export interface AnalisisCompetidorResponse {
   contenido: AnalisisCompetidorContenido | null;
   requiereConfirmacion: boolean;
 }
+
+// spec 031 (US4): actividad total de mercado -- incluye licitaciones donde TIVIT no participó
+export interface LicitacionActividadMercado {
+  licitacionCodigo: string;
+  nombre: string;
+  montoOferta: number | null;
+  estadoOferta: string | null;
+  tivitParticipo: boolean;
+}
+
+export interface ActividadMercadoResponse {
+  estado: 'generando' | 'listo' | 'error';
+  nombreCompetidor: string;
+  cantidadLicitaciones: number | null;
+  montoTotalAdjudicado: number | null;
+  licitaciones: { licitaciones: LicitacionActividadMercado[] } | null;
+}

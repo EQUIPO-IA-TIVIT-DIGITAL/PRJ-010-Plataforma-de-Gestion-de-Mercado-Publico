@@ -1,0 +1,353 @@
+{
+  "licitacion": {
+    "id": "1605-23-LP26 / LP-4609",
+    "nombre": "Servicio de Ciberinteligencia",
+    "descripcion": "Contratación de un servicio de ciberinteligencia (CTI) que incluye gestión de casos de investigación, análisis de amenazas geopolíticas, detección de fugas en repositorios de código, operaciones de Takedown (baja de phishing/falsificaciones), acceso a fuentes abiertas, Dark Web y Deep Web.",
+    "organismo": {
+      "nombre": "Servicio de Impuestos Internos (SII)",
+      "rut": null,
+      "unidad": "Subdirección de Tecnologías de la Información, Departamento de Ciberseguridad",
+      "region": "Metropolitana, Santiago"
+    },
+    "tipo_licitacion": "Pública",
+    "tipo_convocatoria": "Abierto",
+    "codigo_etapa": "LP",
+    "estado": "Adjudicada",
+    "moneda": "USD / CLP",
+    "fechas": {
+      "publicacion": "2026-04-13",
+      "cierre_ofertas": null,
+      "apertura_tecnica": null,
+      "apertura_economica": null,
+      "adjudicacion": "2026-05-27"
+    },
+    "monto_estimado": null,
+    "monto_estimado_moneda": "NO_DETERMINADA",
+    "duracion_contrato": "36 Meses",
+    "renovacion": "NO",
+    "toma_razon_contraloria": "NO",
+    "prohibicion_subcontratacion": "NO",
+    "plazo_pago": null
+  },
+  "adjudicacion": {
+    "adjudicatario": {
+      "nombre": "INTEGRACIÓN DE TECNOLOGÍAS ITQ LIMITADA",
+      "rut": "76.092.207-2",
+      "monto_adjudicado": 209529081.00,
+      "monto_adjudicado_moneda": "CLP",
+      "cantidad_ofertas_recibidas": 11
+    },
+    "ofertantes": [
+      {
+        "nombre": "INTEGRACIÓN DE TECNOLOGÍAS ITQ LIMITADA",
+        "rut": "76.092.207-2",
+        "monto_ofertado": 653308.00,
+        "monto_ofertado_moneda": "USD",
+        "puntaje_total": 100.00,
+        "resultado": "Adjudicado",
+        "motivo_inadmisibilidad": null
+      },
+      {
+        "nombre": "BUSINESS CONTINUITY SPA",
+        "rut": "76.804.300-0",
+        "monto_ofertado": 714000.00,
+        "monto_ofertado_moneda": "USD",
+        "puntaje_total": 95.15,
+        "resultado": "No adjudicado",
+        "motivo_inadmisibilidad": null
+      },
+      {
+        "nombre": "NASTEC SPA",
+        "rut": "76.337.109-3",
+        "monto_ofertado": 799085.00,
+        "monto_ofertado_moneda": "USD",
+        "puntaje_total": 92.70,
+        "resultado": "No adjudicado",
+        "motivo_inadmisibilidad": null
+      },
+      {
+        "nombre": "TIVIT CHILE TERCERIZACION DE PROCESOS, SERVICIOS Y TECNOLOGIA SPA",
+        "rut": "76.130.712-6",
+        "monto_ofertado": 706146.00,
+        "monto_ofertado_moneda": "USD",
+        "puntaje_total": 91.21,
+        "resultado": "No adjudicado",
+        "motivo_inadmisibilidad": null
+      },
+      {
+        "nombre": "EMPRESA NACIONAL DE TELECOMUNICACIONES S.A.",
+        "rut": "92.580.000-7",
+        "monto_ofertado": 850255.00,
+        "monto_ofertado_moneda": "USD",
+        "puntaje_total": 90.73,
+        "resultado": "No adjudicado",
+        "motivo_inadmisibilidad": null
+      },
+      {
+        "nombre": "NETICS SPA",
+        "rut": "76.363.873-1",
+        "monto_ofertado": 858704.00,
+        "monto_ofertado_moneda": "USD",
+        "puntaje_total": 83.63,
+        "resultado": "No adjudicado",
+        "motivo_inadmisibilidad": null
+      },
+      {
+        "nombre": "SECAPPS TECHNOLOGIES SPA",
+        "rut": "77.660.154-3",
+        "monto_ofertado": 797421.00,
+        "monto_ofertado_moneda": "USD",
+        "puntaje_total": 85.52,
+        "resultado": "No adjudicado",
+        "motivo_inadmisibilidad": null
+      },
+      {
+        "nombre": "ANIDA CONSULTORES S.A.",
+        "rut": "77.680.090-2",
+        "monto_ofertado": 879111.00,
+        "monto_ofertado_moneda": "USD",
+        "puntaje_total": 81.03,
+        "resultado": "No adjudicado",
+        "motivo_inadmisibilidad": null
+      },
+      {
+        "nombre": "ADAPTIVE SECURITY SPA",
+        "rut": "76.644.983-2",
+        "monto_ofertado": 0.0,
+        "monto_ofertado_moneda": "NO_DETERMINADA",
+        "puntaje_total": 0.0,
+        "resultado": "Inadmisible",
+        "motivo_inadmisibilidad": "No presentó documentación requerida para acreditar su condición de 'Partner' del fabricante de las herramientas de CTI utilizadas."
+      },
+      {
+        "nombre": "KEPLER LATAM SPA",
+        "rut": "78.197.454-4",
+        "monto_ofertado": 0.0,
+        "monto_ofertado_moneda": "NO_DETERMINADA",
+        "puntaje_total": 0.0,
+        "resultado": "Inadmisible",
+        "motivo_inadmisibilidad": "No presentó la cantidad de activos a monitorear que permita evaluar el punto 'Cantidad de activos digitales'."
+      },
+      {
+        "nombre": "TICHILE REVENTA DE SOFTWARE Y HARDWARE SPA",
+        "rut": "76.334.381-2",
+        "monto_ofertado": 0.0,
+        "monto_ofertado_moneda": "NO_DETERMINADA",
+        "puntaje_total": 0.0,
+        "resultado": "Inadmisible",
+        "motivo_inadmisibilidad": "No cumple la cantidad de requerimientos funcionales y no funcionales mínimos exigidos (Oferta no contempla al menos 6 RF y 3 RNF)."
+      }
+    ]
+  },
+  "evaluacion": {
+    "metodologia": "Evaluación Técnico-Económica dividida en tres etapas: Técnica (ponderación 58%), Económica (40%) y Administrativa (2%). La fórmula económica se basa en la comparación entre la oferta mínima y el resto. Se aplican criterios estrictos de admisión preliminar.",
+    "criterios": [
+      {
+        "nombre": "Evaluación Técnica",
+        "ponderacion": 58.00,
+        "subcriterios": [
+          {
+            "nombre": "Fuentes de información y gestión de casos",
+            "ponderacion": 25.00,
+            "descripcion": "Acceso a redes sociales, mensajería, Deep/Dark Web y otras fuentes especializadas.",
+            "puntaje_maximo": 100.00,
+            "puntaje_tivit": 100.00,
+            "puntaje_ganador": 100.00,
+            "comentario_evaluacion": "Ambos cumplen integralmente con las fuentes obligatorias y adicionales."
+          },
+          {
+            "nombre": "Cantidad de activos digitales",
+            "ponderacion": 10.00,
+            "descripcion": "Capacidad para cubrir los activos expuestos a internet del SII.",
+            "puntaje_maximo": 100.00,
+            "puntaje_tivit": 100.00,
+            "puntaje_ganador": 100.00,
+            "comentario_evaluacion": "TIVIT declara capacidad para 301 activos."
+          },
+          {
+            "nombre": "Requerimientos Funcionales y No Funcionales",
+            "ponderacion": 25.00,
+            "descripcion": "Cumplimiento de especificaciones técnicas como API, TTPs MITRE, infostealers, disponibilidad SLA, etc.",
+            "puntaje_maximo": 100.00,
+            "puntaje_tivit": 100.00,
+            "puntaje_ganador": 100.00,
+            "comentario_evaluacion": "TIVIT confirmó 8 RF y 5 RNF cumpliendo íntegramente."
+          },
+          {
+            "nombre": "Consola de Investigación",
+            "ponderacion": 20.00,
+            "descripcion": "Provisión de plataforma de trabajo para analistas.",
+            "puntaje_maximo": 100.00,
+            "puntaje_tivit": 100.00,
+            "puntaje_ganador": 100.00,
+            "comentario_evaluacion": "Ofrecido por todos los viables."
+          },
+          {
+            "nombre": "Tiempo Takedown Service",
+            "ponderacion": 10.00,
+            "descripcion": "Velocidad para dar de baja sitios maliciosos (objeto crítico).",
+            "puntaje_maximo": 100.00,
+            "puntaje_tivit": 50.00,
+            "puntaje_ganador": 100.00,
+            "comentario_evaluacion": "TIVIT ofrece hasta 47 horas. El ganador ofrece menos de 24 horas. Esta diferencia impactó negativamente."
+          },
+          {
+            "nombre": "Experiencia en Ciberinteligencia",
+            "ponderacion": 10.00,
+            "descripcion": "Antecedentes verificables de prestación del mismo servicio.",
+            "puntaje_maximo": 100.00,
+            "puntaje_tivit": 50.00,
+            "puntaje_ganador": 100.00,
+            "comentario_evaluacion": "TIVIT solo logró acreditar 1 experiencia válida de 2 presentadas debido a descripciones vagas en facturas/contratos. El ganador acreditó múltiples."
+          }
+        ],
+        "puntaje_maximo_total": 100.00,
+        "puntaje_tivit_total": 90.00,
+        "puntaje_ganador_total": 100.00,
+        "brecha": -10.00
+      },
+      {
+        "nombre": "Evaluación Económica",
+        "ponderacion": 40.00,
+        "subcriterios": [],
+        "puntaje_maximo_total": 100.00,
+        "puntaje_tivit_total": 92.52,
+        "puntaje_ganador_total": 100.00,
+        "brecha": -7.48
+      },
+      {
+        "nombre": "Evaluación Administrativa",
+        "ponderacion": 2.00,
+        "subcriterios": [
+          {
+            "nombre": "Programas de Integridad y ética empresarial",
+            "ponderacion": 50.00,
+            "descripcion": "Credenciales de programas éticos corporativos.",
+            "puntaje_maximo": 100.00,
+            "puntaje_tivit": 100.00,
+            "puntaje_ganador": 100.00,
+            "comentario_evaluacion": "Nulo impacto diferencial."
+          },
+          {
+            "nombre": "Cumplimiento requisitos presentación",
+            "ponderacion": 50.00,
+            "descripcion": "Documentación completa dentro de plazos.",
+            "puntaje_maximo": 100.00,
+            "puntaje_tivit": 100.00,
+            "puntaje_ganador": 100.00,
+            "comentario_evaluacion": "Nulo impacto diferencial."
+          }
+        ],
+        "puntaje_maximo_total": 100.00,
+        "puntaje_tivit_total": 100.00,
+        "puntaje_ganador_total": 100.00,
+        "brecha": 0.00
+      }
+    ],
+    "desglose_puntajes": {
+      "tivit": {
+        "puntaje_tecnico": 90.00,
+        "puntaje_economico": 92.52,
+        "puntaje_administrativo": 100.00,
+        "puntaje_total": 91.21,
+        "porcentaje_cumplimiento": 91.21
+      },
+      "ganador": {
+        "puntaje_tecnico": 100.00,
+        "puntaje_economico": 100.00,
+        "puntaje_administrativo": 100.00,
+        "puntaje_total": 100.00,
+        "porcentaje_cumplimiento": 100.00
+      }
+    }
+  },
+  "requisitos": {
+    "antecedentes_requeridos": [
+      "Anexo N°4: Declaratoria de Partner y herramientas.",
+      "Anexo N°5A: Requerimientos Funcionales y No Funcionales.",
+      "Anexo N°5B: Aspectos Evaluables de la Oferta (Fuentes de información).",
+      "Anexo N°7: Juramento Integridad y Ética."
+    ],
+    "requisitos_contratacion": [],
+    "garantias": []
+  },
+  "analisis_tivit": {
+    "participa": true,
+    "es_ganador": false,
+    "monto_ofertado": 5934.00,
+    "monto_ofertado_moneda": "USD",
+    "puntaje_obtenido": 91.21,
+    "puntaje_maximo_posible": 100.00,
+    "resultado": "No adjudicado",
+    "fortalezas": [
+      "Cumplimiento íntegro del 100% en todos los Requerimientos Funcionales y No Funcionales técnicos.",
+      "Amplia cobertura de fuentes de información (incluyendo Deep/Dark Web, APIs, OSINT, etc.).",
+      "Excelente posicionamiento económico: 2° lugar de precio con un precio neto de $5.934 USD.",
+      "Ausencia de fallas administrativas graves."
+    ],
+    "debilidades": [
+      "Tiempo de ejecución de Takedowns de hasta 47 horas (penalizado a 50 pts), inferior a la capacidad de 24h ofrecida por competidores directos.",
+      "Débil evidencia contractual en la hoja de vida presentada. De 2 antecedentes, uno fue rechazado porque las facturas indicaban soporte de infraestructura genérica en vez de 'Ciberinteligencia', perdiendo 50 pts en ese ítem.",
+      "Mayor costo respecto al ganador (aprox. +$600 USD brutos mensuales), reduciendo su atractivo económico relativo."
+    ],
+    "brechas_identificadas": [
+      {
+        "area": "Experiencia y Documentación",
+        "descripcion": "Solo se logró validar 1 experiencia de 2 presentadas debido a inconsistencias en la descripción de alcances en la documentación adjunta (facturas sin mención clara a Ciberinteligencia). Se perdieron 50 puntos en un criterio de 10% ponderación.",
+        "diferencia_puntaje": -50.00,
+        "diferencia_monto": 0.0,
+        "impacto": "Alto",
+        "se_puede_mitigar": true,
+        "recomendacion_mejora": "En futuras ofertas, solicitar a clientes pasados que especifiquen explícitamente el objeto social relacionado con Ciberinteligencia en facturas, órdenes de compra o anexos contractuales detallando el tipo de servicio entregado."
+      },
+      {
+        "area": "Capacidad Operativa (SLA Takedown)",
+        "descripcion": "Se ofreció un rango de hasta 47 horas para Takedowns. El estándar competitivo óptimo es menor a 24 horas. Esto costó 50 puntos potenciales.",
+        "diferencia_puntaje": -50.00,
+        "diferencia_monto": 0.0,
+        "impacto": "Medio",
+        "se_puede_mitigar": true,
+        "recomendacion_mejora": "Optimizar procesos internos o alianzas con proveedores para garantizar tiempos menores a 24 horas y declararlos formalmente en la matriz de cumplimiento."
+      }
+    ]
+  },
+  "documentos_adjuntos": [],
+  "validacion_documental": {
+    "documentos": [],
+    "inconsistencias": [],
+    "resumen": "Análisis basado exclusivamente en un Informe de Comisión Evaluadora; no se pudo contrastar contra documentos fuente originales adjuntos al expediente.",
+    "coherente": true
+  },
+  "metricas_clave": {
+    "diferencia_puntaje_total": -8.79,
+    "diferencia_monto_ofertado": 444.02,
+    "diferencia_porcentaje_cumplimiento": -8.79,
+    "cantidad_ofertantes": 8,
+    "ranking_tivit": 4,
+    "margen_mejora_tecnico": 10.00,
+    "margen_mejora_economico": 0.0
+  },
+  "dashboard_kpis": [
+    { "indicador": "Puntaje TIVIT vs Máximo", "valor": "-8.79%", "tendencia": "negativa", "color": "red" },
+    { "indicador": "Brecha vs Ganador", "valor": "-8.79 puntos", "tendencia": "crítica", "color": "red" },
+    { "indicador": "Diferencia Monto", "valor": "+$444 USD/mes", "tendencia": "peor", "color": "yellow" },
+    { "indicador": "Ranking", "valor": "#4 de 8", "tendencia": "mejorable", "color": "yellow" },
+    { "indicador": "Cumplimiento Técnico", "valor": "90%", "tendencia": "estable", "color": "green" }
+  ],
+  "recomendaciones_estrategicas": [
+    "Fortalecer la prueba de antecedentes: Es crítico que los documentos adjuntos (facturas, contratos) incluyan cláusulas descriptivas que referencien explícitamente 'Ciberinteligencia' o 'Threat Intelligence' para evitar descalificaciones en la verificación de experiencia.",
+    "Maximizar el valor técnico operacional: Garantizar tiempos de Takedown menores a 24 horas para competir efectivamente por los máximos puntajes en SLAs críticos.",
+    "Monitorear agresivamente el componente económico: Con una base técnica fuerte (90/100), TIVIT debe ajustar sus precios para mantener cercanía con el líder absoluto en puntaje global."
+  ],
+  "riesgos_identificados": [
+    { "riesgo": "Rejection of Experience Evidence", "nivel": "Alto", "mitigacion": "Standardization of past contracts to ensure clear naming conventions aligned with bidding criteria.", "impacto_estimado": 10.00 },
+    { "riesgo": "Operational Bottleneck in Takedowns", "nivel": "Medio", "mitigacion": "Resource allocation or vendor partnership improvement to ensure <24h Takedown times.", "impacto_estimado": 5.00 }
+  ],
+  "revocacion": {
+    "detectada": false,
+    "documento_que_revoca": null,
+    "documento_revocado": null,
+    "motivo": null,
+    "resultado_vigente": null
+  }
+}

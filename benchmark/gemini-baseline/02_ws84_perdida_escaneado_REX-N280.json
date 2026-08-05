@@ -1,0 +1,329 @@
+{
+  "workspaceId": 84,
+  "documentoNombre": "Resolución de Acta de Adjudicación.pdf",
+  "modeloUsado": "gemini-2.5-pro",
+  "tokensEntrada": 4257,
+  "tokensSalida": 4217,
+  "resultado": {
+    "evaluacion": {
+      "criterios": [
+        {
+          "brecha": 0.0,
+          "nombre": "Criterio Administrativo",
+          "ponderacion": 5.0,
+          "subcriterios": [],
+          "puntaje_tivit_total": 5.0,
+          "puntaje_maximo_total": 5.0,
+          "puntaje_ganador_total": 5.0
+        },
+        {
+          "brecha": 31.0,
+          "nombre": "Criterio Técnico",
+          "ponderacion": 70.0,
+          "subcriterios": [
+            {
+              "nombre": "Plazo de entrega del servicio",
+              "descripcion": "Evaluación del plazo de entrega del servicio ofrecido.",
+              "ponderacion": 30.0,
+              "puntaje_tivit": 2.0,
+              "puntaje_maximo": 30.0,
+              "puntaje_ganador": 30.0,
+              "comentario_evaluacion": null
+            },
+            {
+              "nombre": "Experiencia del oferente",
+              "descripcion": "Evaluación de la experiencia del oferente en servicios similares.",
+              "ponderacion": 10.0,
+              "puntaje_tivit": 5.0,
+              "puntaje_maximo": 10.0,
+              "puntaje_ganador": 2.0,
+              "comentario_evaluacion": null
+            },
+            {
+              "nombre": "Condiciones técnicas",
+              "descripcion": "Evaluación de las condiciones técnicas de la oferta.",
+              "ponderacion": 30.0,
+              "puntaje_tivit": 24.0,
+              "puntaje_maximo": 30.0,
+              "puntaje_ganador": 30.0,
+              "comentario_evaluacion": null
+            }
+          ],
+          "puntaje_tivit_total": 31.0,
+          "puntaje_maximo_total": 70.0,
+          "puntaje_ganador_total": 62.0
+        },
+        {
+          "brecha": -1.57,
+          "nombre": "Criterio Económico",
+          "ponderacion": 20.0,
+          "subcriterios": [],
+          "puntaje_tivit_total": 20.0,
+          "puntaje_maximo_total": 20.0,
+          "puntaje_ganador_total": 18.43
+        },
+        {
+          "brecha": 0.0,
+          "nombre": "Programa de Integridad",
+          "ponderacion": 5.0,
+          "subcriterios": [],
+          "puntaje_tivit_total": 5.0,
+          "puntaje_maximo_total": 5.0,
+          "puntaje_ganador_total": 5.0
+        }
+      ],
+      "metodologia": "Evaluación basada en puntajes ponderados para criterios Administrativo (5%), Técnico (70%), Económico (20%) y Programa de Integridad (5%). El adjudicatario es el oferente con el mayor puntaje total.",
+      "desglose_puntajes": {
+        "tivit": {
+          "puntaje_total": 61.0,
+          "puntaje_tecnico": 31.0,
+          "puntaje_economico": 20.0,
+          "puntaje_administrativo": 5.0,
+          "porcentaje_cumplimiento": 61.0
+        },
+        "ganador": {
+          "puntaje_total": 90.43,
+          "puntaje_tecnico": 62.0,
+          "puntaje_economico": 18.43,
+          "puntaje_administrativo": 5.0,
+          "porcentaje_cumplimiento": 90.43
+        }
+      }
+    },
+    "licitacion": {
+      "id": "1002584-16-LR25",
+      "estado": "Adjudicada",
+      "fechas": {
+        "publicacion": "2026-01-02",
+        "adjudicacion": "2026-02-26",
+        "cierre_ofertas": "2026-02-02",
+        "apertura_tecnica": "2026-02-03",
+        "apertura_economica": null
+      },
+      "moneda": "Peso Chileno",
+      "nombre": "Servicio de Cloud Microsoft Azure para la Dirección de Educación Pública",
+      "organismo": {
+        "rut": "65.154.016-k",
+        "nombre": "DIRECCION DE EDUCACION PUBLICA",
+        "region": "Región Metropolitana de Santiago",
+        "unidad": "Dirección de Educación Pública"
+      },
+      "plazo_pago": null,
+      "renovacion": null,
+      "descripcion": "Contratar el servicio de Cloud Microsoft Azure con el objeto de disponer de servicios en la nube mediante la plataforma Microsoft Azure, que aseguren la continuidad, seguridad, disponibilidad y escalabilidad de los sistemas y aplicaciones institucionales, contribuyendo al fortalecimiento de la gestión tecnológica de la DEP y al cumplimiento de sus funciones estratégicas.",
+      "codigo_etapa": "LR",
+      "monto_estimado": 352800000.0,
+      "tipo_licitacion": "Licitación Pública igual o superior a 5.000 UTM (LR)",
+      "duracion_contrato": null,
+      "tipo_convocatoria": "ABIERTO",
+      "toma_razon_contraloria": "NO",
+      "prohibicion_subcontratacion": null
+    },
+    "requisitos": {
+      "garantias": [
+        {
+          "tipo": "Garantía de seriedad de la oferta",
+          "monto": null,
+          "porcentaje": null,
+          "beneficiario": null,
+          "fecha_vencimiento": null
+        }
+      ],
+      "antecedentes_requeridos": [
+        "Garantía de seriedad de la oferta",
+        "Anexo N° 4"
+      ],
+      "requisitos_contratacion": [
+        "Estar hábil en el Registro de Proveedores del Estado",
+        "Contar con Certificado de Disponibilidad Presupuestaria"
+      ]
+    },
+    "adjudicacion": {
+      "ofertantes": [
+        {
+          "rut": "76.031.392-0",
+          "nombre": "Andestic Spa",
+          "resultado": "Adjudicado",
+          "puntaje_total": 90.43,
+          "monto_ofertado": 419832000.0,
+          "motivo_inadmisibilidad": null
+        },
+        {
+          "rut": "76.232.892-5",
+          "nombre": "Noventiq International Chile Spa",
+          "resultado": "No Adjudicada",
+          "puntaje_total": 72.89,
+          "monto_ofertado": 422000000.0,
+          "motivo_inadmisibilidad": null
+        },
+        {
+          "rut": "76.130.712-6",
+          "nombre": "Tivit Chile",
+          "resultado": "No Adjudicada",
+          "puntaje_total": 61.0,
+          "monto_ofertado": 386735240.0,
+          "motivo_inadmisibilidad": null
+        }
+      ],
+      "adjudicatario": {
+        "rut": "76.031.392-0",
+        "nombre": "Andestic Spa",
+        "monto_adjudicado": 419832000.0,
+        "cantidad_ofertas_recibidas": 3
+      }
+    },
+    "analisis_tivit": {
+      "participa": true,
+      "resultado": "No adjudicado",
+      "es_ganador": false,
+      "fortalezas": [
+        "Criterio Económico: Obtuvo el puntaje máximo (20.0) por presentar la oferta de menor valor.",
+        "Experiencia del oferente: Superó al ganador en este subcriterio (5.0 vs 2.0 puntos)."
+      ],
+      "debilidades": [
+        "Plazo de entrega del servicio: Obtuvo solo 2.0 de 30.0 puntos posibles, siendo la principal causa de la derrota.",
+        "Condiciones técnicas: Obtuvo 24.0 de 30.0 puntos, una brecha de 6.0 puntos frente al ganador."
+      ],
+      "monto_ofertado": 386735240.0,
+      "puntaje_obtenido": 61.0,
+      "brechas_identificadas": [
+        {
+          "area": "Técnica",
+          "impacto": "Alto",
+          "descripcion": "Brecha crítica en el subcriterio 'Plazo de entrega del servicio', que representaba el 30% de la ponderación total.",
+          "diferencia_monto": 0.0,
+          "se_puede_mitigar": true,
+          "diferencia_puntaje": 28.0,
+          "recomendacion_mejora": "Revisar y optimizar la propuesta de plazo de entrega para alinearse con los máximos puntajes de las bases en futuras licitaciones."
+        },
+        {
+          "area": "Técnica",
+          "impacto": "Medio",
+          "descripcion": "Diferencia en el subcriterio 'Condiciones técnicas', perdiendo 6 puntos ponderados.",
+          "diferencia_monto": 0.0,
+          "se_puede_mitigar": true,
+          "diferencia_puntaje": 6.0,
+          "recomendacion_mejora": "Analizar los requerimientos técnicos específicos que no se cumplieron para obtener el puntaje máximo y mejorar la propuesta técnica."
+        },
+        {
+          "area": "Económica",
+          "impacto": "Bajo",
+          "descripcion": "La ventaja de precio (20.0 vs 18.43 puntos) no fue suficiente para compensar el déficit técnico.",
+          "diferencia_monto": -33096760.0,
+          "se_puede_mitigar": true,
+          "diferencia_puntaje": -1.57,
+          "recomendacion_mejora": "Evaluar una estrategia de precios menos agresiva que permita una mayor inversión en la propuesta técnica para lograr un equilibrio óptimo."
+        }
+      ],
+      "puntaje_maximo_posible": 100.0
+    },
+    "dashboard_kpis": [
+      {
+        "color": "red",
+        "valor": "61.00%",
+        "indicador": "Puntaje TIVIT vs Máximo",
+        "tendencia": "negativa"
+      },
+      {
+        "color": "red",
+        "valor": "-29.43 puntos",
+        "indicador": "Brecha vs Ganador",
+        "tendencia": "negativa"
+      },
+      {
+        "color": "green",
+        "valor": "-$33.096.760",
+        "indicador": "Diferencia Monto",
+        "tendencia": "positiva"
+      },
+      {
+        "color": "red",
+        "valor": "#3 de 3",
+        "indicador": "Ranking",
+        "tendencia": "negativa"
+      },
+      {
+        "color": "red",
+        "valor": "44.28%",
+        "indicador": "Cumplimiento Técnico",
+        "tendencia": "negativa"
+      }
+    ],
+    "metricas_clave": {
+      "ranking_tivit": 3,
+      "cantidad_ofertantes": 3,
+      "margen_mejora_tecnico": 31.0,
+      "margen_mejora_economico": -1.57,
+      "diferencia_puntaje_total": 29.43,
+      "diferencia_monto_ofertado": -33096760.0,
+      "diferencia_porcentaje_cumplimiento": 29.43
+    },
+    "documentos_adjuntos": [
+      {
+        "tipo": "Resolución/Decreto Adjudicación",
+        "nombre": "REX N°315 DEJA SIN EFECTO RESOUCIÓN EXENTA N° 280, DE 2026, Y ADJ.pdf",
+        "tamanio_kb": 605,
+        "descripcion": "Resolución final que deja sin efecto la adjudicación anterior (N°280) y adjudica a Andestic Spa."
+      },
+      {
+        "tipo": "Acta de Evaluación",
+        "nombre": "REX N°280 DECLÁRESE INADMISIBLE LA OFERTA QUE SE INDICA, Y ADJUDI.pdf",
+        "tamanio_kb": 646,
+        "descripcion": "Acta de Evaluación correspondiente a la resolución original N°280 que fue revocada."
+      },
+      {
+        "tipo": "Declaración Jurada Ausencia Conflictos de Interés",
+        "nombre": "REX N°280 DECLÁRESE INADMISIBLE LA OFERTA QUE SE INDICA, Y ADJUDI.pdf",
+        "tamanio_kb": 646,
+        "descripcion": "Declaración Jurada de Ausencia de Conflictos de Interés, adjunta a la resolución original."
+      },
+      {
+        "tipo": "Resolución/Decreto Adjudicación",
+        "nombre": "REX N°280 DECLÁRESE INADMISIBLE LA OFERTA QUE SE INDICA, Y ADJUDI.pdf",
+        "tamanio_kb": 646,
+        "descripcion": "Resolución de adjudicación original N°280 que fue revocada tras un reclamo."
+      }
+    ],
+    "riesgos_identificados": [
+      {
+        "nivel": "Alto",
+        "riesgo": "Subestimación del impacto de criterios técnicos no relacionados con el core del servicio (ej. plazo de entrega).",
+        "mitigacion": "Realizar un análisis de sensibilidad de puntajes durante la preparación de la oferta, ponderando cada subcriterio según su peso porcentual para enfocar los esfuerzos en los de mayor impacto.",
+        "impacto_estimado": 28.0
+      },
+      {
+        "nivel": "Medio",
+        "riesgo": "Estrategia de precios demasiado agresiva que no deja margen para una propuesta técnica superior.",
+        "mitigacion": "Establecer un precio objetivo que no sea necesariamente el más bajo, sino el que permita una oferta global más competitiva, balanceando costo y puntaje técnico.",
+        "impacto_estimado": 29.43
+      }
+    ],
+    "validacion_documental": {
+      "resumen": "La documentación presentada por los oferentes fue considerada completa y conforme en la evaluación final (Resolución N° 315), sin inconsistencias aparentes.",
+      "coherente": true,
+      "documentos": [
+        {
+          "estado": "ok",
+          "nombre": "Garantía de seriedad de la oferta",
+          "enviado": true,
+          "requerido": true,
+          "observado_en_acta": "El acta (Considerando 11) confirma que Tivit Chile presentó la garantía de seriedad de la oferta 000178770."
+        },
+        {
+          "estado": "ok",
+          "nombre": "Totalidad de antecedentes de admisibilidad",
+          "enviado": true,
+          "requerido": true,
+          "observado_en_acta": "El acta (Considerando 10) indica que 'los oferentes adjuntaron la totalidad de los antecedentes respecto de la presentación de la oferta'."
+        }
+      ],
+      "inconsistencias": []
+    },
+    "recomendaciones_estrategicas": [
+      "Priorizar la mejora radical de la propuesta de 'Plazo de entrega'. La brecha de 28 puntos en este subcriterio (30% de la ponderación) fue el factor determinante de la derrota. Es crucial entender el requerimiento y ajustar la capacidad operativa para ofrecer plazos competitivos que apunten al puntaje máximo.",
+      "Ajustar la estrategia de precios. Ser el más barato por un amplio margen no garantizó la victoria. Se debe analizar si parte del margen de precio podría reinvertirse en mejorar la oferta técnica (ej. 'Condiciones técnicas') para lograr un equilibrio más competitivo.",
+      "Reforzar la propuesta de 'Condiciones técnicas'. Aunque la brecha fue menor (6 puntos), son puntos clave que, sumados, marcan la diferencia. Realizar un análisis detallado de las bases técnicas para asegurar el cumplimiento de todos los aspectos que otorgan puntaje.",
+      "Analizar la propuesta de 'Experiencia del oferente'. A pesar de tener mejor puntaje que el ganador en este ítem (5 vs 2), la ponderación (10%) es baja. No se debe descuidar, pero el foco principal debe estar en los subcriterios técnicos de mayor peso."
+    ]
+  }
+}

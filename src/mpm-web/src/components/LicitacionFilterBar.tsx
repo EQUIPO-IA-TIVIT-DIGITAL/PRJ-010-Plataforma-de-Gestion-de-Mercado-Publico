@@ -1,7 +1,7 @@
-import { Row, Col, Input, Select, DatePicker, Button, Segmented } from 'antd';
+import { Row, Col, Input, Select, DatePicker, Button, Segmented, Checkbox } from 'antd';
 import { SearchOutlined, ClearOutlined, BulbOutlined, FilterOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
-import { useCatalogos } from '../hooks/useCatalogos';
+import { useCatalogos, useAreasNegocio } from '../hooks/useCatalogos';
 import type { LicitacionFilter } from '../types/licitacion';
 
 export type SearchMode = 'filtros' | 'inteligente';
@@ -22,6 +22,12 @@ export function LicitacionFilterBar({
   searchMode, onSearchModeChange, naturalQuery, onNaturalQueryChange, onNaturalQuerySubmit,
 }: Props) {
   const { data: catalogos } = useCatalogos();
+  const { data: areasNegocio } = useAreasNegocio();
+
+  const areaOptions = (areasNegocio ?? []).map(a => ({
+    value: a.codigo,
+    label: a.nombre,
+  }));
 
   const estadoOptions = (catalogos?.estadosLicitacion ?? []).map(e => ({
     value: e.codigo,
@@ -91,6 +97,27 @@ export function LicitacionFilterBar({
           data-testid="filter-tipo"
           options={tipoOptions}
         />
+      </Col>
+      <Col xs={12} sm={6} md={4}>
+        <Select
+          placeholder="Área de negocio"
+          allowClear
+          style={{ width: '100%' }}
+          value={filter.area ?? undefined}
+          onChange={v => onChange({ area: v, sinClasificar: v ? undefined : filter.sinClasificar })}
+          data-testid="filter-area-negocio"
+          options={areaOptions}
+        />
+      </Col>
+      <Col xs={12} sm={6} md="auto">
+        <Checkbox
+          checked={!!filter.sinClasificar}
+          disabled={!!filter.area}
+          onChange={e => onChange({ sinClasificar: e.target.checked || undefined, area: e.target.checked ? undefined : filter.area })}
+          data-testid="filter-sin-clasificar"
+        >
+          Sin clasificar
+        </Checkbox>
       </Col>
       <Col xs={12} sm={6} md={3}>
         <DatePicker

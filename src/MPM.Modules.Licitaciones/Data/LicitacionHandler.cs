@@ -13,9 +13,11 @@ public class LicitacionHandler(DbConnectionFactory dbFactory)
 {
     private readonly DbConnectionFactory _dbFactory = dbFactory;
 
-    public async Task<(System.Collections.Generic.List<LicitacionResumenDto> items, int totalCount)> ListarAsync(
+    // virtual para poder mockearlo en LicitacionServiceTests (mismo patrón que BuscarNaturalAsync)
+    public virtual async Task<(System.Collections.Generic.List<LicitacionResumenDto> items, int totalCount)> ListarAsync(
         int page, int pageSize, string? search, short? estado, string? tipo, string? organismo,
         DateTime? fechaDesde, DateTime? fechaHasta, string sortBy, string sortDir,
+        short? area = null, bool? sinClasificar = null,
         CancellationToken ct = default)
     {
         await using var conn = _dbFactory.Create();
@@ -38,6 +40,8 @@ public class LicitacionHandler(DbConnectionFactory dbFactory)
         p.Add("p_fecha_hasta", fechaHasta, DbType.Date);
         p.Add("p_sort_by", sortBy, DbType.String);
         p.Add("p_sort_dir", sortDir, DbType.String);
+        p.Add("p_area", area, DbType.Int16);
+        p.Add("p_sin_clasificar", sinClasificar, DbType.Boolean);
 
         var result = await conn.QueryAsync<LicitacionResumenDto>(
             sql: LicitacionStoredProcedures.Listar,
@@ -48,6 +52,26 @@ public class LicitacionHandler(DbConnectionFactory dbFactory)
         var totalCount = list.Count > 0 ? list[0].TotalCount : 0;
 
         return (list, totalCount);
+    }
+
+    // US2 (spec 031): estadísticas de licitaciones por estado, con el mismo filtro de
+    // área que ListarAsync (fn_licitacion_area_codigos, V118/V121) para que el drill-down
+    // navegue a un listado con conteos consistentes.
+    public virtual async Task<System.Collections.Generic.List<EstadoConteoDto>> ContarPorEstadoAsync(
+        short? area, bool? sinClasificar, CancellationToken ct = default)
+    {
+        await using var conn = _dbFactory.Create();
+
+        var p = new DynamicParameters();
+        p.Add("p_area", area, DbType.Int16);
+        p.Add("p_sin_clasificar", sinClasificar, DbType.Boolean);
+
+        var result = await conn.QueryAsync<EstadoConteoDto>(
+            sql: LicitacionStoredProcedures.ContarPorEstado,
+            param: p,
+            commandType: CommandType.Text);
+
+        return result.ToList();
     }
 
     /// <summary>
@@ -144,6 +168,11 @@ public class LicitacionHandler(DbConnectionFactory dbFactory)
 
         var dto = new LicitacionDetalleDto
         {
+            // spec 031 (US5): faltaba mapear Id -- nadie lo necesitaba hasta que
+            // LicitacionInteresPanel empezó a usar el id numérico de la licitación mostrada en
+            // el drawer de detalle (encontrado en vivo vía el E2E de Playwright: todas las
+            // llamadas terminaban en /licitaciones/0/interes).
+            Id = root.TryGetProperty("id", out var idProp) && idProp.ValueKind == JsonValueKind.Number ? idProp.GetInt64() : 0,
             CodigoExterno = root.TryGetProperty("codigo_externo", out var ce) ? ce.GetString() ?? "" : "",
             Nombre = root.TryGetProperty("nombre", out var n) ? n.GetString() ?? "" : "",
             Tipo = root.TryGetProperty("tipo", out var t) ? t.GetString() ?? "" : "",

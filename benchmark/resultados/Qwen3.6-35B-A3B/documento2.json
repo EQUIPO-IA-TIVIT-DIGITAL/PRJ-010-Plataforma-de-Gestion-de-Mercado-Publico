@@ -1,0 +1,264 @@
+{
+  "licitacion": {
+    "id": "1002584-16-LR25",
+    "nombre": "Servicio de Cloud Microsoft Azure para la Dirección de Educación Pública",
+    "descripcion": "Contratación del servicio de infraestructura cloud bajo la plataforma Microsoft Azure para las necesidades operativas y técnicas de la Dirección de Educación Pública.",
+    "organismo": {
+      "nombre": "Dirección de Educación Pública",
+      "rut": null,
+      "unidad": "Subdepartamento de Administración Institucional",
+      "region": null
+    },
+    "tipo_licitacion": "Pública",
+    "tipo_convocatoria": "Abierto",
+    "codigo_etapa": "LR25",
+    "estado": "Adjudicada",
+    "moneda": "CLP",
+    "fechas": {
+      "publicacion": "2026-01-02",
+      "cierre_ofertas": null,
+      "apertura_tecnica": "2026-02-03",
+      "apertura_economica": "2026-02-03",
+      "adjudicacion": "2026-02-05"
+    },
+    "monto_estimado": null,
+    "monto_estimado_moneda": null,
+    "duracion_contrato": null,
+    "renovacion": null,
+    "toma_razon_contraloria": null,
+    "prohibicion_subcontratacion": null,
+    "plazo_pago": null
+  },
+  "adjudicacion": {
+    "adjudicatario": {
+      "nombre": "Andestic Spa",
+      "rut": "76.031.392-0",
+      "monto_adjudicado": 419832000,
+      "monto_adjudicado_moneda": "CLP",
+      "cantidad_ofertas_recibidas": 3
+    },
+    "ofertantes": [
+      {
+        "nombre": "Andestic Spa",
+        "rut": "76.031.392-0",
+        "monto_ofertado": 419832000,
+        "monto_ofertado_moneda": "CLP",
+        "puntaje_total": 92.0,
+        "resultado": "Adjudicado",
+        "motivo_inadmisibilidad": null
+      },
+      {
+        "nombre": "Noventiq International Chile Spa",
+        "rut": "76.232.892-5",
+        "monto_ofertado": 422000000,
+        "monto_ofertado_moneda": "CLP",
+        "puntaje_total": 70.89,
+        "resultado": "No adjudicado",
+        "motivo_inadmisibilidad": null
+      },
+      {
+        "nombre": "Tivit Chile",
+        "rut": "76.130.712-6",
+        "monto_ofertado": null,
+        "monto_ofertado_moneda": null,
+        "puntaje_total": 0,
+        "resultado": "Inadmisible",
+        "motivo_inadmisibilidad": "No presenta garantía de seriedad de la oferta. Incumple lo dispuesto en el acápite octavo, literal vii, letra a, de las Bases Administrativas."
+      }
+    ]
+  },
+  "evaluacion": {
+    "metodologia": "Evaluación de Oferta Técnica y Económica con ponderación en varios criterios (Administrativo, Técnico, Económico e Integridad). Se utiliza sistema de puntajes ponderados.",
+    "criterios": [
+      {
+        "nombre": "Administrativo",
+        "ponderacion": 5.0,
+        "subcriterios": [],
+        "puntaje_maximo_total": 5.0,
+        "puntaje_tivit_total": 0.0,
+        "puntaje_ganador_total": 5.0,
+        "brecha": 0.0
+      },
+      {
+        "nombre": "Técnico",
+        "ponderacion": 70.0,
+        "subcriterios": [
+          {
+            "nombre": "Plazo de entrega del servicio",
+            "ponderacion": 30.0,
+            "descripcion": "Tiempo propuesto para la entrega/completitud del servicio",
+            "puntaje_maximo": 30.0,
+            "puntaje_tivit": 0.0,
+            "puntaje_ganador": 30.0,
+            "comentario_evaluacion": "Andestic logró el máximo puntaje; Noventiq obtuvo solo 6 puntos."
+          },
+          {
+            "nombre": "Experiencia del oferente",
+            "ponderacion": 10.0,
+            "descripcion": "Antecedentes de experiencia previa relevante",
+            "puntaje_maximo": 10.0,
+            "puntaje_tivit": 0.0,
+            "puntaje_ganador": 2.0,
+            "comentario_evaluacion": "Noventiq obtuvo 7 puntos y Andestic 2 puntos."
+          },
+          {
+            "nombre": "Condiciones técnicas",
+            "ponderacion": 30.0,
+            "descripcion": "Cumplimiento técnico de la solución propuesta",
+            "puntaje_maximo": 30.0,
+            "puntaje_tivit": 0.0,
+            "puntaje_ganador": 30.0,
+            "comentario_evaluacion": "Ambos evaluados obtuvieron el máximo puntaje (30)."
+          }
+        ],
+        "puntaje_maximo_total": 70.0,
+        "puntaje_tivit_total": 0.0,
+        "puntaje_ganador_total": 62.0,
+        "brecha": 9.0
+      },
+      {
+        "nombre": "Económico",
+        "ponderacion": 20.0,
+        "subcriterios": [],
+        "puntaje_maximo_total": 20.0,
+        "puntaje_tivit_total": 0.0,
+        "puntaje_ganador_total": 20.0,
+        "brecha": 0.0
+      },
+      {
+        "nombre": "Programa de Integridad",
+        "ponderacion": 5.0,
+        "subcriterios": [],
+        "puntaje_maximo_total": 5.0,
+        "puntaje_tivit_total": 0.0,
+        "puntaje_ganador_total": 5.0,
+        "brecha": 0.0
+      }
+    ],
+    "desglose_puntajes": {
+      "tivit": {
+        "puntaje_tecnico": 0.0,
+        "puntaje_economico": 0.0,
+        "puntaje_administrativo": 0.0,
+        "puntaje_total": 0.0,
+        "porcentaje_cumplimiento": 0.0
+      },
+      "ganador": {
+        "puntaje_tecnico": 62.0,
+        "puntaje_economico": 20.0,
+        "puntaje_administrativo": 5.0,
+        "puntaje_total": 92.0,
+        "porcentaje_cumplimiento": 100.0
+      }
+    }
+  },
+  "requisitos": {
+    "antecedentes_requeridos": [
+      "Garantía de seriedad de la oferta",
+      "Anexo N° 4 (formato original sin alteraciones)",
+      "Documentación general del proceso"
+    ],
+    "requisitos_contratacion": [
+      "Habilidad del proveedor (Registro de Proveedores)",
+      "Certificado de Disponibilidad Presupuestaria"
+    ],
+    "garantias": []
+  },
+  "analisis_tivit": {
+    "participa": true,
+    "es_ganador": false,
+    "monto_ofertado": null,
+    "monto_ofertado_moneda": "NO_DETERMINADA",
+    "puntaje_obtenido": 0.0,
+    "puntaje_maximo_posible": 0.0,
+    "resultado": "Inadmisible",
+    "fortalezas": [],
+    "debilidades": [
+      "Falta crítica de cumplimiento administrativo: no adjuntó la garantía de seriedad de la oferta."
+    ],
+    "brechas_identificadas": []
+  },
+  "documentos_adjuntos": [
+    {
+      "nombre": "Acta de Evaluación Técnica y Económica",
+      "tipo": "Acta",
+      "descripcion": "Detalle de las evaluaciones y puntajes otorgados por la comisión evaluadora a los oferentes habilitados.",
+      "tamanio_kb": null
+    },
+    {
+      "nombre": "Certificado de Habilidad Andestic Spa",
+      "tipo": "Declaración",
+      "descripcion": "Certificado emitido el 12 de febrero de 2026 que acredita la capacidad legal del proveedor.",
+      "tamanio_kb": null
+    },
+    {
+      "nombre": "Certificado de Disponibilidad Presupuestaria N° 446",
+      "tipo": "Declaración Financiera",
+      "descripcion": "Certificación de recursos disponibles emitida por Finanzas Institucionales.",
+      "tamanio_kb": null
+    }
+  ],
+  "validacion_documental": {
+    "documentos": [
+      {
+        "nombre": "Garantía de Seriedad de la Oferta",
+        "requerido": true,
+        "enviado": false,
+        "observado_en_acta": "La comisión observó que Tivit Chile no presenta garantía de seriedad de la oferta.",
+        "estado": "faltante"
+      }
+    ],
+    "inconsistencias": [],
+    "resumen": "El análisis es coherente: Tivit Chile fue declarada inadmisible exclusivamente por la falta formal de la garantía de seriedad antes de proceder a la evaluación técnica o económica.",
+    "coherente": true
+  },
+  "metricas_clave": {
+    "diferencia_puntaje_total": null,
+    "diferencia_monto_ofertado": null,
+    "diferencia_porcentaje_cumplimiento": 0.0,
+    "cantidad_ofertantes": 3,
+    "ranking_tivit": "Inadmisible",
+    "margen_mejora_tecnico": 0.0,
+    "margen_mejora_economico": 0.0
+  },
+  "dashboard_kpis": [
+    {
+      "indicador": "Estado Oferta TIVIT",
+      "valor": "Inadmisible",
+      "tendencia": "negativa",
+      "color": "red"
+    },
+    {
+      "indicador": "Causa Rechazo",
+      "valor": "Garantía de Seriedad",
+      "tendencia": "evitable",
+      "color": "orange"
+    },
+    {
+      "indicador": "Brecha Técnica vs Ganador",
+      "valor": "Sin Evaluar",
+      "tendencia": "neutral",
+      "color": "gray"
+    }
+  ],
+  "recomendaciones_estrategicas": [
+    "Implementar un control de cumplimiento documental previo (pre-check) estricto antes del envío de ofertas, enfocado especialmente en garantías obligatorias (seriedad y/o fiel cumplimento).",
+    "Revisar el Checklist de Admisibilidad del concurso contra la documentación entregada para evitar exclusiones formales.",
+    "Entrenar a la unidad compradora o asesores externos en los requisitos críticos del pliego para asegurar la elegibilidad inmediata."
+  ],
+  "riesgos_identificados": [
+    {
+      "riesgo": "Pérdida de oportunidad contractual por defectos administrativos simples (garantías).",
+      "nivel": "Alto",
+      "mitigacion": "Auditoría interna de expedientes licitatorios 24 horas antes del cierre.",
+      "impacto_estimado": 419832000
+    }
+  ],
+  "revocacion": {
+    "detectada": false,
+    "documento_que_revoca": null,
+    "documento_revocado": null,
+    "motivo": null,
+    "resultado_vigente": null
+  }
+}

@@ -120,6 +120,15 @@ public class LicitacionFilter
     public DateTime? FechaHasta { get; set; }
     public string SortBy { get; set; } = "fecha_publicacion";
     public string SortDir { get; set; } = "desc";
+    public short? Area { get; set; }
+    public bool? SinClasificar { get; set; }
+}
+
+public class EstadoConteoDto
+{
+    public short CodigoEstado { get; set; }
+    public string NombreEstado { get; set; } = string.Empty;
+    public int Cantidad { get; set; }
 }
 
 public class PaginatedResult<T>
