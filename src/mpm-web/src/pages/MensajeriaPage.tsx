@@ -1,4 +1,4 @@
-import { Button, Modal, Form, Input, Typography, App } from 'antd';
+import { Button, Typography, Layout, theme } from 'antd';
 import { PlusOutlined, MessageOutlined } from '@ant-design/icons';
 import { useState } from 'react';
 import { useChatLogic } from '../hooks/useChatLogic';
@@ -41,75 +41,48 @@ export function MensajeriaPage() {
     ? JSON.parse(localStorage.getItem('mpm_user')!).userId
     : '';
 
+  const { token } = theme.useToken();
+
   return (
-    <div
+    <Layout
       style={{
-        display: 'flex',
         height: 'calc(100vh - 112px)',
-        background: 'var(--bg-muted)',
-        borderRadius: 14,
+        borderRadius: token.borderRadiusLG,
         overflow: 'hidden',
-        boxShadow: 'var(--shadow-card)',
-        border: '1px solid var(--border)',
+        boxShadow: token.boxShadow,
+        border: `1px solid ${token.colorBorderSecondary}`,
       }}
     >
       {/* ---- Sidebar izquierdo: lista de conversaciones ---- */}
-      <div style={{ display: 'flex', flexDirection: 'column', width: 320, flexShrink: 0 }}>
-        {/* Header de la sección */}
+      <Layout.Sider width={320} theme="light" style={{ borderRight: `1px solid ${token.colorBorderSecondary}` }}>
         <div
           style={{
             padding: '16px 20px',
-            background: 'white',
-            borderBottom: '1px solid var(--border)',
-            borderRight: '1px solid var(--border)',
+            borderBottom: `1px solid ${token.colorBorderSecondary}`,
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
-            flexShrink: 0,
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <div
               style={{
-                width: 28,
-                height: 28,
-                borderRadius: 7,
-                background: 'linear-gradient(135deg, #E30613, #ff3a46)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                boxShadow: '0 3px 8px rgba(227,6,19,0.3)',
+                width: 28, height: 28, borderRadius: token.borderRadiusSM,
+                background: token.colorPrimary,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
               }}
             >
-              <MessageOutlined style={{ color: 'white', fontSize: 13 }} />
+              <MessageOutlined style={{ color: '#ffffff', fontSize: 13 }} />
             </div>
-            <Typography.Text strong style={{ fontSize: 15, color: 'var(--text-primary)' }}>
-              Mensajes
-            </Typography.Text>
+            <Typography.Text strong style={{ fontSize: 15 }}>Mensajes</Typography.Text>
           </div>
 
-          <Button
-            type="primary"
-            size="small"
-            icon={<PlusOutlined />}
-            onClick={() => setModalOpen(true)}
-            style={{
-              borderRadius: 8,
-              fontWeight: 600,
-              fontSize: 12,
-              background: 'linear-gradient(135deg, #E30613, #ff3a46)',
-              border: 'none',
-              boxShadow: '0 2px 6px rgba(227,6,19,0.3)',
-              height: 30,
-              padding: '0 10px',
-            }}
-          >
+          <Button type="primary" size="small" icon={<PlusOutlined />} onClick={() => setModalOpen(true)}>
             Nueva
           </Button>
         </div>
 
-        {/* Lista de conversaciones */}
-        <div style={{ flex: 1, overflowY: 'auto', borderRight: '1px solid var(--border)', background: 'white' }}>
+        <div style={{ height: 'calc(100% - 65px)', overflowY: 'auto' }}>
           <ConversacionList
             conversaciones={conversaciones}
             selectedId={selectedConversacionId}
@@ -119,10 +92,10 @@ export function MensajeriaPage() {
             presenciaMap={presenciaMap}
           />
         </div>
-      </div>
+      </Layout.Sider>
 
       {/* ---- Panel de chat ---- */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+      <Layout.Content style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
         <ChatPanel
           conversacion={conversacionSeleccionada}
           mensajes={mensajes}
@@ -142,7 +115,7 @@ export function MensajeriaPage() {
           onParticipantesClick={() => setDrawerOpen(true)}
           typingUserId={typingUserId}
         />
-      </div>
+      </Layout.Content>
 
       {/* ---- Modales y drawers ---- */}
       <CrearConversacionModal
@@ -156,6 +129,6 @@ export function MensajeriaPage() {
         onClose={() => setDrawerOpen(false)}
         participantes={participantes}
       />
-    </div>
+    </Layout>
   );
 }

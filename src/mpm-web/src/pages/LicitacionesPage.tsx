@@ -1,14 +1,28 @@
 import { useState, useCallback, useMemo } from 'react';
-import { Alert, Space, Tag, Card, Row, Col, Statistic } from 'antd';
-import { FileTextOutlined, StarOutlined, ClockCircleOutlined, SyncOutlined } from '@ant-design/icons';
+import { Alert, Space, Flex, theme } from 'antd';
+import { FileTextOutlined, StarOutlined, ClockCircleOutlined } from '@ant-design/icons';
 import { LicitacionFilterBar } from '../components/LicitacionFilterBar';
 import type { SearchMode } from '../components/LicitacionFilterBar';
 import { LicitacionesTable } from '../components/LicitacionesTable';
 import { NaturalSearchResults } from '../components/NaturalSearchResults';
 import { LicitacionDetailDrawer } from '../components/LicitacionDetailDrawer';
+import { PageHeader } from '../components/PageHeader';
+import { StatusBadge } from '../components/StatusBadge';
+import type { StatusBadgeVariant } from '../components/StatusBadge';
 import { useLicitaciones, useBuscarNatural, useLicitacionesSeguidas, useEstadisticasEstado } from '../hooks/useLicitaciones';
 import { useLicitacionDetalle } from '../hooks/useLicitacionDetalle';
 import type { LicitacionResumen, LicitacionFilter } from '../types/licitacion';
+
+// US1 (spec 019): variante de StatusBadge por nombre de estado -- los codigos reales vienen
+// del catalogo (V086), se mapea por nombre porque es lo que ya expone useEstadisticasEstado.
+function varianteEstado(nombreEstado: string): StatusBadgeVariant {
+  const n = nombreEstado.toLowerCase();
+  if (n.includes('adjudicada')) return 'success';
+  if (n.includes('desierta')) return 'warning';
+  if (n.includes('revocada')) return 'error';
+  if (n.includes('publicada')) return 'info';
+  return 'neutral';
+}
 
 const DEFAULT_FILTER: LicitacionFilter = {
   page: 1,
@@ -106,70 +120,39 @@ export function LicitacionesPage() {
     setSelectedCodigo(null);
   }, []);
 
+  const { token } = theme.useToken();
+
   return (
     <Space direction="vertical" size={10} style={{ width: '100%' }}>
 
       {/* ---- Page Header ---- */}
-      <div className="mpm-page-header" style={{ marginBottom: 0 }}>
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div
-              style={{
-                width: 32,
-                height: 32,
-                borderRadius: 8,
-                background: 'linear-gradient(135deg, #E30613, #ff3a46)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                boxShadow: '0 4px 10px rgba(227,6,19,0.3)',
-              }}
-            >
-              <FileTextOutlined style={{ color: 'white', fontSize: 15 }} />
-            </div>
-            <h1 className="mpm-page-title">Licitaciones</h1>
-            {totalRecords > 0 && (
-              <Tag style={{ padding: '4px 12px', borderRadius: 999, fontSize: 12, fontWeight: 600, background: '#f0f4ff', border: '1px solid #c7d7fe', color: '#3b4fd8' }}>
-                {totalRecords.toLocaleString('es-CL')} licitaciones
-              </Tag>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* ---- Metrics Cards ---- */}
-      <Row gutter={[16, 16]} style={{ marginTop: 8, marginBottom: 8 }}>
-        <Col xs={24} md={8}>
-          <Card bordered={false} style={{ background: '#ffffff', borderRadius: 14, boxShadow: 'var(--shadow-card)' }}>
-            <Statistic
-              title={<span style={{ fontSize: 12, fontWeight: 600, textTransform: 'uppercase', color: 'var(--text-secondary)' }}>Licitaciones disponibles</span>}
-              value={totalRecords}
-              prefix={<FileTextOutlined style={{ color: '#3b82f6', marginRight: 8 }} />}
-              valueStyle={{ fontSize: 22, fontWeight: 700, color: 'var(--text-primary)' }}
-            />
-          </Card>
-        </Col>
-        <Col xs={24} md={8}>
-          <Card bordered={false} style={{ background: '#ffffff', borderRadius: 14, boxShadow: 'var(--shadow-card)' }}>
-            <Statistic
-              title={<span style={{ fontSize: 12, fontWeight: 600, textTransform: 'uppercase', color: 'var(--text-secondary)' }}>Licitaciones seguidas</span>}
-              value={seguidasCount}
-              prefix={<StarOutlined style={{ color: '#f59e0b', marginRight: 8 }} />}
-              valueStyle={{ fontSize: 22, fontWeight: 700, color: 'var(--text-primary)' }}
-            />
-          </Card>
-        </Col>
-        <Col xs={24} md={8}>
-          <Card bordered={false} style={{ background: '#ffffff', borderRadius: 14, boxShadow: 'var(--shadow-card)' }}>
-            <Statistic
-              title={<span style={{ fontSize: 12, fontWeight: 600, textTransform: 'uppercase', color: 'var(--text-secondary)' }}>Cierran pronto (en esta pág)</span>}
-              value={closingSoonCount}
-              prefix={<ClockCircleOutlined style={{ color: '#ef4444', marginRight: 8 }} />}
-              valueStyle={{ fontSize: 22, fontWeight: 700, color: 'var(--text-primary)' }}
-            />
-          </Card>
-        </Col>
-      </Row>
+      {/* Metrics como `actions` del header (misma fila que el título) en vez de una fila
+          propia debajo -- una fila aparte para solo 3 chips angostos dejaba mucho espacio
+          vacío a la derecha en pantallas anchas (ajustado 2026-08-05). */}
+      <PageHeader
+        icon={<FileTextOutlined />}
+        title="Licitaciones"
+        subtitle={totalRecords > 0 ? `${totalRecords.toLocaleString('es-CL')} licitaciones` : undefined}
+        actions={
+          <Flex wrap gap={10}>
+            <Flex align="center" gap={8} style={{ background: token.colorFillTertiary, borderRadius: token.borderRadius, padding: '8px 14px' }}>
+              <FileTextOutlined style={{ color: token.colorInfo, fontSize: 16 }} />
+              <span style={{ fontSize: 13, color: token.colorTextSecondary }}>Disponibles</span>
+              <span style={{ fontSize: 16, fontWeight: 700 }}>{totalRecords.toLocaleString('es-CL')}</span>
+            </Flex>
+            <Flex align="center" gap={8} style={{ background: token.colorFillTertiary, borderRadius: token.borderRadius, padding: '8px 14px' }}>
+              <StarOutlined style={{ color: token.colorWarning, fontSize: 16 }} />
+              <span style={{ fontSize: 13, color: token.colorTextSecondary }}>Seguidas</span>
+              <span style={{ fontSize: 16, fontWeight: 700 }}>{seguidasCount}</span>
+            </Flex>
+            <Flex align="center" gap={8} style={{ background: token.colorFillTertiary, borderRadius: token.borderRadius, padding: '8px 14px' }}>
+              <ClockCircleOutlined style={{ color: token.colorError, fontSize: 16 }} />
+              <span style={{ fontSize: 13, color: token.colorTextSecondary }}>Cierran pronto (en esta pág.)</span>
+              <span style={{ fontSize: 16, fontWeight: 700 }}>{closingSoonCount}</span>
+            </Flex>
+          </Flex>
+        }
+      />
 
       {/* ---- Filters (búsqueda única + reiniciar) ---- */}
       <div className="mpm-filter-bar" style={{ padding: '12px 16px' }}>
@@ -185,33 +168,31 @@ export function LicitacionesPage() {
         />
       </div>
 
-      {/* ---- Estadísticas por estado, con drill-down (US2) ---- */}
+      {/* ---- Estadísticas por estado, con drill-down (US2 spec 031 / US1 spec 019) --
+           Flex wrap en vez de Row/Col de ancho fijo: sin huecos de alineación cualquiera sea
+           la cantidad de estados (antes, con md=4 -> 6 columnas, 5 estados dejaban un hueco
+           vacío junto al último, ej. "Revocada"). StatusBadge reemplaza las Card+Statistic
+           pesadas -- mismo dato, mismo drill-down al hacer clic, menor peso visual. ---- */}
       {estadisticasEstado && estadisticasEstado.length > 0 && (
-        <Row gutter={[10, 10]} data-testid="estadisticas-estado">
+        <Flex wrap gap={8} data-testid="estadisticas-estado">
           {estadisticasEstado.map(e => (
-            <Col xs={12} sm={8} md={4} key={e.codigoEstado}>
-              <Card
-                bordered={false}
-                size="small"
-                hoverable
-                onClick={() => handleFilterChange({ estado: e.codigoEstado })}
-                style={{
-                  background: filter.estado === e.codigoEstado ? '#eef2ff' : '#ffffff',
-                  borderRadius: 12,
-                  boxShadow: 'var(--shadow-card)',
-                  cursor: 'pointer',
-                }}
-                data-testid={`estadistica-estado-${e.codigoEstado}`}
-              >
-                <Statistic
-                  title={<span style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', color: 'var(--text-secondary)' }}>{e.nombreEstado}</span>}
-                  value={e.cantidad}
-                  valueStyle={{ fontSize: 18, fontWeight: 700, color: 'var(--text-primary)' }}
-                />
-              </Card>
-            </Col>
+            <div
+              key={e.codigoEstado}
+              onClick={() => handleFilterChange({ estado: e.codigoEstado })}
+              style={{
+                cursor: 'pointer',
+                outline: filter.estado === e.codigoEstado ? `2px solid ${token.colorPrimary}` : 'none',
+                borderRadius: 999,
+              }}
+              data-testid={`estadistica-estado-${e.codigoEstado}`}
+            >
+              <StatusBadge
+                variant={varianteEstado(e.nombreEstado)}
+                label={`${e.nombreEstado}: ${e.cantidad.toLocaleString('es-CL')}`}
+              />
+            </div>
           ))}
-        </Row>
+        </Flex>
       )}
 
       {/* ---- Results ---- */}

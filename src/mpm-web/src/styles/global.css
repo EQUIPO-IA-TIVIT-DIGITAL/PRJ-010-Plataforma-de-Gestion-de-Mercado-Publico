@@ -489,21 +489,8 @@ body {
   animation: mpm-fadeIn var(--transition-base) ease-out forwards;
 }
 
-/* Workspace card */
-.mpm-workspace-card {
-  border-radius: var(--radius-lg) !important;
-  border-color: var(--border) !important;
-  box-shadow: var(--shadow-card) !important;
-  transition: all var(--transition-base) !important;
-  cursor: pointer;
-  overflow: hidden;
-}
-
-.mpm-workspace-card:hover {
-  box-shadow: var(--shadow-card-hover) !important;
-  transform: translateY(-3px) !important;
-  border-color: var(--accent-primary) !important;
-}
+/* mpm-workspace-card: sin reglas propias -- solo hook de selector para e2e/pages/AnalisisListPage.ts,
+   el estilo visual ahora lo da el <Card hoverable> de Ant Design (spec 019) */
 
 /* mpm-chat-user / mpm-chat-assistant / mpm-typing-dot
    eliminadas: ahora el chat usa Bubble.List/Sender de @ant-design/x (spec 025) */

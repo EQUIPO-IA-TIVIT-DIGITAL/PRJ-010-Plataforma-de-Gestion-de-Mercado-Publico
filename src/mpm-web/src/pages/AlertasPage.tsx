@@ -6,6 +6,7 @@ import {
 import { BellOutlined, PlusOutlined, DeleteOutlined, CheckCircleOutlined, InfoCircleOutlined } from '@ant-design/icons';
 import { useAlertas, useCrearAlerta, useToggleAlerta, useEliminarAlerta } from '../hooks/useAlertas';
 import type { ReglaAlerta, CrearReglaRequest } from '../types/alertas';
+import { PageHeader } from '../components/PageHeader';
 
 export function AlertasPage() {
   const { message } = AntApp.useApp();
@@ -127,68 +128,38 @@ export function AlertasPage() {
   return (
     <Space direction="vertical" size={16} style={{ width: '100%', padding: '8px 0' }}>
       {/* Header */}
-      <div className="mpm-page-header" style={{ marginBottom: 4 }}>
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
-            <div style={{ width: 32, height: 32, borderRadius: 8, background: 'linear-gradient(135deg, #3b82f6, #60a5fa)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 10px rgba(59,130,246,0.3)' }}>
-              <BellOutlined style={{ color: 'white', fontSize: 15 }} />
-            </div>
-            <h1 className="mpm-page-title">Alertas Inteligentes</h1>
-          </div>
-          <p className="mpm-page-subtitle">
-            Recibe notificaciones automáticas cuando aparezca una licitación relevante — la IA expande cada palabra clave a sinónimos y conceptos relacionados.
-          </p>
-        </div>
-        <Button
-          type="primary"
-          icon={<PlusOutlined />}
-          onClick={() => setModalCrear(true)}
-          style={{
-            height: 38, borderRadius: 10, fontWeight: 700,
-            background: 'linear-gradient(135deg, #E30613, #ff3a46)', border: 'none',
-            boxShadow: '0 4px 12px rgba(227,6,19,0.3)',
-          }}
-        >
-          Nueva alerta
-        </Button>
-      </div>
+      <PageHeader
+        icon={<BellOutlined />}
+        title="Alertas Inteligentes"
+        subtitle="Recibe notificaciones automáticas cuando aparezca una licitación relevante — la IA expande cada palabra clave a sinónimos y conceptos relacionados."
+        actions={
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => setModalCrear(true)}>
+            Nueva alerta
+          </Button>
+        }
+      />
 
       {/* Metrics Cards */}
       <Row gutter={[16, 16]}>
         <Col xs={24} sm={8}>
-          <Card bordered={false} style={{ background: '#ffffff', borderRadius: 14, boxShadow: 'var(--shadow-card)' }}>
-            <Statistic
-              title={<span style={{ fontSize: 12, fontWeight: 600, textTransform: 'uppercase', color: 'var(--text-secondary)' }}>Reglas de alerta</span>}
-              value={totalReglas}
-              prefix={<BellOutlined style={{ color: '#3b82f6', marginRight: 8 }} />}
-              valueStyle={{ fontSize: 22, fontWeight: 700, color: 'var(--text-primary)' }}
-            />
+          <Card>
+            <Statistic title="Reglas de alerta" value={totalReglas} prefix={<BellOutlined />} />
           </Card>
         </Col>
         <Col xs={24} sm={8}>
-          <Card bordered={false} style={{ background: '#ffffff', borderRadius: 14, boxShadow: 'var(--shadow-card)' }}>
-            <Statistic
-              title={<span style={{ fontSize: 12, fontWeight: 600, textTransform: 'uppercase', color: 'var(--text-secondary)' }}>Alertas activas</span>}
-              value={reglasActivas}
-              prefix={<CheckCircleOutlined style={{ color: '#10b981', marginRight: 8 }} />}
-              valueStyle={{ fontSize: 22, fontWeight: 700, color: '#10b981' }}
-            />
+          <Card>
+            <Statistic title="Alertas activas" value={reglasActivas} prefix={<CheckCircleOutlined />} valueStyle={{ color: '#10b981' }} />
           </Card>
         </Col>
         <Col xs={24} sm={8}>
-          <Card bordered={false} style={{ background: '#ffffff', borderRadius: 14, boxShadow: 'var(--shadow-card)' }}>
-            <Statistic
-              title={<span style={{ fontSize: 12, fontWeight: 600, textTransform: 'uppercase', color: 'var(--text-secondary)' }}>Conceptos relacionados IA</span>}
-              value={sinonimosTotales}
-              prefix={<InfoCircleOutlined style={{ color: '#8b5cf6', marginRight: 8 }} />}
-              valueStyle={{ fontSize: 22, fontWeight: 700, color: '#8b5cf6' }}
-            />
+          <Card>
+            <Statistic title="Conceptos relacionados IA" value={sinonimosTotales} prefix={<InfoCircleOutlined />} valueStyle={{ color: '#8b5cf6' }} />
           </Card>
         </Col>
       </Row>
 
       {/* Rules Table (Full Width) */}
-      <div style={{ background: 'white', border: '1px solid var(--border)', borderRadius: 14, boxShadow: 'var(--shadow-card)', overflow: 'hidden', marginTop: 4 }}>
+      <Card styles={{ body: { padding: 0 } }}>
         <Table<ReglaAlerta>
           columns={columns}
           dataSource={reglas}
@@ -197,7 +168,7 @@ export function AlertasPage() {
           pagination={false}
           locale={{ emptyText: <div style={{ padding: '40px 0' }}><Empty description="Sin alertas configuradas todavía" /></div> }}
         />
-      </div>
+      </Card>
 
       {/* Modales */}
       <Modal
@@ -207,8 +178,6 @@ export function AlertasPage() {
         onOk={() => form.submit()}
         confirmLoading={crear.isPending}
         okText="Crear"
-        okButtonProps={{ style: { borderRadius: 10, background: 'linear-gradient(135deg, #E30613, #ff3a46)', border: 'none', fontWeight: 600 } }}
-        cancelButtonProps={{ style: { borderRadius: 10 } }}
       >
         <Form form={form} layout="vertical" onFinish={handleCrear}>
           <Form.Item

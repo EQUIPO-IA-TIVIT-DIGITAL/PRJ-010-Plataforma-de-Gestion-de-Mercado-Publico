@@ -25,6 +25,11 @@ const theme = {
     colorSuccess: '#10b981',
     colorWarning: '#f59e0b',
     colorInfo: '#3b82f6',
+    // Sexta variante semantica (StatusBadge "tertiary": categoria especial, ej. tipo de
+    // licitacion, area de negocio) -- Ant Design no tiene un slot de token nativo para esto,
+    // se documenta aca para que quede junto al resto de la paleta de marca en vez de
+    // hardcodeado suelto en cada pantalla (spec 019, research.md #1).
+    colorTertiary: '#8b5cf6',
 
     // Backgrounds
     colorBgBase: '#ffffff',

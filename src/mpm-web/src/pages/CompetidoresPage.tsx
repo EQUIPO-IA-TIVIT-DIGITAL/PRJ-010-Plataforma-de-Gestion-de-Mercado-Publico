@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Space, Table, AutoComplete, DatePicker, Button, Tag, Empty, App as AntApp, Card, Typography, Tooltip, Select, Spin } from 'antd';
 import { TeamOutlined, ExperimentOutlined, BulbOutlined, GlobalOutlined } from '@ant-design/icons';
+import { PageHeader } from '../components/PageHeader';
 import dayjs, { type Dayjs } from 'dayjs';
 import { useBuscarCompetidor, useAnalizarCompetidor, useListarCompetidores, useActividadMercado } from '../hooks/useCompetidores';
 import { useAreasNegocio } from '../hooks/useCatalogos';
@@ -115,19 +116,11 @@ export function CompetidoresPage() {
 
   return (
     <Space direction="vertical" size={20} style={{ width: '100%' }}>
-      <div className="mpm-page-header">
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
-            <div style={{ width: 32, height: 32, borderRadius: 8, background: 'linear-gradient(135deg, #7c3aed, #a78bfa)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 10px rgba(124,58,237,0.3)' }}>
-              <TeamOutlined style={{ color: 'white', fontSize: 15 }} />
-            </div>
-            <h1 className="mpm-page-title">Inteligencia de Competencia</h1>
-          </div>
-          <p className="mpm-page-subtitle">
-            Buscá un competidor y mirá en qué licitaciones ha ofertado — el análisis con IA es opcional y siempre lo pedís vos, nunca se dispara solo.
-          </p>
-        </div>
-      </div>
+      <PageHeader
+        icon={<TeamOutlined />}
+        title="Inteligencia de Competencia"
+        subtitle="Busca un competidor y revisa en qué licitaciones ha ofertado — el análisis con IA es opcional y se genera solo cuando lo solicitas, nunca automáticamente."
+      />
 
       <Card size="small">
         <Space wrap>
@@ -138,7 +131,7 @@ export function CompetidoresPage() {
             options={sugerencias}
             onChange={setTextoEscrito}
             onSelect={handleSeleccionar}
-            placeholder="Escribí el nombre de un competidor (ej. SON...)"
+            placeholder="Escribe el nombre de un competidor (ej. SON...)"
             notFoundContent={cargandoLista ? 'Cargando...' : 'Sin competidores recolectados todavía'}
           />
         </Space>
