@@ -8,6 +8,9 @@ export interface WorkspaceItem {
   ultimoAnalisisId?: number | null
   ultimoAnalisisFecha?: string | null
   createdAt: string
+  // spec 031 (US3): fecha de adjudicación de la licitación -- es el campo por el que
+  // ahora se ordena esta lista, se muestra para que el orden sea explicable.
+  fechaAdjudicacion?: string | null
 }
 
 export interface WorkspaceDetalle {

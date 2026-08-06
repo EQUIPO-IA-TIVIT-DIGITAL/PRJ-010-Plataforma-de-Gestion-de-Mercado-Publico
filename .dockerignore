@@ -9,3 +9,6 @@
 tools/scraper-mp/.env
 tools/scraper-mp/descargas
 tools/scraper-mp/debug-*.png
+tools/scraper-mp-v2/.env
+tools/scraper-mp-v2/descargas
+tools/scraper-mp-v2/debug-*.png

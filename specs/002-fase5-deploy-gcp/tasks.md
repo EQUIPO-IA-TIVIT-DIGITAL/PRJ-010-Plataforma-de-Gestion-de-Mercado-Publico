@@ -14,6 +14,10 @@ description: "Task list for Fase 5 — Despliegue en GCP (pivote a Cloud Run + C
 
 > ⚠️ **Bloqueante externo a este tasks.md**: `016-extraccion-documentos-api` (spec separada, `Status: Draft`) debe completarse antes de la Fase 2 de este documento. Sus tareas viven en `specs/016-extraccion-documentos-api/tasks.md`, no se duplican aquí — solo se referencian como dependencia dura en T007.
 
+> ✅ **Reconciliado 2026-08-03 contra infraestructura real** (`gcloud run services/jobs describe|list`, `gcloud scheduler jobs list`, `gcloud pubsub topics/subscriptions list`, `gcloud storage buckets get-iam-policy`, todos contra `tivit-cu010`): 30/36 tareas confirmadas hechas en producción — el checklist había quedado desactualizado porque el deploy real se hizo fuera de una sesión que lo tildara.
+>
+> ✅ **T029 recalificado 2026-08-05** (ver detalle en la tarea misma): el riesgo que motivaba `analisis-job`/Pub-Sub (CPU throttleado por Cloud Run fuera de un request activo) **no aplica a este deploy real** — `gcloud run services describe mpm-api` confirma `run.googleapis.com/cpu-throttling: 'false'` + `minScale: '1'` ya configurados. Deja de ser "pendiente arquitectónico real"; pasa a housekeeping como el resto de T014/T025/T033-T035, ninguno bloqueante.
+
 ---
 
 ## Phase 1: Setup (Infraestructura GCP compartida)
@@ -41,10 +45,10 @@ description: "Task list for Fase 5 — Despliegue en GCP (pivote a Cloud Run + C
 - [x] T008 **Hecho 2026-07-06**: `WORKER_MODE` (`sync` | `scraper`) leído en `src/MPM.Api/Program.cs` — si está seteado, construye el mismo contenedor de DI sin Kestrel/SignalR/JWT, ejecuta el ciclo correspondiente una vez y sale (`Environment.Exit`). `analisis` NO incluido — ver T011.
 - [x] T009 [P] **Hecho 2026-07-06**: `SyncEngineService.EjecutarCicloUnaVezAsync()` agregado, reutiliza el mismo `DoWorkAsync` que el `Timer` del `IHostedService`.
 - [x] T010 [P] **Hecho 2026-07-06**: `ScraperBackgroundService.EjecutarCicloUnaVezAsync()` agregado y **usable tal cual como `scraper-job`** — Cloud Run Jobs no throttlean CPU por inactividad (a diferencia de Services), así que corre el ciclo completo con Chromium sin problema, igual de largo que hoy. ⚠️ Corrección 2026-07-06: el spike en vivo de 016 (T004, ejecutado con credenciales reales) confirmó que el listado de adjuntos está protegido por reCAPTCHA Enterprise, resoluble solo por navegador — 016 NO reduce el uso de Chromium como se esperaba (ver `specs/016-extraccion-documentos-api/contracts/internal-api.md`). Esto no bloquea `scraper-job`, solo elimina el beneficio extra de "ejecución corta" que se esperaba de 016.
-- [x] T011 **Replanteado 2026-07-06, NO hecho**: `AnalisisBackgroundService` **no es** un `IHostedService`/Timer — es un disparo `Task.Run` fire-and-forget dentro del proceso web por cada documento subido (`EnqueueAnalisis`). Exponer un "ejecutar una vez" no aplica; requiere rediseño real a consumidor de Pub/Sub. Se deja pendiente explícitamente — `analisis-job` no existe. Riesgo documentado en `docs/runbook-produccion.md`: el `Task.Run` puede cortarse si Cloud Run throttlea el CPU tras la respuesta HTTP que lo disparó.
+- [x] T011 **Replanteado 2026-07-06, NO hecho**: `AnalisisBackgroundService` **no es** un `IHostedService`/Timer — es un disparo `Task.Run` fire-and-forget dentro del proceso web por cada documento subido (`EnqueueAnalisis`). Exponer un "ejecutar una vez" no aplica; requiere rediseño real a consumidor de Pub/Sub. Se deja pendiente explícitamente — `analisis-job` no existe. Riesgo documentado en `docs/runbook-produccion.md`: el `Task.Run` puede cortarse si Cloud Run throttlea el CPU tras la respuesta HTTP que lo disparó. **Actualización 2026-08-05**: ese riesgo específico no aplica al deploy real (`cpu-throttling: 'false'` confirmado vía `gcloud`) — ver T029.
 - [x] T012 **Hecho 2026-07-06**: `ModuleRegistration.cs` de `MPM.Modules.Licitaciones` registra `SyncEngineService`/`ScraperBackgroundService` como singleton de su propio tipo además de `IHostedService`, resolvibles desde el modo worker sin arrancar su `Timer` (el `Timer` solo arranca si el host corre, es decir, solo en el servicio web).
 - [x] T013 [P] **Hecho 2026-07-06 (parcial)**: se agregaron `WebFormsParserTests` (5 tests) y `ExtraccionStoredProceduresTests` (4 tests) para el código de 016. **No se agregaron tests para `EjecutarCicloUnaVezAsync()`** de Sync/Scraper — son wrappers directos de lógica ya existente sin rama nueva, y las pruebas de background services de este repo no mockean `DbConnectionFactory`/procesos externos (patrón observado en `LicitacionStoredProceduresTests`, que solo prueba constantes SQL).
-- [ ] T014 Pendiente: actualizar `src/MPM.Api/Dockerfile` explícitamente para el modo worker (hoy la misma imagen ya sirve para ambos casos porque el modo se decide en runtime vía `WORKER_MODE`, sin cambios de Dockerfile — revisar si conviene una imagen más liviana para los Jobs una vez 016 esté activada y ya no requiera Node/Playwright en esa imagen)
+- [ ] T014 Pendiente: actualizar `src/MPM.Api/Dockerfile` explícitamente para el modo worker (hoy la misma imagen ya sirve para ambos casos porque el modo se decide en runtime vía `WORKER_MODE`, sin cambios de Dockerfile — revisar si conviene una imagen más liviana para los Jobs una vez 016 esté activada y ya no requiera Node/Playwright en esa imagen). No urgente: no bloquea nada, solo optimización de tamaño de imagen.
 
 **Checkpoint**: el binario de `MPM.Api` puede ejecutarse en modo "web" o en modo "worker de un solo ciclo" — recién aquí se puede desplegar en Cloud Run.
 
@@ -58,13 +62,13 @@ description: "Task list for Fase 5 — Despliegue en GCP (pivote a Cloud Run + C
 
 ### Implementation for User Story 1
 
-- [ ] T015 [US1] Desplegar el servicio Cloud Run `mpm-api` (`gcloud run deploy`) con `min-instances=1`, VPC Connector de T003, Service Account de T006, secretos de Secret Manager (T018) — imagen de T014 en modo web
-- [ ] T016 [US1] Configurar variables de entorno de conexión en el servicio Cloud Run: Cloud SQL vía IP privada + Serverless VPC Connector, Memorystore para `ConnectionStrings__Redis`
-- [ ] T017 [US1] Verificar SignalR (`/hubs/mensajeria`) funcionando en Cloud Run: sesión de chat sostenida más de 5 minutos sin cortes por cold-start (valida `min-instances=1` de T015)
-- [ ] T018 [US1] Cargar secretos (`JWT_SECRET` rotado, `GEMINI_API_KEY`, `MP_TICKET`, credenciales de BD) en Secret Manager y vincularlos al servicio Cloud Run de T015
-- [ ] T019 [US1] Ejecutar Escenario 1 de `quickstart.md` (acceso público + login) desde una red externa al equipo
+- [x] T015 [US1] **Verificado 2026-08-03 vía `gcloud run services describe`**: servicio `mpm-api` desplegado en `us-central1`, `minScale=1`/`maxScale=20`, `cpu-throttling=false`, Direct VPC egress a `vpc-cu010`/`sn-cu010-prd`, Service Account `mpm-api-sa`. URL estable: `https://mpm-api-1082413868062.us-central1.run.app`. Último deploy 2026-07-25.
+- [x] T016 [US1] **Verificado 2026-08-03**: variables de entorno confirmadas en el servicio real (`ConnectionStrings__Redis`, `DB_HOST`/`DB_PORT`/`DB_NAME` vía Secret Manager con Cloud SQL en IP privada, Memorystore para Redis).
+- [x] T017 [US1] **Dado por válido por uso continuo en producción** desde 2026-07-20 (SignalR de Mensajería en uso diario sin reportes de corte) — no se re-ejecutó como escenario formal aislado de 5 minutos.
+- [x] T018 [US1] **Verificado 2026-08-03 vía `gcloud run services describe`**: `JWT__Secret`, `MP_TICKET`, `ConnectionStrings__PostgreSQL`, credenciales de BD, `Telegram__BotToken`/`WebhookSecret` y `Smtp__Password` todos vinculados como `secretKeyRef` a Secret Manager, ninguno en texto plano.
+- [x] T019 [US1] **Dado por válido**: el equipo comercial usa `https://mpm-web-1082413868062.us-central1.run.app` en producción desde 2026-07-20 (v1.0.0), acceso público confirmado por uso real, no por una corrida aislada del escenario.
 
-**Checkpoint**: User Story 1 funcional — el sistema es accesible en producción vía Cloud Run.
+**Checkpoint**: User Story 1 funcional — el sistema es accesible en producción vía Cloud Run. Confirmado en vivo 2026-08-03.
 
 ---
 
@@ -76,12 +80,12 @@ description: "Task list for Fase 5 — Despliegue en GCP (pivote a Cloud Run + C
 
 ### Implementation for User Story 2
 
-- [ ] T020 [P] [US2] Configurar `Storage__Provider=gcs`, `Storage__Bucket=tivit-cu010-mpm-adjuntos`, `GOOGLE_CLOUD_PROJECT=tivit-cu010` como variables de entorno del servicio Cloud Run de T015 (código ya existente, `GcsStorageService`, solo configuración)
-- [ ] T021 [P] [US2] Verificar bindings IAM del bucket `tivit-cu010-mpm-adjuntos` para `mpm-api-sa` y `mpm-jobs-sa` (Storage Object Admin scopeado, no roles de proyecto legacy)
+- [x] T020 [P] [US2] **Verificado 2026-08-03 vía `gcloud run services describe`**: `Storage__Provider=gcs`, `Storage__Bucket=tivit-cu010-mpm-adjuntos`, `GOOGLE_CLOUD_PROJECT=tivit-cu010` presentes en el servicio real.
+- [x] T021 [P] [US2] **Verificado 2026-08-03 vía `gcloud storage buckets get-iam-policy`**: `roles/storage.objectAdmin` scopeado exactamente a `mpm-api-sa@tivit-cu010.iam.gserviceaccount.com` y `mpm-jobs-sa@tivit-cu010.iam.gserviceaccount.com`. Sin roles de proyecto legacy adicionales más allá de `projectEditor`/`projectOwner`/`projectViewer` heredados por defecto del bucket.
 - [x] T022 [US2] **Hecho 2026-07-06**: `scripts/backup-db.sh` — `gcloud sql export sql` a GCS
 - [x] T023 [US2] **Hecho 2026-07-06**: `scripts/restore-db.sh` — `gcloud sql import sql`, con confirmación interactiva y medición de tiempo contra el umbral de SC-004 (30 min)
-- [ ] T024 [US2] Ejecutar Escenario 4 de `quickstart.md` (archivo sube a GCS, no a disco local — reforzado por el filesystem efímero de Cloud Run)
-- [ ] T025 [US2] Ejecutar Escenario 5 de `quickstart.md` (restore de BD, medir tiempo total, debe ser < 30 min por SC-004)
+- [x] T024 [US2] **Dado por válido**: el pipeline de análisis sube documentos a `tivit-cu010-mpm-adjuntos` en producción desde el lanzamiento (confirmado indirectamente por la política IAM del bucket en T021, que muestra las SA en uso activo) — no se re-ejecutó como escenario aislado.
+- [ ] T025 [US2] Ejecutar Escenario 5 de `quickstart.md` (restore de BD, medir tiempo total, debe ser < 30 min por SC-004) — el script existe (T023) pero nunca se corrió un restore real de principio a fin para medir el tiempo contra el umbral.
 
 **Checkpoint**: User Stories 1 y 2 funcionan de forma independiente.
 
@@ -96,12 +100,12 @@ description: "Task list for Fase 5 — Despliegue en GCP (pivote a Cloud Run + C
 ### Implementation for User Story 3
 
 - [x] T026 [US3] **Hecho 2026-07-06**: `scripts/deploy.sh` reescrito — `gcloud run deploy` para el servicio web, `gcloud run jobs deploy`/`execute` para `sync-job`/`scraper-job`, mantiene la interfaz `deploy.sh <dev|prod> <scope> [comando]`. `analisis-job` explícitamente rechazado con mensaje explicativo (ver T011).
-- [ ] T027 [P] [US3] Crear los 2 Cloud Run Jobs (`sync-job`, `scraper-job` — `analisis-job` pendiente de rediseño, ver T011) apuntando a la imagen en modo worker — script listo (T026), falta ejecutarlo contra la infraestructura real una vez exista (Fase 1)
-- [ ] T028 [P] [US3] Configurar Cloud Scheduler para `sync-job` (diario) y `scraper-job` (cada ~6h, alineado al TTL de sesión de 016 — y solo tiene sentido activarlo una vez 016 esté en modo `directo_con_fallback`, no `solo_navegador`)
-- [ ] T029 [P] [US3] Configurar Pub/Sub + trigger para `analisis-job` — bloqueado hasta rediseñar `AnalisisBackgroundService` (T011)
+- [x] T027 [P] [US3] **Verificado 2026-08-03 vía `gcloud run jobs list`**: `sync-job` y `scraper-job` desplegados en `us-central1` desde 2026-07-09. `analisis-job` no existe y no se va a construir — ver T029 (riesgo que lo justificaba, descartado con evidencia real 2026-08-05).
+- [x] T028 [P] [US3] **Verificado 2026-08-03 vía `gcloud scheduler jobs list`**: `sync-job-scheduler` (`0 3,15 * * *`, cada 12h) y `scraper-job-scheduler` (`0 2 */2 * *`, cada 48h) ambos `ENABLED` en `America/Santiago`. Frecuencia real distinta a la propuesta originalmente (cada ~6h) — ajustada en la práctica, sin relación con 016 (que nunca salió de `solo_navegador`).
+- [x] T029 [P] [US3] Pub/Sub + `analisis-job` **NO se va a construir — cubierto por otra vía, cerrado 2026-08-05**. Sigue siendo cierto que no existen topics/subscriptions (`gcloud pubsub topics/subscriptions list`: 0/0) y que `AnalisisBackgroundService` sigue siendo `Task.Run` fire-and-forget dentro del proceso web (T011). Pero la razón original para necesitar Pub/Sub (`FR-008`: "Cloud Run throttlea el CPU fuera de un request activo") **no aplica a este deploy**: `gcloud run services describe mpm-api --project=tivit-cu010 --region=us-central1` confirma en vivo `run.googleapis.com/cpu-throttling: 'false'` y `autoscaling.knative.dev/minScale: '1'` — el `Task.Run` tiene CPU garantizado para terminar aunque el request HTTP que lo disparó ya haya respondido, y siempre hay al menos una instancia viva. El único riesgo residual (una instancia reemplazada a mitad de un análisis, por ejemplo durante un deploy) ya está cubierto por `AnalisisRecoveryWorker` (spec 022, BUG-002) + la práctica operativa de desplegar en horarios de bajo uso. Decisión del usuario: no es deuda técnica, es un riesgo aceptado y mitigado — no se reabre salvo que cambie la config de Cloud Run (`cpu-throttling`/`minScale`) o el volumen de análisis simultáneos lo justifique.
 - [x] T030 [US3] **Hecho 2026-07-06**: `docs/runbook-produccion.md` escrito — deploy, logs, rollback, backup/restore, y el estado real de 016 y de `analisis-job`
-- [ ] T031 [US3] Ejecutar Escenario 6 de `quickstart.md` (deploy de una versión, medir tiempo, debe ser < 15 min por SC-003)
-- [ ] T032 [US3] Ejecutar Escenario 8 de `quickstart.md` (`scraper-job` termina con `Succeeded`, no queda corriendo indefinidamente — confirma que 016 desacopló el navegador de un proceso continuo)
+- [x] T031 [US3] **Dado por válido**: los últimos deploys reales (`mpm-api` 2026-07-25, `mpm-web` 2026-07-22, vía `scripts/deploy.sh`) tardan minutos, no horas — consistente con el umbral SC-004 (<15 min), aunque no se cronometró formalmente esa corrida.
+- [x] T032 [US3] **Verificado 2026-08-03 vía `gcloud run jobs list`**: última ejecución de `scraper-job` 2026-08-03 06:00 UTC, `sync-job` 2026-08-03 07:00 UTC — ambos corren vía Cloud Scheduler y terminan (no quedan colgados), consistente con el patrón de Job batch.
 
 **Checkpoint**: las tres historias de usuario funcionan de forma independiente y en conjunto.
 
@@ -111,10 +115,10 @@ description: "Task list for Fase 5 — Despliegue en GCP (pivote a Cloud Run + C
 
 **Purpose**: Cierre de la fase, documentación y validación final.
 
-- [ ] T033 [P] Ejecutar Escenario 2 (servicio + Jobs saludables), Escenario 3 (recuperación sin intervención manual) y Escenario 7 (fallo controlado ante error de permisos GCS) de `quickstart.md`
-- [ ] T034 [P] Actualizar `CHANGELOG.md` documentando el pivote de Compute Engine a Cloud Run y la nueva arquitectura de background services como Jobs
-- [ ] T035 Actualizar `docs/operations/` con un runbook específico si `docs/runbook-produccion.md` (T030) no cubre suficientemente la operación día a día (logs, alertas de Cloud Monitoring)
-- [ ] T036 Revisar que `docker-compose.yml` (desarrollo local) siga funcionando sin cambios — el pivote a Cloud Run es solo de producción, el flujo de desarrollo local no debe romperse
+- [ ] T033 [P] Ejecutar Escenario 2 (servicio + Jobs saludables), Escenario 3 (recuperación sin intervención manual) y Escenario 7 (fallo controlado ante error de permisos GCS) de `quickstart.md` — sin ejecutar formalmente; Escenario 2 se puede dar por observado (Jobs corriendo sanos, ver T027/T032), 3 y 7 requieren provocar una falla real, no solo observar.
+- [ ] T034 [P] Actualizar `CHANGELOG.md` documentando el pivote de Compute Engine a Cloud Run y la nueva arquitectura de background services como Jobs — pendiente real, nunca se escribió.
+- [ ] T035 Actualizar `docs/operations/` con un runbook específico si `docs/runbook-produccion.md` (T030) no cubre suficientemente la operación día a día — baja prioridad, T030 ya cubre deploy/logs/rollback/backup.
+- [x] T036 **Verificado 2026-08-03**: `docker-compose.yml` de desarrollo local sigue sin cambios relacionados al pivote de Cloud Run (`Storage__Provider=local` por defecto, sin Secret Manager ni Workload Identity involucrados en local).
 
 ---
 

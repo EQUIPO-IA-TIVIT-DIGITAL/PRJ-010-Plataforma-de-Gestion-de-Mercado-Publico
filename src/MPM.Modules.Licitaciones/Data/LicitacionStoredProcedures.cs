@@ -3,7 +3,8 @@ namespace MPM.Modules.Licitaciones.Data;
 public static class LicitacionStoredProcedures
 {
     // Functions
-    public const string Listar = "SELECT * FROM usp_Licitaciones_Listar(@p_page, @p_page_size, @p_search, @p_estado, @p_tipo, @p_organismo, @p_fecha_desde, @p_fecha_hasta, @p_sort_by, @p_sort_dir)";
+    public const string Listar = "SELECT * FROM usp_Licitaciones_Listar(@p_page, @p_page_size, @p_search, @p_estado, @p_tipo, @p_organismo, @p_fecha_desde, @p_fecha_hasta, @p_sort_by, @p_sort_dir, @p_area, @p_sin_clasificar)";
+    public const string ContarPorEstado = "SELECT * FROM usp_Licitaciones_ContarPorEstado(@p_area, @p_sin_clasificar)";
     public const string Obtener = "SELECT * FROM usp_Licitaciones_ObtenerPorCodigo(@p_codigo_externo)";
     public const string Buscar = "SELECT * FROM usp_Licitaciones_Buscar(@p_q, @p_limit)";
     public const string BuscarNatural = "SELECT * FROM usp_Licitaciones_BuscarNatural(@p_query, @p_page, @p_page_size, @p_estado, @p_fecha_desde, @p_terminos_expandidos, @p_monto_desde, @p_monto_hasta, @p_fecha_hasta)";

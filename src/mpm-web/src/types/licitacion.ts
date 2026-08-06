@@ -50,6 +50,14 @@ export interface LicitacionFilter {
   fechaHasta?: string | null;
   sortBy?: string;
   sortDir?: 'asc' | 'desc';
+  area?: number | null;
+  sinClasificar?: boolean | null;
+}
+
+export interface EstadoConteo {
+  codigoEstado: number;
+  nombreEstado: string;
+  cantidad: number;
 }
 
 export interface LicitacionSearchResult {

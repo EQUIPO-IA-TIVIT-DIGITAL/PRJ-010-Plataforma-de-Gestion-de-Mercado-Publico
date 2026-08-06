@@ -20,11 +20,19 @@ public class LicitacionService(
     public async Task<(List<LicitacionResumenDto> items, int totalCount)> ListarAsync(
         int page, int pageSize, string? search, short? estado, string? tipo, string? organismo,
         DateTime? fechaDesde, DateTime? fechaHasta, string sortBy, string sortDir,
+        short? area = null, bool? sinClasificar = null,
         CancellationToken ct = default)
     {
         return await licitacionHandler.ListarAsync(
             page, pageSize, search, estado, tipo, organismo,
-            fechaDesde, fechaHasta, sortBy, sortDir, ct);
+            fechaDesde, fechaHasta, sortBy, sortDir, area, sinClasificar, ct);
+    }
+
+    // US2 (spec 031)
+    public async Task<List<EstadoConteoDto>> ContarPorEstadoAsync(
+        short? area, bool? sinClasificar, CancellationToken ct = default)
+    {
+        return await licitacionHandler.ContarPorEstadoAsync(area, sinClasificar, ct);
     }
 
     public async Task<LicitacionDetalleDto?> ObtenerPorCodigoAsync(string codigoExterno, CancellationToken ct = default)

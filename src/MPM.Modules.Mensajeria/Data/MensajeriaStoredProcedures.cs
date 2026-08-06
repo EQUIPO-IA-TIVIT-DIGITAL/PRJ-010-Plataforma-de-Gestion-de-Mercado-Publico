@@ -23,5 +23,9 @@ public static class MensajeriaStoredProcedures
     public const string ObtenerAdjunto = "SELECT * FROM usp_MensajeAdjuntos_Obtener(@p_id, @p_conversacion_id, @p_user_id)";
     
     public const string ActualizarPresencia = "CALL usp_Presencia_Actualizar(@p_user_id, @p_estado, @p_conversacion_id)";
-    public const string ObtenerPresencia = "SELECT * FROM usp_Presencia_Obtener(@p_user_ids)";
+
+    // ::jsonb explicito -- mismo bug que CrearConversacion arriba (QA BUG-014): sin el cast,
+    // Npgsql manda p_user_ids como texto/unknown y Postgres no encuentra ninguna sobrecarga
+    // de usp_Presencia_Obtener(jsonb) que matchee (42883). Este quedó afuera del fix original.
+    public const string ObtenerPresencia = "SELECT * FROM usp_Presencia_Obtener(@p_user_ids::jsonb)";
 }

@@ -23,6 +23,12 @@ public class MonedaItemDto
     public string CodigoIso { get; set; } = string.Empty;
 }
 
+public class AreaNegocioItemDto
+{
+    public int Codigo { get; set; }
+    public string Nombre { get; set; } = string.Empty;
+}
+
 public class CatalogosResponseDto
 {
     public List<EstadoItemDto> EstadosLicitacion { get; set; } = new();

@@ -9,7 +9,7 @@ namespace MPM.Modules.Competidores.Controllers;
 [ApiController]
 [Route("api/v1/competidores")]
 [Authorize]
-public class CompetidoresController(CompetidorAnalysisService service) : ControllerBase
+public class CompetidoresController(CompetidorAnalysisService service, CompetidorMercadoService mercadoService) : ControllerBase
 {
     private TenantContext? GetTenant() => HttpContext.Items["TenantContext"] as TenantContext;
 
@@ -79,5 +79,23 @@ public class CompetidoresController(CompetidorAnalysisService service) : Control
         }
 
         return Ok(ApiResponse<AnalisisCompetidorResponse>.Ok(resultado!));
+    }
+
+    /// <summary>
+    /// US4 (spec 031): actividad total de mercado de un competidor -- incluye licitaciones
+    /// donde TIVIT no participó, a diferencia de <see cref="BuscarPorNombre"/> (solo encuentros
+    /// directos). Get-or-generate: si no está cacheado, encola un scrape en background y
+    /// responde "generando" -- ver contracts/competidores-actividad-mercado.md.
+    /// </summary>
+    [HttpGet("{nombre}/actividad-mercado")]
+    [ProducesResponseType(typeof(ApiResponse<ActividadMercadoResponse>), 200)]
+    public async Task<ActionResult<ApiResponse<ActividadMercadoResponse>>> ActividadMercado(
+        string nombre, [FromQuery] short? area, [FromQuery] DateOnly fechaDesde, [FromQuery] DateOnly fechaHasta)
+    {
+        if (fechaHasta < fechaDesde)
+            return BadRequest(ApiResponse<object>.Fail("fechaHasta no puede ser anterior a fechaDesde"));
+
+        var resultado = await mercadoService.ObtenerOGenerarAsync(nombre, new ActividadMercadoRequest(area, fechaDesde, fechaHasta));
+        return Ok(ApiResponse<ActividadMercadoResponse>.Ok(resultado));
     }
 }

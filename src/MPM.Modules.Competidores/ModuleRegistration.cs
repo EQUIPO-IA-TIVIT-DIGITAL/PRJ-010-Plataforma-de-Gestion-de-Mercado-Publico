@@ -10,8 +10,10 @@ public static class ModuleRegistration
     {
         services.AddScoped<OfertasHandler>();
         services.AddScoped<CompetidorAnalisisHandler>();
+        services.AddScoped<CompetidoresActividadMercadoHandler>();
         services.AddScoped<CompetidorAnalysisService>();
         services.AddScoped<CompetidorGeminiService>();
+        services.AddScoped<CompetidorMercadoService>();
         return services;
     }
 }

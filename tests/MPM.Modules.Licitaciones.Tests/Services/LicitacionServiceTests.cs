@@ -158,4 +158,45 @@ public class LicitacionServiceTests
             null, null,
             It.IsAny<CancellationToken>()), Times.Once);
     }
+
+    // spec 031 (US1): filtro por área de negocio en el listado principal
+    [Fact]
+    public async Task ListarAsync_PassesAreaAndSinClasificar_ToHandler()
+    {
+        _handlerMock.Setup(h => h.ListarAsync(
+                It.IsAny<int>(), It.IsAny<int>(), It.IsAny<string?>(), It.IsAny<short?>(),
+                It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>(),
+                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<short?>(), It.IsAny<bool?>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync((new List<LicitacionResumenDto>(), 0));
+
+        await _service.ListarAsync(1, 20, null, null, null, null, null, null,
+            "fecha_publicacion", "desc", area: 2, sinClasificar: null);
+
+        _handlerMock.Verify(h => h.ListarAsync(
+            1, 20, null, null, null, null, null, null,
+            "fecha_publicacion", "desc", (short?)2, (bool?)null,
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    // spec 031 (US2): estadísticas por estado — los 5 estados reales siempre aparecen
+    [Fact]
+    public async Task ContarPorEstadoAsync_ReturnsAllRealStates_EvenWithZeroCount()
+    {
+        var stats = new List<EstadoConteoDto>
+        {
+            new() { CodigoEstado = 5, NombreEstado = "Publicada", Cantidad = 4210 },
+            new() { CodigoEstado = 6, NombreEstado = "Cerrada", Cantidad = 0 },
+            new() { CodigoEstado = 7, NombreEstado = "Desierta", Cantidad = 0 },
+            new() { CodigoEstado = 8, NombreEstado = "Adjudicada", Cantidad = 5990 },
+            new() { CodigoEstado = 15, NombreEstado = "Revocada", Cantidad = 41 },
+        };
+        _handlerMock.Setup(h => h.ContarPorEstadoAsync(null, null, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(stats);
+
+        var result = await _service.ContarPorEstadoAsync(null, null);
+
+        result.Should().HaveCount(5);
+        result.Select(r => r.CodigoEstado).Should().BeEquivalentTo(new short[] { 5, 6, 7, 8, 15 });
+    }
 }

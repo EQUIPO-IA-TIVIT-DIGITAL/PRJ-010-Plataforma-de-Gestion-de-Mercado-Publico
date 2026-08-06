@@ -1,8 +1,10 @@
-import { Table, Tag, Tooltip, Button, message } from 'antd';
+import { Table, Tooltip, Button, message } from 'antd';
 import { StarOutlined, StarFilled, LoadingOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import type { LicitacionResumen, PaginationInfo } from '../types/licitacion';
 import { useEsSeguida, useSeguirToggle } from '../hooks/useLicitaciones';
+import { StatusBadge } from './StatusBadge';
+import type { StatusBadgeVariant } from './StatusBadge';
 
 interface Props {
   dataSource: LicitacionResumen[];
@@ -46,15 +48,17 @@ function StarButtonCell({ codigoExterno }: { codigoExterno: string }) {
   );
 }
 
-const STATUS_CONFIG: Record<number, { color: string; bg: string; label?: string }> = {
-  1: { color: '#3b82f6', bg: '#eff6ff' },
-  2: { color: '#f59e0b', bg: '#fffbeb' },
-  3: { color: '#64748b', bg: '#f8fafc' },
-  4: { color: '#ef4444', bg: '#fef2f2' },
-  5: { color: '#10b981', bg: '#f0fdf4' },
-  6: { color: '#64748b', bg: '#f8fafc' },
-  7: { color: '#8b5cf6', bg: '#faf5ff' },
-  8: { color: '#f59e0b', bg: '#fffbeb' },
+// US1 (spec 019): mismo mapeo de color que el STATUS_CONFIG anterior, ahora a traves de
+// StatusBadge (6 variantes del sistema) en vez de un hex propio por pantalla.
+const ESTADO_VARIANT: Record<number, StatusBadgeVariant> = {
+  1: 'info',
+  2: 'warning',
+  3: 'neutral',
+  4: 'error',
+  5: 'success',
+  6: 'neutral',
+  7: 'tertiary',
+  8: 'warning',
 };
 
 function formatDate(d: string | null): string {
@@ -120,36 +124,9 @@ export function LicitacionesTable({ dataSource, pagination, loading, onRowClick,
       dataIndex: 'estado',
       key: 'estado',
       width: 135,
-      render: (estado: { codigo: number; nombre: string }) => {
-        const cfg = STATUS_CONFIG[estado.codigo] ?? { color: '#64748b', bg: '#f8fafc' };
-        return (
-          <span
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 5,
-              padding: '4px 10px',
-              borderRadius: 999,
-              fontSize: 11,
-              fontWeight: 600,
-              color: cfg.color,
-              background: cfg.bg,
-              whiteSpace: 'nowrap',
-            }}
-          >
-            <span
-              style={{
-                width: 6,
-                height: 6,
-                borderRadius: '50%',
-                background: cfg.color,
-                flexShrink: 0,
-              }}
-            />
-            {estado.nombre}
-          </span>
-        );
-      },
+      render: (estado: { codigo: number; nombre: string }) => (
+        <StatusBadge variant={ESTADO_VARIANT[estado.codigo] ?? 'neutral'} label={estado.nombre} />
+      ),
     },
     {
       title: 'Tipo',

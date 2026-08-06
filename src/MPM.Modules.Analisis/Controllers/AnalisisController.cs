@@ -137,6 +137,18 @@ public class AnalisisController(AnalisisService analisisService) : ControllerBas
         return Ok(ApiResponse<IEnumerable<DocumentoItemDto>>.Ok(documentos));
     }
 
+    [HttpDelete("workspaces/{id:long}/documentos/{documentoId:long}")]
+    [ProducesResponseType(typeof(ApiResponse<object>), 200)]
+    [ProducesResponseType(typeof(ApiResponse<object>), 404)]
+    public async Task<ActionResult<ApiResponse<object>>> EliminarDocumento(long id, long documentoId, CancellationToken ct = default)
+    {
+        var (success, error) = await _analisisService.EliminarDocumentoAsync(documentoId, id, ct);
+        if (!success)
+            return NotFound(ApiResponse<object>.Fail(error ?? "Documento no encontrado o ya eliminado"));
+
+        return Ok(ApiResponse<object>.Ok(new { result = true }));
+    }
+
     [HttpPost("workspaces/{id:long}/analizar")]
     [ProducesResponseType(typeof(ApiResponse<AnalisisResumenDto>), 200)]
     [ProducesResponseType(typeof(ApiResponse<object>), 422)]

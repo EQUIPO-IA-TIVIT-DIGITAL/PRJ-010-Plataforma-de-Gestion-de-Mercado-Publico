@@ -20,9 +20,22 @@ export const buscarTablaEnDocumento = () => {
   // Busca la tabla que tenga un encabezado reconocible (Rut Proveedor / Proveedor / Total
   // Oferta / Estado) en vez de depender de un id fijo -- la pagina de Mercado Publico
   // reutiliza ids genericos entre distintos cuadros/modales.
+  //
+  // Confirmado en vivo (2026-08-05, licitacion 622-14-LP25): la grilla real
+  // (tabla.cssPRCGridView#grdSupplie...) esta anidada dentro de una tabla contenedora de layout
+  // ("tablaInformacion", con el titulo "Resumen de ofertas" y el buscador por RUT). El filtro
+  // original evaluaba `t.innerText` de la tabla COMPLETA -- eso incluye el texto de la grilla
+  // anidada, asi que la tabla contenedora (que aparece antes en el orden del documento) matcheaba
+  // primero por contener las palabras en su descendiente, aunque su propia primera fila fuera solo
+  // el titulo (sin "Proveedor"/"Total Oferta"/"Estado" reales). Esto disparaba silenciosamente el
+  // camino "encabezadoNoReconocido" -- se reportaba "0 ofertas" en licitaciones con datos reales.
+  // Se corrige exigiendo que sea la PROPIA fila de encabezado (primer <tr>) la que contenga esas
+  // palabras, no el texto de toda la tabla (que arrastra tablas anidadas).
   const tablas = Array.from(document.querySelectorAll('table'));
   const tabla = tablas.find(t => {
-    const texto = t.innerText.toLowerCase();
+    const filaEncabezado = t.querySelector('tr');
+    if (!filaEncabezado) return false;
+    const texto = filaEncabezado.innerText.toLowerCase();
     return texto.includes('proveedor') && (texto.includes('total oferta') || texto.includes('estado'));
   });
 
@@ -130,6 +143,12 @@ export async function extraerCuadroOfertas(fichaPage, context, datosLicitacion, 
         return { ofertas: [], error: 'Icono no disponible para este tipo de licitacion' };
       }
 
+      const isDisabled = await iconoCuadroOfertas.getAttribute('disabled').then(val => val !== null).catch(() => false);
+      if (isDisabled) {
+        console.log(`[CUADRO-OFERTAS] El icono "Cuadro de ofertas" esta deshabilitado (disabled) en la ficha — omitiendo click.`);
+        return { ofertas: [], error: 'Icono deshabilitado en la ficha' };
+      }
+
       const pagesBefore = context.pages().length;
       await iconoCuadroOfertas.click();
       await esperarConDelay(3000);
@@ -158,9 +177,11 @@ export async function extraerCuadroOfertas(fichaPage, context, datosLicitacion, 
         await esperarConDelay(1500);
       }
 
-      // Se prueba en la pagina principal (o la ventana nueva) y, si no aparece ahi, en cada uno
-      // de sus frames -- cubre el caso de que el cuadro se renderice dentro de un iframe interno.
-      let resultado = await paginaDeBusqueda.evaluate(buscarTablaEnDocumento);
+      // Confirmado en vivo (2026-08-05, licitacion 622-14-LP25): el contenido real vive dentro de
+      // un frameset clasico anidado -- documento -> iframe del RadWindow -> <frame name="Cuerpo">.
+      // Se prueba en la pagina principal (o la ventana nueva) y, si no aparece ahi, en cada uno de
+      // sus frames -- cubre el caso de que el cuadro se renderice dentro de un frame/iframe interno.
+      let resultado = await paginaDeBusqueda.evaluate(buscarTablaEnDocumento).catch(() => ({ encontrada: false, filas: [] }));
       if (!resultado.encontrada) {
         for (const frame of paginaDeBusqueda.frames ? paginaDeBusqueda.frames() : []) {
           const resultadoFrame = await frame.evaluate(buscarTablaEnDocumento).catch(() => ({ encontrada: false, filas: [] }));

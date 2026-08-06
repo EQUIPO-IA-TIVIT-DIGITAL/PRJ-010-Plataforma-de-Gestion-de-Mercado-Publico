@@ -1,12 +1,12 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import {
-  Space, Table, Button, Modal, Form, Input, InputNumber, Switch, Tag, Select,
-  App as AntApp, Popconfirm, Empty,
+  Space, Table, Button, Modal, Form, Input, InputNumber, Switch, Tag,
+  App as AntApp, Popconfirm, Empty, Card, Row, Col, Statistic, Popover,
 } from 'antd';
-import { BellOutlined, PlusOutlined, ExperimentOutlined, DeleteOutlined, SendOutlined } from '@ant-design/icons';
-import { useAlertas, useCrearAlerta, useToggleAlerta, useEliminarAlerta, useProbarAlerta, useGuardarMiTelegram, useGenerarLinkTelegram, useGuardarMiEmail } from '../hooks/useAlertas';
-import { useLicitaciones } from '../hooks/useLicitaciones';
+import { BellOutlined, PlusOutlined, DeleteOutlined, CheckCircleOutlined, InfoCircleOutlined } from '@ant-design/icons';
+import { useAlertas, useCrearAlerta, useToggleAlerta, useEliminarAlerta } from '../hooks/useAlertas';
 import type { ReglaAlerta, CrearReglaRequest } from '../types/alertas';
+import { PageHeader } from '../components/PageHeader';
 
 export function AlertasPage() {
   const { message } = AntApp.useApp();
@@ -14,55 +14,18 @@ export function AlertasPage() {
   const crear = useCrearAlerta();
   const toggle = useToggleAlerta();
   const eliminar = useEliminarAlerta();
-  const probar = useProbarAlerta();
 
   const [modalCrear, setModalCrear] = useState(false);
   const [form] = Form.useForm<CrearReglaRequest>();
 
-  const [modalTelegram, setModalTelegram] = useState(false);
-  const [formTelegram] = Form.useForm<{ telegramChatId: string }>();
-  const guardarTelegram = useGuardarMiTelegram();
-  const generarLink = useGenerarLinkTelegram();
-
-  const handleGuardarTelegram = async (values: { telegramChatId: string }) => {
-    try {
-      await guardarTelegram.mutateAsync(values.telegramChatId);
-      message.success('Chat de Telegram guardado — ya podés recibir alertas ahí');
-      setModalTelegram(false);
-      formTelegram.resetFields();
-    } catch (e) {
-      message.error(e instanceof Error ? e.message : 'No se pudo guardar el chat de Telegram');
-    }
-  };
-
-  const handleConectarTelegram = async () => {
-    try {
-      const { data } = await generarLink.mutateAsync();
-      window.open(data.url, '_blank', 'noopener,noreferrer');
-    } catch (e) {
-      message.error(e instanceof Error ? e.message : 'No se pudo generar el link de Telegram');
-    }
-  };
-
-  const [formEmail] = Form.useForm<{ emailAlertas: string }>();
-  const guardarEmail = useGuardarMiEmail();
-
-  const handleGuardarEmail = async (values: { emailAlertas: string }) => {
-    try {
-      await guardarEmail.mutateAsync(values.emailAlertas);
-      message.success('Correo guardado — ya podés recibir alertas ahí');
-      formEmail.resetFields();
-    } catch (e) {
-      message.error(e instanceof Error ? e.message : 'No se pudo guardar el correo');
-    }
-  };
-
-  const [modalProbar, setModalProbar] = useState<ReglaAlerta | null>(null);
-  const [licitacionSeleccionada, setLicitacionSeleccionada] = useState<number | null>(null);
-  const { data: licitacionesData } = useLicitaciones({ page: 1, pageSize: 50, sortBy: 'fecha_publicacion', sortDir: 'desc' });
-
   const reglas = data?.data ?? [];
-  const licitaciones = licitacionesData?.data?.items ?? [];
+
+  // Metrics calculations
+  const totalReglas = reglas.length;
+  const reglasActivas = useMemo(() => reglas.filter((r) => r.activa).length, [reglas]);
+  const sinonimosTotales = useMemo(() => {
+    return reglas.reduce((acc, r) => acc + (r.sinonimosIa?.length ?? 0), 0);
+  }, [reglas]);
 
   const handleCrear = async (values: CrearReglaRequest) => {
     try {
@@ -96,45 +59,12 @@ export function AlertasPage() {
     }
   };
 
-  const handleProbar = async () => {
-    if (!modalProbar || licitacionSeleccionada == null) return;
-    const licitacion = licitaciones.find((l) => l.id === licitacionSeleccionada);
-    if (!licitacion) return;
-
-    try {
-      const resultado = await probar.mutateAsync({
-        id: modalProbar.id,
-        request: {
-          licitacionId: licitacion.id,
-          codigoExterno: licitacion.codigoExterno,
-          nombre: licitacion.nombre,
-          monto: licitacion.montoEstimado,
-          tipoLicitacion: licitacion.tipo,
-          organismo: licitacion.organismo,
-        },
-      });
-
-      if (resultado.data.notificacionInAppCreada) {
-        message.success('Alerta de prueba disparada — revisa Notificaciones');
-      } else {
-        message.warning('No se generó notificación (¿la licitación no coincide con la regla?)');
-      }
-      if (resultado.data.notificacionTelegramError) {
-        message.info(`Telegram: ${resultado.data.notificacionTelegramError}`);
-      }
-      setModalProbar(null);
-      setLicitacionSeleccionada(null);
-    } catch (e) {
-      message.error(e instanceof Error ? e.message : 'No se pudo probar la alerta');
-    }
-  };
-
   const columns = [
     {
-      title: 'Keyword',
+      title: 'Palabra clave',
       dataIndex: 'keyword',
       key: 'keyword',
-      render: (v: string) => <span style={{ fontWeight: 600 }}>{v}</span>,
+      render: (v: string) => <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{v}</span>,
     },
     {
       title: 'Sinónimos IA',
@@ -144,9 +74,26 @@ export function AlertasPage() {
         sinonimos && sinonimos.length > 0 ? (
           <Space size={4} wrap>
             {sinonimos.slice(0, 4).map((s) => (
-              <Tag key={s} color="purple">{s}</Tag>
+              <Tag key={s} color="purple" style={{ borderRadius: 6 }}>{s}</Tag>
             ))}
-            {sinonimos.length > 4 && <Tag>+{sinonimos.length - 4}</Tag>}
+            {sinonimos.length > 4 && (
+              <Popover
+                title="Todos los sinónimos"
+                content={
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxWidth: 300 }}>
+                    {sinonimos.map((s) => (
+                      <span key={s}>• {s}</span>
+                    ))}
+                  </div>
+                }
+                trigger="hover"
+                placement="bottom"
+              >
+                <Tag color="purple" style={{ borderRadius: 6, cursor: 'pointer', borderStyle: 'dashed' }}>
+                  +{sinonimos.length - 4}
+                </Tag>
+              </Popover>
+            )}
           </Space>
         ) : (
           <span style={{ color: '#94a3b8', fontSize: 12 }}>Sin sinónimos aún</span>
@@ -159,12 +106,6 @@ export function AlertasPage() {
       render: (v: number | null) => (v ? `$${v.toLocaleString('es-CL')}` : '—'),
     },
     {
-      title: 'Telegram',
-      dataIndex: 'notificarTelegram',
-      key: 'notificarTelegram',
-      render: (v: boolean) => (v ? <Tag color="blue">Sí</Tag> : <Tag>No</Tag>),
-    },
-    {
       title: 'Estado',
       dataIndex: 'activa',
       key: 'activa',
@@ -175,57 +116,50 @@ export function AlertasPage() {
     {
       title: 'Acciones',
       key: 'acciones',
+      width: 100,
       render: (_: unknown, record: ReglaAlerta) => (
-        <Space>
-          <Button
-            size="small"
-            icon={<ExperimentOutlined />}
-            onClick={() => setModalProbar(record)}
-          >
-            Probar
-          </Button>
-          <Popconfirm title="¿Eliminar esta alerta?" onConfirm={() => handleEliminar(record.id)}>
-            <Button size="small" danger icon={<DeleteOutlined />} />
-          </Popconfirm>
-        </Space>
+        <Popconfirm title="¿Eliminar esta alerta?" onConfirm={() => handleEliminar(record.id)}>
+          <Button size="small" danger icon={<DeleteOutlined />} style={{ borderRadius: 8 }} />
+        </Popconfirm>
       ),
     },
   ];
 
   return (
-    <Space direction="vertical" size={20} style={{ width: '100%' }}>
-      <div className="mpm-page-header">
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
-            <div style={{ width: 32, height: 32, borderRadius: 8, background: 'linear-gradient(135deg, #3b82f6, #60a5fa)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 10px rgba(59,130,246,0.3)' }}>
-              <BellOutlined style={{ color: 'white', fontSize: 15 }} />
-            </div>
-            <h1 className="mpm-page-title">Alertas Inteligentes</h1>
-          </div>
-          <p className="mpm-page-subtitle">
-            Recibí notificaciones automáticas cuando aparezca una licitación relevante — la IA expande cada palabra clave a sinónimos y conceptos relacionados.
-          </p>
-        </div>
-        <Space>
-          <Button icon={<SendOutlined />} onClick={() => setModalTelegram(true)} style={{ borderRadius: 10, height: 38 }}>
-            Mis canales de alerta
-          </Button>
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={() => setModalCrear(true)}
-            style={{
-              height: 38, borderRadius: 10, fontWeight: 700,
-              background: 'linear-gradient(135deg, #E30613, #ff3a46)', border: 'none',
-              boxShadow: '0 4px 12px rgba(227,6,19,0.3)',
-            }}
-          >
+    <Space direction="vertical" size={16} style={{ width: '100%', padding: '8px 0' }}>
+      {/* Header */}
+      <PageHeader
+        icon={<BellOutlined />}
+        title="Alertas Inteligentes"
+        subtitle="Recibe notificaciones automáticas cuando aparezca una licitación relevante — la IA expande cada palabra clave a sinónimos y conceptos relacionados."
+        actions={
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => setModalCrear(true)}>
             Nueva alerta
           </Button>
-        </Space>
-      </div>
+        }
+      />
 
-      <div style={{ background: 'white', border: '1px solid var(--border)', borderRadius: 14, boxShadow: 'var(--shadow-card)', overflow: 'hidden' }}>
+      {/* Metrics Cards */}
+      <Row gutter={[16, 16]}>
+        <Col xs={24} sm={8}>
+          <Card>
+            <Statistic title="Reglas de alerta" value={totalReglas} prefix={<BellOutlined />} />
+          </Card>
+        </Col>
+        <Col xs={24} sm={8}>
+          <Card>
+            <Statistic title="Alertas activas" value={reglasActivas} prefix={<CheckCircleOutlined />} valueStyle={{ color: '#10b981' }} />
+          </Card>
+        </Col>
+        <Col xs={24} sm={8}>
+          <Card>
+            <Statistic title="Conceptos relacionados IA" value={sinonimosTotales} prefix={<InfoCircleOutlined />} valueStyle={{ color: '#8b5cf6' }} />
+          </Card>
+        </Col>
+      </Row>
+
+      {/* Rules Table (Full Width) */}
+      <Card styles={{ body: { padding: 0 } }}>
         <Table<ReglaAlerta>
           columns={columns}
           dataSource={reglas}
@@ -234,8 +168,9 @@ export function AlertasPage() {
           pagination={false}
           locale={{ emptyText: <div style={{ padding: '40px 0' }}><Empty description="Sin alertas configuradas todavía" /></div> }}
         />
-      </div>
+      </Card>
 
+      {/* Modales */}
       <Modal
         title="Nueva alerta"
         open={modalCrear}
@@ -243,10 +178,8 @@ export function AlertasPage() {
         onOk={() => form.submit()}
         confirmLoading={crear.isPending}
         okText="Crear"
-        okButtonProps={{ style: { borderRadius: 10, background: 'linear-gradient(135deg, #E30613, #ff3a46)', border: 'none', fontWeight: 600 } }}
-        cancelButtonProps={{ style: { borderRadius: 10 } }}
       >
-        <Form form={form} layout="vertical" onFinish={handleCrear} initialValues={{ notificarTelegram: false }}>
+        <Form form={form} layout="vertical" onFinish={handleCrear}>
           <Form.Item
             name="keyword"
             label="Palabra clave"
@@ -260,84 +193,6 @@ export function AlertasPage() {
           <Form.Item name="montoMaximo" label="Monto máximo (opcional)">
             <InputNumber style={{ width: '100%' }} min={0} />
           </Form.Item>
-          <Form.Item name="notificarTelegram" label="Notificar también por Telegram" valuePropName="checked">
-            <Switch />
-          </Form.Item>
-        </Form>
-      </Modal>
-
-      <Modal
-        title={`Probar alerta: ${modalProbar?.keyword ?? ''}`}
-        open={modalProbar !== null}
-        onCancel={() => { setModalProbar(null); setLicitacionSeleccionada(null); }}
-        onOk={handleProbar}
-        confirmLoading={probar.isPending}
-        okText="Disparar prueba"
-        okButtonProps={{ disabled: licitacionSeleccionada == null, style: { borderRadius: 10, fontWeight: 600 } }}
-        cancelButtonProps={{ style: { borderRadius: 10 } }}
-      >
-        <p style={{ color: '#64748b', fontSize: 13, marginBottom: 12 }}>
-          Elegí una licitación real existente para simular el disparo de esta alerta — útil para demostrar el sistema sin esperar a que llegue una licitación nueva.
-        </p>
-        <Select
-          style={{ width: '100%' }}
-          placeholder="Buscar licitación..."
-          showSearch
-          optionFilterProp="label"
-          value={licitacionSeleccionada}
-          onChange={setLicitacionSeleccionada}
-          options={licitaciones.map((l) => ({ value: l.id, label: `${l.codigoExterno} — ${l.nombre}` }))}
-        />
-      </Modal>
-
-      <Modal
-        title="Mis canales de alerta"
-        open={modalTelegram}
-        onCancel={() => setModalTelegram(false)}
-        footer={null}
-      >
-        <p style={{ color: '#64748b', fontSize: 13, marginBottom: 12 }}>
-          Conectá tu Telegram con un clic — se abre el chat del bot con todo listo para apretar "Iniciar".
-        </p>
-        <Button
-          type="primary"
-          icon={<SendOutlined />}
-          block
-          loading={generarLink.isPending}
-          onClick={handleConectarTelegram}
-          style={{ marginBottom: 20, borderRadius: 10, height: 38, fontWeight: 600, background: 'linear-gradient(135deg, #E30613, #ff3a46)', border: 'none' }}
-        >
-          Conectar con Telegram
-        </Button>
-
-        <p style={{ color: '#94a3b8', fontSize: 12, marginBottom: 8 }}>
-          ¿El botón no te funcionó (ej. estás en un entorno sin webhook público configurado)? Pegá tu Chat ID a mano:
-        </p>
-        <Form form={formTelegram} layout="vertical" onFinish={handleGuardarTelegram}>
-          <Form.Item
-            name="telegramChatId"
-            label="Chat ID de Telegram"
-            rules={[{ required: true, message: 'Ingresá tu Chat ID' }]}
-          >
-            <Input placeholder="ej. 123456789" />
-          </Form.Item>
-          <Button htmlType="submit" loading={guardarTelegram.isPending} style={{ borderRadius: 10 }}>Guardar Chat ID manualmente</Button>
-        </Form>
-
-        <div style={{ borderTop: '1px solid #e2e8f0', margin: '20px 0 16px' }} />
-
-        <p style={{ color: '#64748b', fontSize: 13, marginBottom: 12 }}>
-          También podés recibir las alertas por correo, adicional a Telegram:
-        </p>
-        <Form form={formEmail} layout="vertical" onFinish={handleGuardarEmail}>
-          <Form.Item
-            name="emailAlertas"
-            label="Correo para alertas"
-            rules={[{ required: true, type: 'email', message: 'Ingresá un correo válido' }]}
-          >
-            <Input placeholder="ej. tu-correo@tivit.cl" />
-          </Form.Item>
-          <Button htmlType="submit" loading={guardarEmail.isPending} style={{ borderRadius: 10 }}>Guardar correo</Button>
         </Form>
       </Modal>
     </Space>

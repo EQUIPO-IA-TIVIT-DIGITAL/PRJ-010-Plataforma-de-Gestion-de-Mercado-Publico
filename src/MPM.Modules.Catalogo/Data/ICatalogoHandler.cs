@@ -10,5 +10,6 @@ public interface ICatalogoHandler
     Task<List<EstadoItemDto>> GetEstadosAsync(CancellationToken ct = default);
     Task<List<TipoLicitacionItemDto>> GetTiposLicitacionAsync(CancellationToken ct = default);
     Task<List<MonedaItemDto>> GetMonedasAsync(CancellationToken ct = default);
+    Task<List<AreaNegocioItemDto>> GetAreasNegocioAsync(CancellationToken ct = default);
     Task<CatalogosResponseDto> GetAllAsync(CancellationToken ct = default);
 }

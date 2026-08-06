@@ -12,6 +12,10 @@ public class WorkspaceItemDto
     public long? TotalCount { get; set; }  // Mapeado desde totalcount del SP
     public DateTime? UltimoAnalisisFecha { get; set; }
     public DateTime CreatedAt { get; set; }
+
+    // spec 031 (US3): fecha de adjudicación de la licitación asociada -- es el campo por el
+    // que ahora se ordena el listado (V121), expuesto para que el frontend muestre por qué.
+    public DateTime? FechaAdjudicacion { get; set; }
 }
 
 public class WorkspaceDetalleDto

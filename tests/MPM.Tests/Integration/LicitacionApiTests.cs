@@ -150,7 +150,10 @@ public class LicitacionApiTests : IClassFixture<CustomWebApplicationFactory>
 
         var json = await response.Content.ReadFromJsonAsync<JsonElement>();
         json.GetProperty("success").GetBoolean().Should().BeTrue();
-        json.GetProperty("data").GetArrayLength().Should().BeGreaterOrEqualTo(8);
+        // Solo 5 estados son reales en Mercado Público (5=Publicada, 6=Cerrada, 7=Desierta,
+        // 8=Adjudicada, 15=Revocada, ver V086__Fix_estados_licitacion_codigos_reales.sql) --
+        // el umbral de 8 databa de antes de esa limpieza del catálogo.
+        json.GetProperty("data").GetArrayLength().Should().BeGreaterOrEqualTo(5);
     }
 
     [Fact]

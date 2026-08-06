@@ -38,6 +38,15 @@ public class CatalogoHandler(DbConnectionFactory dbFactory) : ICatalogoHandler
         return result.ToList();
     }
 
+    public async Task<System.Collections.Generic.List<AreaNegocioItemDto>> GetAreasNegocioAsync(CancellationToken ct = default)
+    {
+        await using var conn = _dbFactory.Create();
+        var result = await conn.QueryAsync<AreaNegocioItemDto>(
+            sql: CatalogoStoredProcedures.AreasNegocio,
+            commandType: CommandType.Text);
+        return result.ToList();
+    }
+
     public async Task<CatalogosResponseDto> GetAllAsync(CancellationToken ct = default)
     {
         await using var conn = _dbFactory.Create();

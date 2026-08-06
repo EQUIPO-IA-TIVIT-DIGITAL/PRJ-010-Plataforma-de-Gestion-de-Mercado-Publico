@@ -336,36 +336,24 @@ async function extraerResultados(page, context) {
           let fechaPublicacion = '';
           let fechaCierre = '';
 
+          // Columnas reales de la tabla de resultados (verificado en vivo 2026-08-03):
+          // Seguimiento | Numero | Nombre | Descripcion | Demandante | Fecha de publicacion |
+          // Fecha de cierre | Estado | Mis ofertas | Acciones -- se toman las celdas <td> por
+          // indice relativo a la celda del codigo, NO por conteo de "lineas" de innerText de
+          // toda la tabla: la Descripcion es texto largo que envuelve en varias lineas visuales,
+          // lo que desalineaba todo lo que venia despues (demandante y ambas fechas salian
+          // siempre vacias). cells[] es por fila, no por tabla completa, así que no le afecta
+          // el wrap de texto de otras filas.
           if (row) {
-            const cells = row.querySelectorAll('td');
-            const cellTexts = Array.from(cells).map(c => c.textContent.trim());
-            for (const text of cellTexts) {
-              if (text && text !== codigo && text.length > 5) {
-                if (!nombre) { nombre = text; }
-                else if (!descripcion && text.length > nombre.length) { descripcion = text; }
-              }
-            }
-          }
+            const cells = Array.from(row.querySelectorAll('td'));
+            const codigoCellIdx = cells.findIndex(c => c.textContent.trim() === codigo);
 
-          const parentTable = anchor.closest('table');
-          if (parentTable) {
-            const allText = parentTable.innerText || '';
-            const lines = allText.split('\n').map(l => l.trim()).filter(Boolean);
-
-            let codigoIdx = -1;
-            for (let i = 0; i < lines.length; i++) {
-              if (lines[i] === codigo) {
-                codigoIdx = i;
-                break;
-              }
-            }
-
-            if (codigoIdx >= 0) {
-              nombre = lines[codigoIdx + 1] || nombre;
-              descripcion = lines[codigoIdx + 2] || descripcion;
-              demandante = lines[codigoIdx + 3] || '';
-              fechaPublicacion = lines[codigoIdx + 4] || '';
-              fechaCierre = lines[codigoIdx + 5] || '';
+            if (codigoCellIdx >= 0) {
+              nombre = cells[codigoCellIdx + 1]?.textContent.trim() || '';
+              descripcion = cells[codigoCellIdx + 2]?.textContent.trim() || '';
+              demandante = cells[codigoCellIdx + 3]?.textContent.trim() || '';
+              fechaPublicacion = cells[codigoCellIdx + 4]?.textContent.trim() || '';
+              fechaCierre = cells[codigoCellIdx + 5]?.textContent.trim() || '';
             }
           }
 
@@ -466,18 +454,19 @@ async function extraerResultados(page, context) {
               const codigo = anchor.textContent.trim();
               if (!codigo || !urlFicha) continue;
 
-              const parentTable = anchor.closest('table');
+              // Mismo fix que en la extraccion de la pagina 1: celdas <td> por indice relativo
+              // al codigo, no lineas de innerText de toda la tabla (ver comentario arriba).
+              const row = anchor.closest('tr');
               let nombre = '', descripcion = '', demandante = '', fechaPublicacion = '', fechaCierre = '';
-              if (parentTable) {
-                const allText = parentTable.innerText || '';
-                const lines = allText.split('\n').map(l => l.trim()).filter(Boolean);
-                const codigoIdx = lines.indexOf(codigo);
-                if (codigoIdx >= 0) {
-                  nombre = lines[codigoIdx + 1] || '';
-                  descripcion = lines[codigoIdx + 2] || '';
-                  demandante = lines[codigoIdx + 3] || '';
-                  fechaPublicacion = lines[codigoIdx + 4] || '';
-                  fechaCierre = lines[codigoIdx + 5] || '';
+              if (row) {
+                const cells = Array.from(row.querySelectorAll('td'));
+                const codigoCellIdx = cells.findIndex(c => c.textContent.trim() === codigo);
+                if (codigoCellIdx >= 0) {
+                  nombre = cells[codigoCellIdx + 1]?.textContent.trim() || '';
+                  descripcion = cells[codigoCellIdx + 2]?.textContent.trim() || '';
+                  demandante = cells[codigoCellIdx + 3]?.textContent.trim() || '';
+                  fechaPublicacion = cells[codigoCellIdx + 4]?.textContent.trim() || '';
+                  fechaCierre = cells[codigoCellIdx + 5]?.textContent.trim() || '';
                 }
               }
 

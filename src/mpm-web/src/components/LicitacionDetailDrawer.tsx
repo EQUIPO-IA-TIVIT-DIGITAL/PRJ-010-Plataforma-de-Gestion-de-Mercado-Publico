@@ -1,9 +1,13 @@
-import { Drawer, Descriptions, Table, Tag, Typography, Empty, Spin } from 'antd';
+import { Drawer, Descriptions, Table, Typography, Empty, Spin } from 'antd';
 import type { LicitacionDetalle } from '../types/licitacion';
+import { LicitacionInteresPanel } from './LicitacionInteresPanel';
+import { StatusBadge } from './StatusBadge';
+import type { StatusBadgeVariant } from './StatusBadge';
 
-const STATUS_COLORS: Record<number, string> = {
-  1: 'blue', 2: 'orange', 3: 'default', 4: 'red',
-  5: 'green', 6: 'default', 7: 'purple', 8: 'gold',
+// US1 (spec 019): mismo mapeo que LicitacionesTable.tsx (ESTADO_VARIANT) -- via StatusBadge.
+const ESTADO_VARIANT: Record<number, StatusBadgeVariant> = {
+  1: 'info', 2: 'warning', 3: 'neutral', 4: 'error',
+  5: 'success', 6: 'neutral', 7: 'tertiary', 8: 'warning',
 };
 
 function formatDate(d: string | null): string {
@@ -47,9 +51,7 @@ export function LicitacionDetailDrawer({ open, data, loading, onClose }: Props) 
             </Descriptions.Item>
             <Descriptions.Item label="Nombre" span={2}>{data.nombre}</Descriptions.Item>
             <Descriptions.Item label="Estado">
-              <Tag color={STATUS_COLORS[data.estado?.codigo] ?? 'default'}>
-                {data.estado?.nombre}
-              </Tag>
+              <StatusBadge variant={ESTADO_VARIANT[data.estado?.codigo] ?? 'neutral'} label={data.estado?.nombre} />
             </Descriptions.Item>
             <Descriptions.Item label="Tipo">{data.tipo}</Descriptions.Item>
             <Descriptions.Item label="Organismo" span={2}>{data.organismo}</Descriptions.Item>
@@ -68,6 +70,12 @@ export function LicitacionDetailDrawer({ open, data, loading, onClose }: Props) 
               </Descriptions.Item>
             )}
           </Descriptions>
+
+          {/* spec 031 (US5): flujo colaborativo go/no-go */}
+          <Typography.Title level={5} style={{ marginTop: 24 }}>
+            Interés y colaboración
+          </Typography.Title>
+          <LicitacionInteresPanel licitacionId={data.id} licitacionNombre={data.nombre} />
 
           {data.items && data.items.length > 0 && (
             <>

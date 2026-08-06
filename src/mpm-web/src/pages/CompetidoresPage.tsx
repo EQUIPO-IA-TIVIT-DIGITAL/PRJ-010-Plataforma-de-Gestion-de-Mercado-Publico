@@ -1,8 +1,10 @@
 import { useState } from 'react';
-import { Space, Table, AutoComplete, DatePicker, Button, Tag, Empty, App as AntApp, Card, Typography, Tooltip } from 'antd';
-import { TeamOutlined, ExperimentOutlined, BulbOutlined } from '@ant-design/icons';
+import { Space, Table, AutoComplete, DatePicker, Button, Tag, Empty, App as AntApp, Card, Typography, Tooltip, Select, Spin } from 'antd';
+import { TeamOutlined, ExperimentOutlined, BulbOutlined, GlobalOutlined } from '@ant-design/icons';
+import { PageHeader } from '../components/PageHeader';
 import dayjs, { type Dayjs } from 'dayjs';
-import { useBuscarCompetidor, useAnalizarCompetidor, useListarCompetidores } from '../hooks/useCompetidores';
+import { useBuscarCompetidor, useAnalizarCompetidor, useListarCompetidores, useActividadMercado } from '../hooks/useCompetidores';
+import { useAreasNegocio } from '../hooks/useCatalogos';
 import { ApiError } from '../lib/apiClient';
 import type { OfertaCompetidor, AnalisisCompetidorResponse } from '../types/competidores';
 
@@ -15,10 +17,18 @@ export function CompetidoresPage() {
   const [textoEscrito, setTextoEscrito] = useState('');
   const [rango, setRango] = useState<[Dayjs, Dayjs] | null>(null);
   const [ultimoResultado, setUltimoResultado] = useState<AnalisisCompetidorResponse | null>(null);
+  const [areaMercado, setAreaMercado] = useState<number | null>(null);
 
   const { data: listaCompetidores, isLoading: cargandoLista } = useListarCompetidores();
   const { data, isLoading } = useBuscarCompetidor(nombreBuscado);
   const analizar = useAnalizarCompetidor();
+  const { data: areasNegocio } = useAreasNegocio();
+  const { data: actividadMercado, isLoading: cargandoActividadMercado } = useActividadMercado(
+    nombreBuscado || null,
+    areaMercado,
+    rango ? rango[0].format('YYYY-MM-DD') : dayjs().subtract(6, 'month').format('YYYY-MM-DD'),
+    rango ? rango[1].format('YYYY-MM-DD') : dayjs().format('YYYY-MM-DD'),
+  );
 
   const ofertas = data?.data ?? [];
   const sugerencias = (listaCompetidores?.data ?? [])
@@ -106,19 +116,11 @@ export function CompetidoresPage() {
 
   return (
     <Space direction="vertical" size={20} style={{ width: '100%' }}>
-      <div className="mpm-page-header">
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
-            <div style={{ width: 32, height: 32, borderRadius: 8, background: 'linear-gradient(135deg, #7c3aed, #a78bfa)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 10px rgba(124,58,237,0.3)' }}>
-              <TeamOutlined style={{ color: 'white', fontSize: 15 }} />
-            </div>
-            <h1 className="mpm-page-title">Inteligencia de Competencia</h1>
-          </div>
-          <p className="mpm-page-subtitle">
-            Buscá un competidor y mirá en qué licitaciones ha ofertado — el análisis con IA es opcional y siempre lo pedís vos, nunca se dispara solo.
-          </p>
-        </div>
-      </div>
+      <PageHeader
+        icon={<TeamOutlined />}
+        title="Inteligencia de Competencia"
+        subtitle="Busca un competidor y revisa en qué licitaciones ha ofertado — el análisis con IA es opcional y se genera solo cuando lo solicitas, nunca automáticamente."
+      />
 
       <Card size="small">
         <Space wrap>
@@ -129,7 +131,7 @@ export function CompetidoresPage() {
             options={sugerencias}
             onChange={setTextoEscrito}
             onSelect={handleSeleccionar}
-            placeholder="Escribí el nombre de un competidor (ej. SON...)"
+            placeholder="Escribe el nombre de un competidor (ej. SON...)"
             notFoundContent={cargandoLista ? 'Cargando...' : 'Sin competidores recolectados todavía'}
           />
         </Space>
@@ -201,6 +203,64 @@ export function CompetidoresPage() {
                   </div>
                 </Space>
               </Card>
+            )}
+          </Space>
+        </Card>
+      )}
+
+      {/* US4 (spec 031): actividad total de mercado -- incluye licitaciones donde TIVIT no participó */}
+      {nombreBuscado && (
+        <Card size="small" title={<><GlobalOutlined /> Actividad total de mercado</>}>
+          <Space direction="vertical" style={{ width: '100%' }} size={12}>
+            <Space wrap>
+              <Select
+                placeholder="Área de negocio (acota el cálculo)"
+                allowClear
+                style={{ width: 220 }}
+                value={areaMercado ?? undefined}
+                onChange={(v) => setAreaMercado(v ?? null)}
+                options={(areasNegocio ?? []).map((a) => ({ value: a.codigo, label: a.nombre }))}
+              />
+              <Text type="secondary" style={{ fontSize: 12 }}>Usa el mismo rango de fechas de arriba</Text>
+            </Space>
+
+            {actividadMercado?.estado === 'generando' && (
+              <Space>
+                <Spin size="small" />
+                <Text type="secondary">Calculando actividad de mercado, puede tardar varios minutos...</Text>
+              </Space>
+            )}
+
+            {cargandoActividadMercado && !actividadMercado && <Spin size="small" />}
+
+            {actividadMercado?.estado === 'listo' && (
+              <Space direction="vertical" style={{ width: '100%' }}>
+                <Space wrap size={20}>
+                  <Text><Text strong>Licitaciones totales: </Text>{actividadMercado.cantidadLicitaciones}</Text>
+                  <Text><Text strong>Monto total adjudicado: </Text>${actividadMercado.montoTotalAdjudicado?.toLocaleString('es-CL') ?? 0}</Text>
+                </Space>
+                <Table
+                  size="small"
+                  rowKey="licitacionCodigo"
+                  dataSource={actividadMercado.licitaciones?.licitaciones ?? []}
+                  pagination={{ pageSize: 10 }}
+                  locale={{ emptyText: <Empty description="Sin actividad detectada en esta área/período" /> }}
+                  columns={[
+                    { title: 'Licitación', dataIndex: 'nombre' },
+                    { title: 'Código', dataIndex: 'licitacionCodigo', width: 140 },
+                    {
+                      title: 'Monto ofertado', dataIndex: 'montoOferta', align: 'right' as const, width: 140,
+                      render: (v: number | null) => (v != null ? `$${v.toLocaleString('es-CL')}` : '—'),
+                    },
+                    {
+                      title: 'Relación con TIVIT', dataIndex: 'tivitParticipo', width: 160,
+                      render: (v: boolean) => v
+                        ? <Tag color="blue">Encuentro directo</Tag>
+                        : <Tag color="purple">Brecha de mercado</Tag>,
+                    },
+                  ]}
+                />
+              </Space>
             )}
           </Space>
         </Card>

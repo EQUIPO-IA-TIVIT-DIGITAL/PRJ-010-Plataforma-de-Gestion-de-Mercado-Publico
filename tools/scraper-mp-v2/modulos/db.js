@@ -7,6 +7,13 @@ let pool = null;
 export function initDB() {
   if (pool) return pool;
 
+  // Cloud SQL (mpm-db) exige conexion encriptada (sslMode=ENCRYPTED_ONLY, ver 002-fase5-deploy-gcp).
+  // node-postgres no negocia TLS por defecto -- sin esto, pg_hba.conf rechaza la conexion con
+  // "no encryption" antes de llegar a autenticar. Flag explicito en vez de inferir por DB_HOST
+  // (DB_HOST="db" en Docker Compose local NO es "localhost" pero tampoco soporta SSL -- inferir
+  // por hostname rompio el ambiente local, ver commit de este fix).
+  const usarSsl = process.env.DB_SSL === 'true';
+
   const config = {
     host: process.env.DB_HOST || 'localhost',
     port: parseInt(process.env.DB_PORT || '5433', 10),
@@ -16,6 +23,7 @@ export function initDB() {
     max: 5,
     idleTimeoutMillis: 30000,
     connectionTimeoutMillis: 10000,
+    ssl: usarSsl ? { rejectUnauthorized: false } : false,
   };
 
   console.log(`[DB] Conectando a PostgreSQL: ${config.host}:${config.port}/${config.database}`);

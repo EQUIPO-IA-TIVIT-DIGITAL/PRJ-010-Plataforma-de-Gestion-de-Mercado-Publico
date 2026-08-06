@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiGet, apiPost } from '../lib/apiClient';
-import type { LicitacionFilter, LicitacionResumen } from '../types/licitacion';
+import type { EstadoConteo, LicitacionFilter, LicitacionResumen } from '../types/licitacion';
 import type { LicitacionNaturalSearchResult } from '../types/licitacion';
 
 interface LicitacionesResponse {
@@ -25,6 +25,8 @@ async function fetchLicitaciones(filter: LicitacionFilter) {
   if (filter.fechaHasta) params.set('fechaHasta', filter.fechaHasta);
   if (filter.sortBy) params.set('sortBy', filter.sortBy);
   if (filter.sortDir) params.set('sortDir', filter.sortDir);
+  if (filter.area) params.set('area', String(filter.area));
+  if (filter.sinClasificar) params.set('sinClasificar', String(filter.sinClasificar));
 
   return apiGet<LicitacionesResponse>(`/api/v1/licitaciones?${params.toString()}`);
 }
@@ -33,6 +35,21 @@ export function useLicitaciones(filter: LicitacionFilter) {
   return useQuery({
     queryKey: ['licitaciones', filter],
     queryFn: () => fetchLicitaciones(filter),
+    staleTime: 30_000,
+  });
+}
+
+// US2 (spec 031): estadísticas por estado, mismo filtro de área que useLicitaciones
+export function useEstadisticasEstado(area?: number | null, sinClasificar?: boolean | null) {
+  return useQuery({
+    queryKey: ['licitaciones-estadisticas-estado', area, sinClasificar],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (area) params.set('area', String(area));
+      if (sinClasificar) params.set('sinClasificar', String(sinClasificar));
+      const json = await apiGet<{ data: EstadoConteo[] }>(`/api/v1/licitaciones/estadisticas-estado?${params.toString()}`);
+      return json.data;
+    },
     staleTime: 30_000,
   });
 }

@@ -7,7 +7,7 @@ export default defineConfig({
   timeout: 30000,
   retries: 1,
   use: {
-    baseURL: `http://localhost:${PORT}`,
+    baseURL: `http://web:${PORT}`,
     headless: true,
     screenshot: 'only-on-failure',
     trace: 'on-first-retry',

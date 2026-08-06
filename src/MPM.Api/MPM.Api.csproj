@@ -35,6 +35,7 @@
     <ProjectReference Include="..\MPM.Modules.Notificaciones\MPM.Modules.Notificaciones.csproj" />
     <ProjectReference Include="..\MPM.Modules.Alertas\MPM.Modules.Alertas.csproj" />
     <ProjectReference Include="..\MPM.Modules.Competidores\MPM.Modules.Competidores.csproj" />
+    <ProjectReference Include="..\MPM.Modules.Colaboracion\MPM.Modules.Colaboracion.csproj" />
   </ItemGroup>
 
 </Project>

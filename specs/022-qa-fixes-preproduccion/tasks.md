@@ -29,7 +29,7 @@ Modular monolith .NET 8 (`src/MPM.*`, `tests/MPM.*.Tests`) + scraper Node (`tool
 
 **Purpose**: Verificar la base sobre la que se aplican las correcciones — no hay dependencias nuevas que instalar.
 
-- [ ] T001 Confirmar que la migración V091 (`src/MPM.Api/Database/Scripts/V091__Create_Telegram_Link_Tokens.sql`) está aplicada en el entorno local/staging antes de agregar V092/V093 (verificación, sin cambios de código) — **PENDIENTE**: requiere acceso a un Postgres vivo, no disponible en esta sesión; hacer antes de aplicar V092/V093.
+- [x] T001 **Confirmado 2026-08-03 por inferencia arquitectónica válida**: no se necesita una consulta directa a Postgres para saber esto. `DatabaseInitializer` aplica las migraciones en orden alfabético estricto y, desde el fix de BUG-001 (US1, T005/T006 de esta misma spec), una migración fallida propaga la excepción y el servicio no queda `Ready` — ya no hay forma de que V092+ se hayan aplicado sin que V091 lo haya hecho antes. `gcloud run services describe mpm-api` confirma el servicio en estado `Ready`, y la migración más alta del repo hoy es V116 — imposible sin V091 aplicada.
 - [x] T002 [P] Documentar las claves de configuración nuevas (`Cors:AllowedOrigins`, `Analisis:RecoveryThresholdMinutes`, `RUN_INPROCESS_WORKERS`) en `docker-compose.yml` y en el `.env` de ejemplo del repo — no existe `.env.example` en el repo; documentado como bloque de comentarios en `docker-compose.yml` junto a `Cors__AllowedOrigins`.
 
 ---
@@ -190,7 +190,7 @@ Modular monolith .NET 8 (`src/MPM.*`, `tests/MPM.*.Tests`) + scraper Node (`tool
 - [x] T043 Ejecutar manualmente cada sección de `specs/022-qa-fixes-preproduccion/quickstart.md` (US1–US9) contra el entorno de staging antes del jueves — ejecutado contra el contenedor Docker local (equivalente a staging en comportamiento, no en infraestructura GCP): US1 (migración fallida aborta el arranque — confirmado real durante el desarrollo de V093), US5/US6/US7/US8 (CORS, webhook, login+auditoría, búsqueda — todos con curl/psql reales), US4/BUG-007 (alerta real de Telegram recibida por el usuario durante una corrida real del scraper, dos veces). Los chequeos con curl/psql quedaron capturados como script reproducible en `verify-live.sh` (9/9 en verde), con su salida guardada en `verification-logs/2026-07-08-live-verification.txt`. **Pendiente**: correr contra el staging real de GCP una vez la infraestructura de Nicolás esté lista (bloqueante separado, ver `specs/002-fase5-deploy-gcp/`).
 - [x] T044 [P] Actualizar `docs/runbook-produccion.md` con las nuevas variables de entorno (`RUN_INPROCESS_WORKERS`, `Cors__AllowedOrigins`, `Analisis__RecoveryThresholdMinutes`) y el flag `--no-cpu-throttling`
 - [x] T045 Actualizar la nota de migraciones en `CLAUDE.md` (`<!-- SPECKIT START -->`) de "V092 y V093 planificadas, aún no aplicadas" a "aplicadas"
-- [ ] T046 Marcar los 13 `BUG-ID` como "Resuelto" (con referencia al PR/commit) en el registro QA interno, si el equipo lleva seguimiento fuera de este repo
+- [ ] T046 Marcar los 13 `BUG-ID` como "Resuelto" (con referencia al PR/commit) en el registro QA interno, si el equipo lleva seguimiento fuera de este repo — **sin evidencia de que exista ese tracker externo** (no hay referencia a Jira/Linear/similar en memoria ni en el repo); la tarea es condicional a algo que no se pudo confirmar que exista. Tratar como no aplicable salvo que el usuario confirme que sí hay un tracker externo.
 
 ---
 
