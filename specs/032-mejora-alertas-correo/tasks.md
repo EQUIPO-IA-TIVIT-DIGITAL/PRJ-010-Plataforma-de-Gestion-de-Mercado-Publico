@@ -58,8 +58,8 @@ Ninguna — las 3 historias son independientes entre sí (no comparten código n
 
 **Independent Test**: `gcloud scheduler jobs describe sync-job-scheduler` devuelve `schedule: 0 8,15 * * *` — no requiere esperar un disparo real.
 
-- [ ] T014 [US3] Ejecutar `gcloud scheduler jobs update <tipo> sync-job-scheduler --project=tivit-cu010 --location=us-central1 --schedule="0 8,15 * * *"` (acción de infraestructura sobre prod real — requiere confirmación explícita del usuario antes de ejecutar, mismo criterio que otros cambios de infraestructura de esta sesión)
-- [ ] T015 [US3] Verificar con `gcloud scheduler jobs describe sync-job-scheduler --project=tivit-cu010 --location=us-central1 --format="value(schedule)"` que devuelve `0 8,15 * * *`
+- [X] T014 [US3] Ejecutar `gcloud scheduler jobs update <tipo> sync-job-scheduler --project=tivit-cu010 --location=us-central1 --schedule="0 8,15 * * *"` (acción de infraestructura sobre prod real — requiere confirmación explícita del usuario antes de ejecutar, mismo criterio que otros cambios de infraestructura de esta sesión)
+- [X] T015 [US3] Verificar con `gcloud scheduler jobs describe sync-job-scheduler --project=tivit-cu010 --location=us-central1 --format="value(schedule)"` que devuelve `0 8,15 * * *`
 
 **Checkpoint**: US3 completo — cambio de configuración puro, sin código.
 
