@@ -262,6 +262,20 @@ deploy_web() {
 deploy_job() {
   local job_name="$1" worker_mode="$2"
   build_and_push src/MPM.Api/Dockerfile "$API_IMAGE" .
+  # API_BASE_URL: BuildScraperEnvironmentVariables (ScraperBackgroundService.cs) cae a
+  # "http://localhost:80" por default -- correcto en Docker Compose local, donde el scraper
+  # corre como BackgroundService DENTRO del mismo contenedor que Kestrel (mpm-api). Pero un
+  # Cloud Run Job (WORKER_MODE) corre solo, sin Kestrel escuchando ahi -- sin esta variable,
+  # guardarOfertasCompetidor/pipelineAnalisisCompleto fallan con "fetch failed" en cada
+  # llamada, silenciosamente (encontrado en vivo 2026-08-07, --backfill-competidores extraia
+  # bien los datos pero nunca los guardaba). Mismo patron que deploy_web detectando la URL
+  # real del servicio mpm-api ya desplegado.
+  local api_url
+  api_url=$(gcloud run services describe "$RUN_API_SERVICE" --project="$GCP_PROJECT" --region="$GCP_REGION" --format="value(status.url)" 2>/dev/null) || true
+  if [ -z "$api_url" ]; then
+    echo "❌ No se encontró el servicio $RUN_API_SERVICE — desplegalo primero (scripts/deploy.sh prod api up)"
+    exit 1
+  fi
   # scraper-job corre Chromium "headed" dentro de Xvfb (no headless -- Mercado Público penaliza
   # el fingerprint headless con reCAPTCHA, ver ScraperBackgroundService.cs) + el proceso .NET
   # completo en el mismo contenedor. El default de Cloud Run Jobs (512Mi/1 CPU, el mismo que
@@ -286,7 +300,7 @@ deploy_job() {
     --vpc-egress=private-ranges-only \
     --memory="$memory" \
     --cpu="$cpu" \
-    --set-env-vars="^##^WORKER_MODE=${worker_mode}##$(common_app_env_vars)" \
+    --set-env-vars="^##^WORKER_MODE=${worker_mode}##API_BASE_URL=${api_url}##$(common_app_env_vars)" \
     --set-secrets="$(common_app_secrets)" \
     --max-retries=1 \
     --task-timeout=60m
