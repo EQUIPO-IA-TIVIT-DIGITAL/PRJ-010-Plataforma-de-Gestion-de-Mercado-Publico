@@ -33,6 +33,13 @@ const CARPETA_BASE = process.env.MP_CARPETA_SALIDA || path.join(__dirname, 'desc
 // Flags de fase de ejecucion (v2)
 const ONLY_COMPETIDORES = process.argv.includes('--only-competidores');
 const ONLY_ADJUNTOS = process.argv.includes('--only-adjuntos');
+// Backfill puntual (manual, no usado por el ciclo automatico): las licitaciones con analisis
+// ya completado se saltan sin abrir su ficha (linea ~130) porque para el pipeline de Acta/IA
+// no hay nada nuevo que hacer con ellas -- pero eso tambien bloqueaba para siempre recuperar
+// el Cuadro de Ofertas de licitaciones viejas, ya analizadas, que nunca lo tuvieron (bug de
+// cuadroOfertas.js corregido en 660c8a0). Este flag las vuelve a incluir SOLO para extraer
+// el cuadro de ofertas, sin tocar Acta/IA (igual que --only-competidores).
+const BACKFILL_COMPETIDORES = process.argv.includes('--backfill-competidores');
 
 
 async function executeCycle() {
@@ -130,7 +137,7 @@ async function executeCycle() {
     for (const lic of licitacionesAcotadas) {
       const idExistente = lic.codigo ? await licitacionYaExiste(lic.codigo) : null;
       const yaAnalizada = idExistente && await tieneAnalisisCompletado(idExistente);
-      if (yaAnalizada) {
+      if (yaAnalizada && !BACKFILL_COMPETIDORES) {
         saltadasPreviamente++;
       } else {
         licitacionesAProcesar.push(lic);
@@ -194,8 +201,8 @@ async function executeCycle() {
             }
           }
 
-          if (ONLY_COMPETIDORES) {
-            console.log('[CICLO] Modo --only-competidores: omitiendo descarga de Acta de Evaluacion y pipeline IA.');
+          if (ONLY_COMPETIDORES || BACKFILL_COMPETIDORES) {
+            console.log('[CICLO] Modo --only-competidores/--backfill-competidores: omitiendo descarga de Acta de Evaluacion y pipeline IA.');
             datos.actaDescargada = false;
           } else {
             console.log(`\n[CICLO] Buscando Acta de Evaluacion...`);

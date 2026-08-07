@@ -125,10 +125,19 @@ public class ScraperBackgroundService(
                 return;
             }
 
+            // SCRAPER_BACKFILL_COMPETIDORES: override manual de un solo uso (gcloud run jobs
+            // execute scraper-job --update-env-vars=SCRAPER_BACKFILL_COMPETIDORES=true), para
+            // recuperar el Cuadro de Ofertas de licitaciones viejas ya analizadas -- el ciclo
+            // normal (--daemon --incremental) las salta sin abrir su ficha (agente-mp.js linea
+            // ~140) porque para Acta/IA no hay nada nuevo que hacer con ellas. No usar --daemon
+            // aca: --backfill-competidores es un ciclo de una sola pasada, no un proceso residente.
+            var backfillCompetidores = config.GetValue<bool>("SCRAPER_BACKFILL_COMPETIDORES");
+            var scraperArgs = backfillCompetidores ? "--backfill-competidores" : "--daemon --incremental";
+
             var startInfo = new ProcessStartInfo
             {
                 FileName = NodeBinary,
-                Arguments = $"\"{scraperPath}\" --daemon --incremental",
+                Arguments = $"\"{scraperPath}\" {scraperArgs}",
                 WorkingDirectory = workingDir,
                 UseShellExecute = false,
                 RedirectStandardOutput = true,
@@ -145,7 +154,7 @@ public class ScraperBackgroundService(
             if (useXvfb)
             {
                 startInfo.FileName = "xvfb-run";
-                startInfo.Arguments = $"--auto-servernum -- {NodeBinary} \"{scraperPath}\" --daemon --incremental";
+                startInfo.Arguments = $"--auto-servernum -- {NodeBinary} \"{scraperPath}\" {scraperArgs}";
                 logger.LogInformation("Xvfb detectado — scraper correrá en modo headed dentro de framebuffer virtual");
             }
 
