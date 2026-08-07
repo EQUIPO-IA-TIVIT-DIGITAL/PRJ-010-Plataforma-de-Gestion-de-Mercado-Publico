@@ -12,6 +12,7 @@ No es una API expuesta a terceros — este documento fija el contrato de conteni
 | Presupuesto | `presupuesto != null` | "Presupuesto: {monto}" (formato ya existente, sin cambios) |
 | Organismo | `organismo` no vacío | "Organismo: {organismo}" |
 | Fecha de cierre | `fechaCierre.HasValue` | "Cierra: {fecha en formato dd-MM-yyyy}" |
+| Descripción | `descripcion` no vacío | Texto tal cual, sin etiqueta, en un párrafo propio |
 | Enlace directo | `link` no vacío | Texto ancla "Ver ficha en Mercado Público" apuntando a `link` |
 
 ## Reglas

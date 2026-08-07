@@ -239,7 +239,8 @@ public class AlertasMatchingService(
 
             await email.EnviarAsync(
                 destinatario.EmailAlertas, terminos, licitacion.Nombre, licitacion.CodigoExterno,
-                licitacion.Monto?.ToString("N0"), licitacion.Organismo, licitacion.FechaCierre, licitacion.Link, ct);
+                licitacion.Monto?.ToString("N0"), licitacion.Organismo, licitacion.FechaCierre, licitacion.Link,
+                licitacion.Descripcion, ct);
         }
 
         return new ProbarAlertaResponse(primerDisparoId ?? 0, esPrueba, notificacionCreada, telegramEnviada, telegramError);

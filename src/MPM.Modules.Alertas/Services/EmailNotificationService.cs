@@ -15,20 +15,22 @@ public class EmailNotificationService(IEmailService emailService, ILogger<EmailN
 {
     public async Task<(bool Enviada, string? Error)> EnviarAsync(
         string toEmail, string keyword, string nombreLicitacion, string codigoExterno, string? presupuesto,
-        string? organismo = null, DateTime? fechaCierre = null, string? link = null, CancellationToken ct = default)
+        string? organismo = null, DateTime? fechaCierre = null, string? link = null, string? descripcion = null,
+        CancellationToken ct = default)
     {
         try
         {
             var subject = $"Nueva alerta: {keyword}";
-            // 032-mejora-alertas-correo (US2): organismo/fechaCierre/link ya vienen disponibles
-            // desde el sync (contracts/correo-alerta-formato.md) -- cada campo se omite
-            // prolijamente cuando no hay dato, sin mostrar texto vacío/roto (FR-006).
+            // 032-mejora-alertas-correo (US2): organismo/fechaCierre/link/descripcion ya vienen
+            // disponibles desde el sync (contracts/correo-alerta-formato.md) -- cada campo se
+            // omite prolijamente cuando no hay dato, sin mostrar texto vacío/roto (FR-006).
             var html = $"""
                 <h2>🔔 Nueva alerta: {WebUtility.HtmlEncode(keyword)}</h2>
                 <p><strong>{WebUtility.HtmlEncode(nombreLicitacion)}</strong> ({WebUtility.HtmlEncode(codigoExterno)})</p>
                 {(!string.IsNullOrWhiteSpace(organismo) ? $"<p>Organismo: {WebUtility.HtmlEncode(organismo)}</p>" : "")}
                 {(fechaCierre.HasValue ? $"<p>Cierra: {fechaCierre.Value:dd-MM-yyyy}</p>" : "")}
                 {(presupuesto != null ? $"<p>Presupuesto: {WebUtility.HtmlEncode(presupuesto)}</p>" : "")}
+                {(!string.IsNullOrWhiteSpace(descripcion) ? $"<p>{WebUtility.HtmlEncode(descripcion)}</p>" : "")}
                 {(!string.IsNullOrWhiteSpace(link) ? $"""<p><a href="{WebUtility.HtmlEncode(link)}">Ver ficha en Mercado Público</a></p>""" : "")}
                 """;
 

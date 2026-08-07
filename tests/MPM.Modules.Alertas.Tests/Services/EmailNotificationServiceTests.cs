@@ -33,12 +33,13 @@ public class EmailNotificationServiceTests
         await service.EnviarAsync(
             "user@tivit.cl", "TI", "Servicio de soporte TI", "1234-56-LE26", "45.000.000",
             organismo: "Servicio de Impuestos Internos", fechaCierre: new DateTime(2026, 8, 15),
-            link: "https://www.mercadopublico.cl/ficha/123");
+            link: "https://www.mercadopublico.cl/ficha/123", descripcion: "Soporte de mesa de ayuda 24/7");
 
         htmlEnviado.Should().Contain("Servicio de Impuestos Internos");
         htmlEnviado.Should().Contain("15-08-2026");
         htmlEnviado.Should().Contain("https://www.mercadopublico.cl/ficha/123");
         htmlEnviado.Should().Contain("45.000.000");
+        htmlEnviado.Should().Contain("Soporte de mesa de ayuda 24/7");
     }
 
     [Fact]
