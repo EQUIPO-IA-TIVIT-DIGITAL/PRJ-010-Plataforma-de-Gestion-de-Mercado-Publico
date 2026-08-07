@@ -144,7 +144,7 @@ public class AlertasController(AlertasService service, AlertasMatchingService ma
 
         var licitacion = new LicitacionParaMatching(
             request.LicitacionId, request.CodigoExterno, request.Nombre, request.Descripcion,
-            request.Monto, request.TipoLicitacion, request.Organismo);
+            request.Monto, request.TipoLicitacion, request.Organismo, request.FechaCierre, request.Link);
 
         var resultado = await matchingService.ProbarAsync(id, tenant.UserId, licitacion);
         return Ok(ApiResponse<ProbarAlertaResponse>.Ok(resultado));

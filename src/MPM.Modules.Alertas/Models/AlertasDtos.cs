@@ -77,7 +77,9 @@ public record ProbarAlertaRequest(
     string? Descripcion,
     decimal? Monto,
     string? TipoLicitacion,
-    string? Organismo);
+    string? Organismo,
+    DateTime? FechaCierre = null,
+    string? Link = null);
 
 public record GuardarTelegramChatIdRequest(string TelegramChatId);
 
