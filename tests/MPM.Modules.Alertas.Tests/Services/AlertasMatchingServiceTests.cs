@@ -25,8 +25,9 @@ public class AlertasMatchingServiceTests
 
     private static LicitacionParaMatching Licitacion(
         string nombre = "Contratación de servicios", string? descripcion = null,
-        decimal? monto = null, string? tipo = null, string? organismo = null) =>
-        new(1, "COD-1", nombre, descripcion, monto, tipo, organismo);
+        decimal? monto = null, string? tipo = null, string? organismo = null,
+        DateTime? fechaCierre = null, string? link = null) =>
+        new(1, "COD-1", nombre, descripcion, monto, tipo, organismo, fechaCierre, link);
 
     [Fact]
     public void EvaluarMatch_DebeCoincidirPorKeywordLiteralEnElNombre()
@@ -81,6 +82,45 @@ public class AlertasMatchingServiceTests
 
         AlertasMatchingService.EvaluarMatch(regla, licitacionTipoDistinto).Should().BeNull();
         AlertasMatchingService.EvaluarMatch(regla, licitacionTipoCorrecto).Should().Be("cloud");
+    }
+
+    // ── 032-mejora-alertas-correo (US1): matching con límites de palabra ──
+    // Antes, el matching era `texto.Contains(keyword)` sin límites de palabra -- una keyword
+    // corta como "TI" matcheaba cualquier texto que contuviera esas 2 letras juntas, incluso
+    // como fragmento interno de otra palabra ("par-TI-cipantes"). Confirmado en vivo por el
+    // usuario dueño de MPM.
+
+    [Fact]
+    public void EvaluarMatch_NoDebeCoincidirCuandoLaKeywordEsSoloUnFragmentoDeOtraPalabra()
+    {
+        var regla = Regla(keyword: "TI");
+        var licitacion = Licitacion(nombre: "Producción evento mujeres participantes");
+
+        var resultado = AlertasMatchingService.EvaluarMatch(regla, licitacion);
+
+        resultado.Should().BeNull("'TI' es un fragmento interno de 'participantes', no la sigla como palabra independiente");
+    }
+
+    [Fact]
+    public void EvaluarMatch_DebeCoincidirCuandoLaKeywordApareceComoPalabraIndependiente()
+    {
+        var regla = Regla(keyword: "TI");
+        var licitacion = Licitacion(nombre: "Servicio de soporte TI para oficinas regionales");
+
+        var resultado = AlertasMatchingService.EvaluarMatch(regla, licitacion);
+
+        resultado.Should().Be("TI");
+    }
+
+    [Fact]
+    public void EvaluarMatch_DebeSeguirCoincidiendoConFrasesCompuestasDeVariasPalabras()
+    {
+        var regla = Regla(keyword: "mesa de ayuda");
+        var licitacion = Licitacion(nombre: "Contratación de servicio de mesa de ayuda para la institución");
+
+        var resultado = AlertasMatchingService.EvaluarMatch(regla, licitacion);
+
+        resultado.Should().Be("mesa de ayuda", "el fix de límites de palabra no debe romper el matching de frases existente");
     }
 
     [Fact]

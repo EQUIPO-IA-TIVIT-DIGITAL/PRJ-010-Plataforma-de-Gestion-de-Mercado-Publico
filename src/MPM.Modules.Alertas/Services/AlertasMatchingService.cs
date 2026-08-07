@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using System.Net.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.DependencyInjection;
@@ -238,7 +239,7 @@ public class AlertasMatchingService(
 
             await email.EnviarAsync(
                 destinatario.EmailAlertas, terminos, licitacion.Nombre, licitacion.CodigoExterno,
-                licitacion.Monto?.ToString("N0"), ct);
+                licitacion.Monto?.ToString("N0"), licitacion.Organismo, licitacion.FechaCierre, licitacion.Link, ct);
         }
 
         return new ProbarAlertaResponse(primerDisparoId ?? 0, esPrueba, notificacionCreada, telegramEnviada, telegramError);
@@ -256,9 +257,14 @@ public class AlertasMatchingService(
         if (regla.p_tipos_licitacion is { Length: > 0 } tipos && (licitacion.TipoLicitacion == null || !tipos.Contains(licitacion.TipoLicitacion, StringComparer.OrdinalIgnoreCase))) return null;
         if (regla.p_organismos is { Length: > 0 } organismos && (licitacion.Organismo == null || !organismos.Contains(licitacion.Organismo, StringComparer.OrdinalIgnoreCase))) return null;
 
-        var texto = $"{licitacion.Nombre} {licitacion.Descripcion}".ToLowerInvariant();
+        var texto = $"{licitacion.Nombre} {licitacion.Descripcion}";
 
-        if (texto.Contains(regla.p_keyword.ToLowerInvariant()))
+        // 032-mejora-alertas-correo (US1): antes era texto.Contains(keyword), sin límites de
+        // palabra -- una keyword corta como "TI" matcheaba cualquier texto que la contuviera
+        // como fragmento interno de otra palabra ("participantes"). \b delimita por palabra
+        // completa y sigue funcionando igual para frases de varias palabras (límites en los
+        // extremos de la frase completa), sin requerir tokenizar el texto.
+        if (CoincidePorPalabraCompleta(texto, regla.p_keyword))
             return regla.p_keyword;
 
         if (!string.IsNullOrEmpty(regla.p_sinonimos_ia))
@@ -266,7 +272,7 @@ public class AlertasMatchingService(
             try
             {
                 var sinonimos = JsonSerializer.Deserialize<List<string>>(regla.p_sinonimos_ia, JsonOptions) ?? [];
-                var match = sinonimos.FirstOrDefault(s => texto.Contains(s.ToLowerInvariant()));
+                var match = sinonimos.FirstOrDefault(s => CoincidePorPalabraCompleta(texto, s));
                 if (match != null) return match;
             }
             catch (JsonException)
@@ -278,4 +284,7 @@ public class AlertasMatchingService(
 
         return null;
     }
+
+    private static bool CoincidePorPalabraCompleta(string texto, string termino) =>
+        Regex.IsMatch(texto, $@"\b{Regex.Escape(termino)}\b", RegexOptions.IgnoreCase);
 }

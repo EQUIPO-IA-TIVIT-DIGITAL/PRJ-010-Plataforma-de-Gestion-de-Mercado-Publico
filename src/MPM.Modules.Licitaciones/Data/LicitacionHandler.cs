@@ -89,7 +89,8 @@ public class LicitacionHandler(DbConnectionFactory dbFactory)
             commandType: CommandType.Text);
 
         return rows.Select(r => new MPM.Modules.Alertas.Models.LicitacionParaMatching(
-            r.p_id, r.p_codigo_externo, r.p_nombre, r.p_descripcion, r.p_monto_estimado, r.p_tipo, r.p_organismo));
+            r.p_id, r.p_codigo_externo, r.p_nombre, r.p_descripcion, r.p_monto_estimado, r.p_tipo, r.p_organismo,
+            r.p_fecha_cierre, r.p_link));
     }
 
     private class MatchingRow
@@ -101,6 +102,8 @@ public class LicitacionHandler(DbConnectionFactory dbFactory)
         public decimal? p_monto_estimado { get; set; }
         public string? p_tipo { get; set; }
         public string? p_organismo { get; set; }
+        public DateTime? p_fecha_cierre { get; set; }
+        public string? p_link { get; set; }
     }
 
     /// <summary>

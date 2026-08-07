@@ -9,6 +9,11 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
 ### Added
 
+- **032 — Mejora de alertas por correo**
+  - **US1 (matching sin falsos positivos)**: `AlertasMatchingService.EvaluarMatch` reemplaza `string.Contains` por comparación con límites de palabra (`Regex.IsMatch` con `\b`) para keyword y sinónimos IA — corrige el caso reportado por el usuario ("TI" matcheaba "parTIcipantes"), sin romper el matching de frases multi-palabra existentes
+  - **US2 (correo enriquecido)**: el correo de alerta ahora incluye organismo, fecha de cierre y enlace directo a la ficha en Mercado Público cuando están disponibles (V129, amplía `usp_Licitaciones_ListarParaMatching` con `fecha_cierre`/`link`, columnas ya existentes) — cada campo se omite prolijamente si falta el dato
+  - **US3 (horario)**: Cloud Scheduler `sync-job-scheduler` pasa de `0 3,15 * * *` a `0 8,15 * * *` (hora de Santiago) — cambio de infraestructura, sin código
+
 - **019 — Rediseño frontend por pantalla**
   - Dos componentes compartidos nuevos en `src/mpm-web/src/components/`: `StatusBadge.tsx` (6 variantes semánticas — `neutral/info/warning/success/error/tertiary` — sobre los tokens del theme de `main.tsx`) y `PageHeader.tsx` (chip de ícono siempre en `colorPrimary`), reemplazando 5 implementaciones de badge de estado y 3 estructuras de header divergentes encontradas en una auditoría de consistencia
   - **Licitaciones**: corregida la grilla de tarjetas de estadísticas por estado (dejaba un hueco de alineación cuando el número de estados no completaba la fila, ej. junto a "Revocada"); densidad visual reducida — las tarjetas de resumen pasan de `Card`+`Statistic` a una fila compacta
