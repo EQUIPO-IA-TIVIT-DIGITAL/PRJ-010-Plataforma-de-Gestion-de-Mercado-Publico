@@ -15,7 +15,7 @@ namespace MPM.Shared.Services;
 /// para corregir un bug de truncamiento real. Centralizar acá evita que ese tipo de fix quede
 /// aplicado en un solo lugar.
 /// </summary>
-public class VertexGeminiClient(HttpClient httpClient, IConfiguration config, GoogleAdcTokenProvider tokenProvider, ILogger<VertexGeminiClient> logger)
+public class VertexGeminiClient(HttpClient httpClient, IConfiguration config, GoogleAdcTokenProvider tokenProvider, ILogger<VertexGeminiClient> logger) : ILlmClient, IConfigurableLlmClient
 {
     /// <summary>
     /// Límite de tokens de salida validado en producción para respuestas JSON estructuradas de
@@ -24,6 +24,73 @@ public class VertexGeminiClient(HttpClient httpClient, IConfiguration config, Go
     /// hardcodear su propio número.
     /// </summary>
     public const int DefaultMaxOutputTokens = 65536;
+
+    /// <summary>Modelo por defecto del camino Gemini (puede ser sobreescrito con AI:Model).</summary>
+    public const string DefaultModelName = "gemini-2.5-pro";
+
+    private string? _modelOverride; // desde ApplySettings (config persistida del switch)
+
+    /// <summary>Modelo activo: override del switch (BD) > env AI:Model > default Gemini.</summary>
+    public string ModelName => _modelOverride ?? config["AI:Model"] ?? DefaultModelName;
+
+    /// <summary>Recibe el modelo resuelto por request (config persistida del super admin).</summary>
+    public void ApplySettings(string? endpoint, string model)
+    {
+        if (!string.IsNullOrWhiteSpace(model))
+            _modelOverride = model;
+    }
+
+    /// <summary>
+    /// Implementación de <see cref="ILlmClient"/>: traduce un <see cref="LlmRequest"/> neutral al
+    /// formato nativo de Gemini (contents[]/parts[], fileData o inlineData para PDF, y
+    /// responseMimeType=application/json si <c>JsonResponse</c>) y delega el envío/parseo en
+    /// <see cref="GenerarContenidoAsync(string, object, CancellationToken)"/>.
+    /// </summary>
+    public async Task<LlmResult> GenerarContenidoAsync(LlmRequest request, CancellationToken ct = default)
+    {
+        var result = await GenerarContenidoAsync(ModelName, BuildRequestBody(request), ct);
+        return new LlmResult(
+            result.Text,
+            result.RawResponse,
+            new LlmUsage(result.Usage.PromptTokenCount, result.Usage.CandidatesTokenCount, result.Usage.TotalTokenCount),
+            result.FinishReason);
+    }
+
+    private static object BuildRequestBody(LlmRequest request)
+    {
+        var body = new Dictionary<string, object?>
+        {
+            ["contents"] = request.Messages.Select(m => new
+            {
+                role = m.Role == "assistant" ? "model" : m.Role,
+                parts = m.Parts.Select(ToGeminiPart).ToArray()
+            }).ToArray()
+        };
+
+        if (!string.IsNullOrWhiteSpace(request.SystemInstruction))
+            body["systemInstruction"] = new { parts = new[] { new { text = request.SystemInstruction } } };
+
+        var generationConfig = new Dictionary<string, object?>
+        {
+            ["temperature"] = request.Temperature,
+            ["maxOutputTokens"] = request.MaxOutputTokens
+        };
+        if (request.JsonResponse)
+            generationConfig["responseMimeType"] = "application/json";
+        body["generationConfig"] = generationConfig;
+
+        return body;
+    }
+
+    private static object ToGeminiPart(LlmPart part) => part switch
+    {
+        LlmTextPart t => new { text = t.Text },
+        LlmPdfPart p when !string.IsNullOrWhiteSpace(p.GcsUri) =>
+            new { fileData = new { mimeType = "application/pdf", fileUri = p.GcsUri } },
+        LlmPdfPart p =>
+            new { inlineData = new { mimeType = "application/pdf", data = Convert.ToBase64String(p.PdfBytes) } },
+        _ => throw new ArgumentOutOfRangeException(nameof(part), part, "Tipo de LlmPart no soportado por Gemini")
+    };
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -145,7 +212,4 @@ public class VertexGeminiUsage
 /// filtro de seguridad de Vertex AI. Es un caso esperable y recuperable (el usuario puede
 /// reintentar o el contenido simplemente no es analizable), no un error interno del sistema.
 /// </summary>
-public class GeminiRespuestaBloqueadaException(string message, string rawResponse) : Exception(message)
-{
-    public string RawResponse { get; } = rawResponse;
-}
+public class GeminiRespuestaBloqueadaException(string message, string rawResponse) : LlmRespuestaBloqueadaException(message, rawResponse);

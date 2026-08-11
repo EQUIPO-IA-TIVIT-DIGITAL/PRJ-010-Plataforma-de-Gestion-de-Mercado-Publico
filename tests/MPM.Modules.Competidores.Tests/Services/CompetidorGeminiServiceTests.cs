@@ -4,15 +4,16 @@ using FluentAssertions;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
+using MPM.Core.SystemConfig;
 using MPM.Modules.Competidores.Services;
 using MPM.Shared.Services;
 using Xunit;
 
 namespace MPM.Modules.Competidores.Tests.Services;
 
-// 029-fix-hallazgos-code-review-competidores-alertas (FR-003, FR-006): CompetidorGeminiService
-// ahora delega en VertexGeminiClient (compartido con GeminiService de Análisis) en vez de armar
-// su propia request con un maxOutputTokens desincronizado (8192 vs. los 65536 ya validados).
+// 033-migracion-qwen-g4: CompetidorGeminiService ahora resuelve el cliente de IA activo vía
+// LlmClientResolver (mockeado para devolver el VertexGeminiClient real) en vez de recibirlo
+// por constructor. El maxOutputTokens compartido sigue anclado por VertexGeminiClient.
 public class CompetidorGeminiServiceTests
 {
     private const string TestToken = "fake-adc-token";
@@ -37,7 +38,9 @@ public class CompetidorGeminiServiceTests
     {
         var httpClient = new HttpClient(handler);
         var vertexClient = new VertexGeminiClient(httpClient, BuildConfig(), FakeTokenProvider(), NullLogger<VertexGeminiClient>.Instance);
-        return new CompetidorGeminiService(vertexClient, NullLogger<CompetidorGeminiService>.Instance);
+        var resolver = new Mock<LlmClientResolver>(null!, null!, NullLogger<LlmClientResolver>.Instance);
+        resolver.Setup(r => r.GetClientAsync(It.IsAny<CancellationToken>())).ReturnsAsync(vertexClient);
+        return new CompetidorGeminiService(resolver.Object, NullLogger<CompetidorGeminiService>.Instance);
     }
 
     [Fact]

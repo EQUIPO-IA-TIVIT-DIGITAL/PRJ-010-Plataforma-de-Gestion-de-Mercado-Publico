@@ -12,7 +12,9 @@ public static class ModuleRegistration
         services.AddScoped<AlertasService>();
         services.AddScoped<AlertaEnriquecimientoService>();
         services.AddScoped<AlertasMatchingService>();
-        services.AddHttpClient<SinonimosIaService>();
+        // 033-migracion-qwen-g4: SinonimosIaService ya no hace HTTP propio -- resuelve el
+        // cliente de IA activo vía LlmClientResolver (registrado en Program.cs).
+        services.AddScoped<SinonimosIaService>();
         // Timeout explícito (default de HttpClient es 100s) — un Telegram lento no debe colgar
         // el resto del ciclo de matching (QA BUG-013).
         services.AddHttpClient<TelegramNotificationService>(c => c.Timeout = TimeSpan.FromSeconds(10));

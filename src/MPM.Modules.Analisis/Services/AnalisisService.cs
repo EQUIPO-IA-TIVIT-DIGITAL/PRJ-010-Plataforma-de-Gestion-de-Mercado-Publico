@@ -148,7 +148,9 @@ public class AnalisisService(
         {
             Id = 0,
             Estado = "analizando",
-            ModeloUsado = GeminiService.ModelName,
+            // 033-migracion-qwen-g4: el modelo del proveedor activo (ya no una constante
+            // Gemini); el análisis encolado persiste el modelo real al ejecutarse.
+            ModeloUsado = await _geminiService.GetModelNameAsync(ct),
             CreatedAt = DateTime.UtcNow
         }, null);
     }

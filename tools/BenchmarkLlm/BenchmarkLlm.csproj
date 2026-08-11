@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>MPM.Tools.BenchmarkLlm</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\MPM.Shared\MPM.Shared.csproj" />
+    <!-- Solo para reutilizar el prompt de análisis EXACTO de producción (GetAnalisisPrompt). -->
+    <ProjectReference Include="..\..\src\MPM.Modules.Analisis\MPM.Modules.Analisis.csproj" />
+  </ItemGroup>
+
+</Project>

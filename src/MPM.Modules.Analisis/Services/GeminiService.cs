@@ -1,40 +1,42 @@
 using Microsoft.Extensions.Logging;
+using MPM.Core.SystemConfig;
 using MPM.Shared.Services;
 
 namespace MPM.Modules.Analisis.Services;
 
 /// <summary>
-/// Cliente de Gemini vía Vertex AI, autenticado con ADC (020-migracion-gemini-adc) — ya no vía
-/// API key. Vertex AI no tiene la "File API" efímera de la Developer API
-/// (<c>generativelanguage.googleapis.com/upload/...</c>), así que el bug ya conocido de PDFs
-/// escaneados (ver memoria "feedback-scraper-bugs" Bug 3) se resuelve distinto acá: cuando el
-/// documento ya vive en GCS (<c>Storage:Provider=gcs</c>, el caso de producción), se referencia
-/// directo por <c>fileData.fileUri = gs://...</c> — Gemini lee el PDF completo desde GCS, sin
-/// las limitaciones de tamaño/calidad de mandar el PDF inline en base64. Con storage local se
-/// usa <c>inlineData</c> (mismo fallback que ya existía).
+/// Servicio de análisis/chat de documentos de licitación, agnóstico al proveedor de IA
+/// (033-migracion-qwen-g4). Antes de esa spec dependía directo de <see cref="VertexGeminiClient"/>
+/// (Gemini/Vertex AI hardcodeado); ahora resuelve el cliente activo por request vía
+/// <see cref="LlmClientResolver"/> (BD > env > default) — el mismo código sirve Gemini y Qwen.
 ///
-/// Armado de request, auth y parseo de respuesta viven en <see cref="VertexGeminiClient"/>
-/// (MPM.Shared, compartido con MPM.Modules.Competidores desde
-/// 029-fix-hallazgos-code-review-competidores-alertas) -- este servicio solo construye el
-/// prompt/contenido específico de análisis de PDFs y chat.
+/// Armado de request, auth y parseo de respuesta viven en el cliente <see cref="ILlmClient"/>
+/// (MPM.Shared); este servicio solo construye el prompt/contenido específico de análisis de
+/// PDFs y chat, en el formato neutral LlmRequest.
 /// </summary>
-public class GeminiService(VertexGeminiClient vertexClient, ILogger<GeminiService> logger)
+public class GeminiService(LlmClientResolver resolver, ILogger<GeminiService> logger)
 {
-    public const string ModelName = "gemini-2.5-pro";
+    /// <summary>Default histórico de Gemini (ya no es la fuente de verdad: el modelo activo se
+    /// resuelve por request desde el cliente — <see cref="GetModelNameAsync"/>).</summary>
+    public const string ModelName = VertexGeminiClient.DefaultModelName;
+
+    /// <summary>Id del modelo que ejecutará el próximo análisis (se persiste en modelo_usado).</summary>
+    public async Task<string> GetModelNameAsync(CancellationToken ct = default)
+        => (await resolver.GetClientAsync(ct)).ModelName;
 
     /// <param name="gcsUri">
     /// Si el documento ya está en GCS (<c>gs://...</c>), se referencia directo sin mandar
     /// <paramref name="pdfBytes"/> en el body — más eficiente y evita el límite de tamaño de
     /// <c>inlineData</c>. Si es <c>null</c> (storage local), se usa <paramref name="pdfBytes"/>
-    /// como <c>inlineData</c> en base64.
+    /// como <c>inlineData</c> en base64. (El formato gs:// solo lo soporta el camino Gemini;
+    /// el camino Qwen envía siempre los bytes inline.)
     /// </param>
     public Task<GeminiResponse> AnalyzePdfAsync(byte[] pdfBytes, string fileName, string? gcsUri, CancellationToken ct = default) =>
         AnalyzeDocumentosAsync([(pdfBytes, fileName, gcsUri)], ct);
 
     /// <summary>
     /// 029-fix-hallazgos-code-review-competidores-alertas (FR-011/FR-012, QA BUG-005/BUG-010):
-    /// envía todos los documentos de un workspace en una sola llamada a Gemini, en vez de
-    /// analizar solo el primero (<c>AnalisisService.cs:96</c> hacía <c>docList.First()</c>).
+    /// envía todos los documentos de un workspace en una sola llamada (antes solo el primero).
     /// Se le da el contexto de todos a la vez para que pueda sintetizar información entre ellos
     /// Y detectar si alguno revoca/deja sin efecto a otro documento anterior del mismo
     /// workspace -- ambos bugs comparten la misma causa raíz (falta de contexto multi-documento).
@@ -46,43 +48,35 @@ public class GeminiService(VertexGeminiClient vertexClient, ILogger<GeminiServic
             throw new ArgumentException("Debe proporcionarse al menos un documento", nameof(documentos));
 
         var prompt = GetAnalisisPrompt(documentos.Count);
-        logger.LogInformation("Enviando {Count} documento(s) a Gemini (Vertex AI) para análisis: {Files}",
+        logger.LogInformation("Enviando {Count} documento(s) al proveedor de IA activo para análisis: {Files}",
             documentos.Count, string.Join(", ", documentos.Select(d => d.FileName)));
 
-        var parts = new List<object>();
-        foreach (var (bytes, _, gcsUri) in documentos)
+        var parts = new List<LlmPart>();
+        foreach (var (bytes, fileName, gcsUri) in documentos)
         {
-            object documentPart = gcsUri != null
-                ? new { fileData = new { mimeType = "application/pdf", fileUri = gcsUri } }
-                : new { inlineData = new { mimeType = "application/pdf", data = Convert.ToBase64String(bytes) } };
-            parts.Add(documentPart);
+            parts.Add(new LlmPdfPart(bytes, fileName, gcsUri));
         }
-        parts.Add(new { text = prompt });
+        parts.Add(new LlmTextPart(prompt));
 
-        var request = new
-        {
-            contents = new[]
-            {
-                new
-                {
-                    role = "user",
-                    parts = parts.ToArray()
-                }
-            },
-            generationConfig = new { temperature = 0.2, maxOutputTokens = VertexGeminiClient.DefaultMaxOutputTokens, responseMimeType = "application/json" }
-        };
+        var request = new LlmRequest(
+            Messages: [new LlmMessage("user", parts)],
+            Temperature: 0.2,
+            MaxOutputTokens: VertexGeminiClient.DefaultMaxOutputTokens,
+            JsonResponse: true);
 
-        var result = await vertexClient.GenerarContenidoAsync(ModelName, request, ct);
-        logger.LogInformation("Respuesta de Gemini recibida ({Length} chars)", result.RawResponse.Length);
+        var client = await resolver.GetClientAsync(ct);
+        logger.LogInformation("Respuesta de {Model} recibida", client.ModelName);
 
+        var result = await client.GenerarContenidoAsync(request, ct);
         return new GeminiResponse
         {
             Text = result.Text,
+            ModelName = client.ModelName,
             Usage = new GeminiUsage
             {
-                PromptTokenCount = result.Usage.PromptTokenCount,
-                CandidatesTokenCount = result.Usage.CandidatesTokenCount,
-                TotalTokenCount = result.Usage.TotalTokenCount
+                PromptTokenCount = (int)(result.Usage.PromptTokenCount ?? 0),
+                CandidatesTokenCount = (int)(result.Usage.CandidatesTokenCount ?? 0),
+                TotalTokenCount = (int)(result.Usage.TotalTokenCount ?? 0)
             },
             RawResponse = result.RawResponse
         };
@@ -103,33 +97,30 @@ FORMATO DE RESPUESTA (obligatorio):
 - Usa listas con guiones, negritas con ** y tablas Markdown estándar cuando presentes datos comparativos.
 - No uses HTML.";
 
-        var contents = new List<object>();
+        var messages = new List<LlmMessage>();
 
         foreach (var h in historial.TakeLast(20))
         {
-            var geminiRole = h.Rol == "assistant" ? "model" : h.Rol;
-            contents.Add(new { role = geminiRole, parts = new[] { new { text = h.Contenido } } });
+            var rolNeutral = h.Rol == "assistant" ? "assistant" : "user";
+            messages.Add(new LlmMessage(rolNeutral, [new LlmTextPart(h.Contenido)]));
         }
 
         // Only add the current message if it's not already the last in history
         var lastHistorial = historial.LastOrDefault();
         if (lastHistorial == null || lastHistorial.Contenido != mensaje)
         {
-            contents.Add(new { role = "user", parts = new[] { new { text = mensaje } } });
+            messages.Add(new LlmMessage("user", [new LlmTextPart(mensaje)]));
         }
 
-        var request = new
-        {
-            systemInstruction = new { parts = new[] { new { text = systemInstruction } } },
-            contents,
-            generationConfig = new
-            {
-                temperature = 0.3,
-                maxOutputTokens = 2048
-            }
-        };
+        var request = new LlmRequest(
+            Messages: messages,
+            SystemInstruction: systemInstruction,
+            Temperature: 0.3,
+            MaxOutputTokens: 2048,
+            JsonResponse: false);
 
-        var result = await vertexClient.GenerarContenidoAsync(ModelName, request, ct);
+        var client = await resolver.GetClientAsync(ct);
+        var result = await client.GenerarContenidoAsync(request, ct);
         return new GeminiChatResponse
         {
             Text = result.Text,
@@ -137,7 +128,12 @@ FORMATO DE RESPUESTA (obligatorio):
         };
     }
 
-    private static string GetAnalisisPrompt(int documentCount = 1)
+    /// <summary>
+    /// Prompt de análisis de documentos (público para el harness de benchmark de
+    /// tools/BenchmarkLlm, 033-migracion-qwen-g4 US2 — el benchmark debe usar EXACTAMENTE el
+    /// mismo prompt que producción para que la comparación sea apples-to-apples).
+    /// </summary>
+    public static string GetAnalisisPrompt(int documentCount = 1)
     {
         var contextoDocumentos = documentCount > 1
             ? $"Se te están proporcionando {documentCount} documentos del MISMO workspace de análisis (se espera que sean de la misma licitación). Trátalos como un conjunto: sintetiza la información de TODOS ellos en UN ÚNICO objeto JSON de salida (no describas solo el primero, y NUNCA respondas con un array/lista de objetos -- tu respuesta completa debe ser el único objeto JSON descrito más abajo, sin importar cuántos documentos recibiste). Presta atención especial a si alguno de los documentos posteriores REVOCA, DEJA SIN EFECTO, o corrige formalmente una conclusión de otro documento anterior del mismo conjunto (ver sección \"revocacion\" del JSON) -- en ese caso, el resultado final vigente es el del documento que revoca, no el revocado. Si tras leerlos notas que en realidad describen licitaciones DISTINTAS (no deberían estar en el mismo workspace), usa como base la licitación del documento más reciente/completo para el JSON principal, y deja constancia de la discrepancia en `riesgos_identificados` -- igual debes devolver un único objeto, nunca un array."
@@ -364,6 +360,8 @@ IMPORTANTE: El objetivo NO es solo describir por qué TIVIT perdió. El objetivo
 public class GeminiResponse
 {
     public string Text { get; set; } = string.Empty;
+    /// <summary>Modelo que realmente ejecutó el análisis (se persiste en modelo_usado).</summary>
+    public string ModelName { get; set; } = string.Empty;
     public GeminiUsage Usage { get; set; } = new();
     public string RawResponse { get; set; } = string.Empty;
 }

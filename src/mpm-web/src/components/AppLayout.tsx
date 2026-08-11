@@ -15,7 +15,16 @@ import { AnalisisCompletionWatcher } from './AnalisisCompletionWatcher';
 
 const { Sider, Content } = Layout;
 
-const NAV_ITEMS = [
+type NavItem = {
+  key: string;
+  icon: React.ReactNode;
+  label: string;
+  badge: string | null;
+  disabled?: boolean;
+  adminOnly?: boolean;
+};
+
+const NAV_ITEMS: NavItem[] = [
   { key: '/licitaciones', icon: <FileTextOutlined />, label: 'Licitaciones', badge: null },
   { key: '/catalogos', icon: <DatabaseOutlined />, label: 'Catálogos', badge: null },
   { key: '/analisis', icon: <BarChartOutlined />, label: 'Análisis', badge: null },
@@ -24,6 +33,8 @@ const NAV_ITEMS = [
   { key: '/notificaciones', icon: <BellOutlined />, label: 'Notificaciones', disabled: false, badge: null },
   { key: '/alertas', icon: <NotificationOutlined />, label: 'Alertas', badge: null },
   { key: '/competidores', icon: <TeamOutlined />, label: 'Competidores', badge: null },
+  // 033-migracion-qwen-g4 (US4): switch de proveedor de IA — solo visible para SuperAdmin.
+  { key: '/admin/ia', icon: <SettingOutlined />, label: 'Admin IA', adminOnly: true, badge: null },
 ];
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
@@ -336,7 +347,9 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           >
             {!collapsed && 'Navegación'}
           </div>
-          {NAV_ITEMS.map((item) => {
+          {NAV_ITEMS
+            .filter((item) => !item.adminOnly || user?.roles?.includes('SuperAdmin'))
+            .map((item) => {
             const hasMoreSpecificMatch = NAV_ITEMS.some(
               other => other.key !== item.key &&
                 other.key.startsWith(item.key) &&

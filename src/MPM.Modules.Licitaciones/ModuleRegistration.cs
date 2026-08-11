@@ -17,8 +17,9 @@ public static class ModuleRegistration
         services.AddScoped<ImportBackfillService>();
         services.AddScoped<SyncService>();
         services.AddHttpClient<ApiMpService>();
-        // 018-buscador-inteligente-nl: interpretación de consultas en lenguaje natural vía Gemini
-        services.AddHttpClient<ConsultaSemanticaService>();
+        // 033-migracion-qwen-g4: ConsultaSemanticaService ya no hace HTTP propio -- resuelve
+        // el cliente de IA activo vía LlmClientResolver (registrado en Program.cs).
+        services.AddScoped<ConsultaSemanticaService>();
 
         // 016-extraccion-documentos-api: extracción de documentos vía HTTP directo,
         // con fallback al scraper Node/Playwright existente (Extraccion:Modo).

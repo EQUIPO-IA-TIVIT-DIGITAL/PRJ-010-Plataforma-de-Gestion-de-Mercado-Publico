@@ -3,6 +3,7 @@ using MPM.Api.Database;
 using MPM.Api.Services;
 using MPM.Core.Middleware;
 using MPM.Core.Data;
+using MPM.Core.SystemConfig;
 using MPM.Modules.Analisis;
 using MPM.Modules.Licitaciones;
 using MPM.Modules.Catalogo;
@@ -76,6 +77,16 @@ builder.Services.AddCors(options =>
 builder.Services.AddSingleton<DbConnectionFactory>(_ =>
     new DbConnectionFactory(builder.Configuration.GetConnectionString("PostgreSQL")!));
 
+// 033-migracion-qwen-g4: configuración persistida del proveedor de IA (BD > env > default)
+// y resolución dinámica del cliente por request. Los clientes se registran por key
+// ("gemini" | "openai"); el resolver elige según el proveedor activo.
+builder.Services.AddMemoryCache();
+builder.Services.AddSingleton<ISystemConfigData, SystemConfigData>();
+builder.Services.AddSingleton<SystemConfigService>();
+builder.Services.AddScoped<LlmClientResolver>();
+builder.Services.AddKeyedScoped<ILlmClient, VertexGeminiClient>("gemini");
+builder.Services.AddKeyedScoped<ILlmClient, OpenAiCompatClient>("openai");
+
 builder.Services.AddSingleton<IConnectionMultiplexer>(_ =>
 {
     var connStr = builder.Configuration.GetConnectionString("Redis")!;
@@ -88,6 +99,12 @@ builder.Services.AddSingleton<GoogleAdcTokenProvider>();
 // (029-fix-hallazgos-code-review-competidores-alertas) -- timeout de 5 min porque el análisis
 // de PDFs (Análisis) puede tardar bastante más que el análisis de texto de Competidores.
 builder.Services.AddHttpClient<VertexGeminiClient>(client =>
+{
+    client.Timeout = TimeSpan.FromMinutes(5);
+});
+// 033-migracion-qwen-g4: cliente OpenAI-compatible (Qwen G4, URL entregada por el equipo) --
+// mismo timeout de 5 min por el análisis de PDFs multi-documento.
+builder.Services.AddHttpClient<OpenAiCompatClient>(client =>
 {
     client.Timeout = TimeSpan.FromMinutes(5);
 });
@@ -207,6 +224,18 @@ static async Task<int> EjecutarWorkerAsync(string workerMode, string[] args)
     {
         client.Timeout = TimeSpan.FromMinutes(5);
     });
+    builder.Services.AddHttpClient<OpenAiCompatClient>(client =>
+    {
+        client.Timeout = TimeSpan.FromMinutes(5);
+    });
+    // 033-migracion-qwen-g4: mismo wiring de proveedor IA que el servicio web (el worker
+    // resuelve AnalisisModule → GeminiService → LlmClientResolver → SystemConfigService).
+    builder.Services.AddMemoryCache();
+    builder.Services.AddSingleton<ISystemConfigData, SystemConfigData>();
+    builder.Services.AddSingleton<SystemConfigService>();
+    builder.Services.AddScoped<LlmClientResolver>();
+    builder.Services.AddKeyedScoped<ILlmClient, VertexGeminiClient>("gemini");
+    builder.Services.AddKeyedScoped<ILlmClient, OpenAiCompatClient>("openai");
 
     var storageProvider = builder.Configuration.GetValue<string>("Storage:Provider") ?? "local";
     if (storageProvider == "gcs")
