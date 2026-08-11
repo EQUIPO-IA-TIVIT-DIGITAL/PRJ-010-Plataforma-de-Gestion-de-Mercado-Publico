@@ -9,6 +9,12 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
 ### Added
 
+- **033 — Migración del proveedor de IA (Gemini → Qwen 3.7 G4) con switch de super admin**
+  - **Abstracción del proveedor (US1)**: contrato `ILlmClient` en `MPM.Shared` (request neutral `LlmRequest` con texto/PDF/GCS, JSON mode, presupuesto de tokens) + resolución dinámica por request vía `LlmClientResolver` (MPM.Core) con precedencia **BD > entorno > default** y cache de 30s; `VertexGeminiClient` pasa a implementar el contrato (sin cambios de comportamiento con Gemini); los 4 usos de IA (análisis de PDFs, chat, búsqueda semántica, sinónimos de alertas) migran del cliente directo/HTTP crudo al resolver — `modelo_usado` persiste el modelo real que ejecutó cada análisis
+  - **Cliente OpenAI-compatible (US3)**: `OpenAiCompatClient` para servir Qwen 3.7 G4 (vLLM/Ollama/llama.cpp) vía `/v1/chat/completions` con PDFs como data URI y `response_format: json_object`; excepción tipada transversal `LlmRespuestaBloqueadaException` (Gemini hereda de ella); registrado por key `openai`
+  - **Benchmark de calidad (US2)**: harness `tools/BenchmarkLlm` que compara Gemini vs. Qwen con el MISMO prompt de producción, paridad de campos críticos (montos, fechas, puntuaciones), latencia p50/p95, JSON válido y veredicto go/no-go contra el umbral ≥ 90%
+  - **Switch del super admin (US4)**: tabla `system_ai_provider` (migración V130) + SPs `usp_SystemConfig_Obtener/ActualizarAiProvider` (UPSERT auditado, historial por `record_status`); endpoint `GET/PUT /api/system/ai-provider` con rol `SuperAdmin` (403 para otros roles); página `/admin/ia` con switch gcloud/qwen (efecto en el análisis siguiente, sin reinicio, persistente entre reinicios, auditoría usuario/fecha); item de menú solo visible para SuperAdmin
+
 - **032 — Mejora de alertas por correo**
   - **US1 (matching sin falsos positivos)**: `AlertasMatchingService.EvaluarMatch` reemplaza `string.Contains` por comparación con límites de palabra (`Regex.IsMatch` con `\b`) para keyword y sinónimos IA — corrige el caso reportado por el usuario ("TI" matcheaba "parTIcipantes"), sin romper el matching de frases multi-palabra existentes
   - **US2 (correo enriquecido)**: el correo de alerta ahora incluye organismo, fecha de cierre y enlace directo a la ficha en Mercado Público cuando están disponibles (V129, amplía `usp_Licitaciones_ListarParaMatching` con `fecha_cierre`/`link`, columnas ya existentes) — cada campo se omite prolijamente si falta el dato

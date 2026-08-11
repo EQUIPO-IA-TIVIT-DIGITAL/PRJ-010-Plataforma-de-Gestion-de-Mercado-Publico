@@ -1,25 +1,21 @@
 using Microsoft.Extensions.Logging;
+using MPM.Core.SystemConfig;
 using MPM.Shared.Services;
 
 namespace MPM.Modules.Competidores.Services;
 
 /// <summary>
-/// Cliente de Gemini vía Vertex AI para el análisis de patrones de un competidor -- mismo
-/// mecanismo de autenticación (ADC vía GoogleAdcTokenProvider, ya en MPM.Shared) que usa
-/// MPM.Modules.Analisis, pero con prompt de solo texto (sin PDF) sobre el listado de ofertas
-/// de ese competidor. NUNCA se llama automáticamente -- solo cuando el usuario confirma
-/// explícitamente un análisis para un competidor+rango específico (spec FR-004).
+/// Análisis de patrones de un competidor, agnóstico al proveedor de IA (033-migracion-qwen-g4):
+/// resuelve el cliente activo por request vía <see cref="LlmClientResolver"/> (BD > env >
+/// default) — el mismo código sirve Gemini y Qwen. Prompt de solo texto (sin PDF) sobre el
+/// listado de ofertas de ese competidor. NUNCA se llama automáticamente -- solo cuando el
+/// usuario confirma explícitamente un análisis para un competidor+rango específico (spec FR-004).
 ///
-/// Armado de request, auth y parseo de respuesta viven en <see cref="VertexGeminiClient"/>
-/// (MPM.Shared, compartido con MPM.Modules.Analisis desde
-/// 029-fix-hallazgos-code-review-competidores-alertas) -- antes de esa spec este servicio
-/// duplicaba esa lógica con su propio <c>maxOutputTokens</c> desincronizado (8192 vs. los 65536
-/// que Análisis ya usaba tras corregir un bug de truncamiento real).
+/// Armado de request, auth y parseo de respuesta viven en el cliente <see cref="ILlmClient"/>
+/// (MPM.Shared, ver VertexGeminiClient).
 /// </summary>
-public class CompetidorGeminiService(VertexGeminiClient vertexClient, ILogger<CompetidorGeminiService> logger)
+public class CompetidorGeminiService(LlmClientResolver resolver, ILogger<CompetidorGeminiService> logger)
 {
-    public const string ModelName = "gemini-2.5-pro";
-
     public async Task<string> AnalizarCompetidorAsync(string nombreCompetidor, string ofertasResumen, CancellationToken ct = default)
     {
         var prompt = $$"""
@@ -38,14 +34,15 @@ public class CompetidorGeminiService(VertexGeminiClient vertexClient, ILogger<Co
             {{ofertasResumen}}
             """;
 
-        var request = new
-        {
-            contents = new[] { new { role = "user", parts = new object[] { new { text = prompt } } } },
-            generationConfig = new { temperature = 0.2, maxOutputTokens = VertexGeminiClient.DefaultMaxOutputTokens, responseMimeType = "application/json" }
-        };
+        var request = new LlmRequest(
+            Messages: [new LlmMessage("user", [new LlmTextPart(prompt)])],
+            Temperature: 0.2,
+            MaxOutputTokens: VertexGeminiClient.DefaultMaxOutputTokens,
+            JsonResponse: true);
 
-        logger.LogInformation("Analizando competidor {Competidor} con Gemini (Vertex AI)", nombreCompetidor);
-        var result = await vertexClient.GenerarContenidoAsync(ModelName, request, ct);
+        var client = await resolver.GetClientAsync(ct);
+        logger.LogInformation("Analizando competidor {Competidor} con {Model}", nombreCompetidor, client.ModelName);
+        var result = await client.GenerarContenidoAsync(request, ct);
 
         return result.Text;
     }

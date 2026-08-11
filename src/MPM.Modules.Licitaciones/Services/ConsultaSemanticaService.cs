@@ -1,40 +1,25 @@
-using System.Text;
 using System.Text.Json;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using MPM.Core.SystemConfig;
 using MPM.Modules.Licitaciones.Models;
 using MPM.Shared.Services;
 
 namespace MPM.Modules.Licitaciones.Services;
 
 /// <summary>
-/// Interpreta una consulta de búsqueda en lenguaje natural vía Gemini en Vertex AI: expande
-/// sinónimos/conceptos del dominio e infiere filtros implícitos (estado, monto, fecha).
-/// 018-buscador-inteligente-nl, research.md — mismo patrón que
-/// <c>MPM.Modules.Alertas.Services.SinonimosIaService</c>, replicado localmente (Principio I:
-/// cada módulo construye su propia llamada a Gemini, no se comparte cliente entre módulos).
-///
-/// Modelo: gemini-2.5-flash-lite (USD 0.10/0.40 por millón de tokens entrada/salida) — el más
-/// barato que cubre esta categoría de extracción; ver research.md para el plan de escalón a
-/// gemini-3.1-flash-lite si el recall de sinónimos no alcanza SC-002.
+/// Interpreta una consulta de búsqueda en lenguaje natural vía el proveedor de IA activo
+/// (033-migracion-qwen-g4): expande sinónimos/conceptos del dominio e infiere filtros
+/// implícitos (estado, monto, fecha). Antes de esa spec llamaba directo a Gemini/Vertex AI
+/// con HTTP crudo duplicado (018-buscador-inteligente-nl); ahora usa <see cref="LlmClientResolver"/>
+/// como el resto de módulos. El contrato de salida JSON no cambia.
 /// </summary>
 public class ConsultaSemanticaService(
-    HttpClient httpClient, IConfiguration config, GoogleAdcTokenProvider tokenProvider, ILogger<ConsultaSemanticaService> logger)
+    LlmClientResolver resolver,
+    ILogger<ConsultaSemanticaService> logger)
 {
-    private const string ModelName = "gemini-2.5-flash-lite";
-
-    // virtual para poder mockearlo en LicitacionServiceTests (mismo patrón que
-    // GoogleAdcTokenProvider.GetAccessTokenAsync)
+    // virtual para poder mockearlo en LicitacionServiceTests (mismo patrón que antes).
     public virtual async Task<ConsultaSemanticaResult?> InterpretarAsync(string query, CancellationToken ct = default)
     {
-        var projectId = config["GOOGLE_CLOUD_PROJECT"] ?? config["GoogleCloudProject"];
-        if (string.IsNullOrWhiteSpace(projectId))
-        {
-            logger.LogWarning("GOOGLE_CLOUD_PROJECT no configurado — la búsqueda usa el texto literal sin interpretar");
-            return null;
-        }
-        var region = config["Vertex:Region"] ?? "us-central1";
-
         var prompt = $"Analiza esta consulta en lenguaje natural sobre licitaciones públicas chilenas: '{query}'\n\n" + """
             Extrae:
             1. Entre 3 y 8 sinónimos o conceptos relacionados del dominio de licitaciones públicas
@@ -56,33 +41,17 @@ public class ConsultaSemanticaService(
              "montoHasta": null, "fechaDesde": null, "fechaHasta": null, "confianza": "alta"}
             """;
 
-        var request = new
-        {
-            contents = new[] { new { role = "user", parts = new[] { new { text = prompt } } } },
-            generationConfig = new { temperature = 0.2, maxOutputTokens = 1024, responseMimeType = "application/json" }
-        };
-
         try
         {
-            var token = await tokenProvider.GetAccessTokenAsync(ct);
-            var content = new StringContent(JsonSerializer.Serialize(request), Encoding.UTF8, "application/json");
+            var request = new LlmRequest(
+                Messages: [new LlmMessage("user", [new LlmTextPart(prompt)])],
+                Temperature: 0.2,
+                MaxOutputTokens: 1024,
+                JsonResponse: true);
 
-            using var httpRequest = new HttpRequestMessage(HttpMethod.Post,
-                $"https://{region}-aiplatform.googleapis.com/v1/projects/{projectId}/locations/{region}/publishers/google/models/{ModelName}:generateContent")
-            { Content = content };
-            httpRequest.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
-
-            var response = await httpClient.SendAsync(httpRequest, ct);
-
-            if (!response.IsSuccessStatusCode)
-            {
-                var errorBody = await response.Content.ReadAsStringAsync(ct);
-                logger.LogWarning("Vertex AI respondió {Status} al interpretar consulta '{Query}': {Body}", response.StatusCode, query, errorBody);
-                return null;
-            }
-
-            var body = await response.Content.ReadAsStringAsync(ct);
-            return ParseRespuesta(body);
+            var client = await resolver.GetClientAsync(ct);
+            var result = await client.GenerarContenidoAsync(request, ct);
+            return ParseRespuesta(result.Text);
         }
         catch (Exception ex)
         {
@@ -93,28 +62,11 @@ public class ConsultaSemanticaService(
         }
     }
 
-    private ConsultaSemanticaResult? ParseRespuesta(string geminiResponseBody)
+    private ConsultaSemanticaResult? ParseRespuesta(string text)
     {
-        string? text;
-        try
-        {
-            using var doc = JsonDocument.Parse(geminiResponseBody);
-            text = doc.RootElement
-                .GetProperty("candidates")[0]
-                .GetProperty("content")
-                .GetProperty("parts")[0]
-                .GetProperty("text")
-                .GetString();
-        }
-        catch (Exception ex)
-        {
-            logger.LogWarning(ex, "Respuesta de Vertex AI con forma inesperada");
-            return null;
-        }
-
         if (string.IsNullOrWhiteSpace(text)) return null;
 
-        // Gemini a veces envuelve el JSON en fences ```json``` pese a responseMimeType=application/json
+        // El modelo a veces envuelve el JSON en fences ```json``` pese a pedir JSON mode
         // (mismo comportamiento visto en GeminiService.ParseGeminiResponse de MPM.Modules.Analisis).
         text = text.Trim();
         if (text.StartsWith("```"))
@@ -145,7 +97,7 @@ public class ConsultaSemanticaService(
         }
         catch (JsonException ex)
         {
-            logger.LogWarning(ex, "No se pudo parsear la interpretación de Gemini: {Text}", text);
+            logger.LogWarning(ex, "No se pudo parsear la interpretación del modelo: {Text}", text);
             return null;
         }
     }

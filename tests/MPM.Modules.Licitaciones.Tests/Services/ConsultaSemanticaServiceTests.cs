@@ -4,6 +4,7 @@ using FluentAssertions;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
+using MPM.Core.SystemConfig;
 using MPM.Modules.Licitaciones.Models;
 using MPM.Modules.Licitaciones.Services;
 using MPM.Shared.Services;
@@ -15,11 +16,11 @@ public class ConsultaSemanticaServiceTests
 {
     private const string TestToken = "fake-adc-token";
 
-    private static IConfiguration BuildConfig(bool withProject = true) =>
+    private static IConfiguration BuildConfig() =>
         new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
-                ["GOOGLE_CLOUD_PROJECT"] = withProject ? "tivit-cu010" : null,
+                ["GOOGLE_CLOUD_PROJECT"] = "tivit-cu010",
                 ["Vertex:Region"] = "us-central1",
             })
             .Build();
@@ -31,17 +32,29 @@ public class ConsultaSemanticaServiceTests
         return mock.Object;
     }
 
-    private static ConsultaSemanticaService BuildService(string responseBody, HttpStatusCode status = HttpStatusCode.OK, bool withProject = true)
+    // 033-migracion-qwen-g4: ConsultaSemanticaService resuelve el cliente de IA activo vía
+    // LlmClientResolver (mockeado para devolver el VertexGeminiClient real con el mismo
+    // HttpClient fake, preservando la cobertura de parseo del request/response).
+    private static ConsultaSemanticaService BuildService(string responseBody, HttpStatusCode status = HttpStatusCode.OK)
     {
         var handler = new StubHttpMessageHandler(responseBody, status);
         var httpClient = new HttpClient(handler);
-        return new ConsultaSemanticaService(httpClient, BuildConfig(withProject), FakeTokenProvider(), NullLogger<ConsultaSemanticaService>.Instance);
+        var vertexClient = new VertexGeminiClient(httpClient, BuildConfig(), FakeTokenProvider(), NullLogger<VertexGeminiClient>.Instance);
+        var resolver = new Mock<LlmClientResolver>(null!, null!, NullLogger<LlmClientResolver>.Instance);
+        resolver.Setup(r => r.GetClientAsync(It.IsAny<CancellationToken>())).ReturnsAsync(vertexClient);
+        return new ConsultaSemanticaService(resolver.Object, NullLogger<ConsultaSemanticaService>.Instance);
     }
 
     [Fact]
-    public async Task InterpretarAsync_ReturnsNull_WhenGoogleCloudProjectNotConfigured()
+    public async Task InterpretarAsync_ReturnsNull_WhenResolverFails()
     {
-        var service = BuildService("{}", withProject: false);
+        // La búsqueda degrada a texto literal si el proveedor de IA falla (FR-005).
+        var handler = new StubHttpMessageHandler("{}", HttpStatusCode.OK);
+        var httpClient = new HttpClient(handler);
+        var vertexClient = new VertexGeminiClient(httpClient, BuildConfig(), FakeTokenProvider(), NullLogger<VertexGeminiClient>.Instance);
+        var resolver = new Mock<LlmClientResolver>(null!, null!, NullLogger<LlmClientResolver>.Instance);
+        resolver.Setup(r => r.GetClientAsync(It.IsAny<CancellationToken>())).ThrowsAsync(new InvalidOperationException("proveedor no disponible"));
+        var service = new ConsultaSemanticaService(resolver.Object, NullLogger<ConsultaSemanticaService>.Instance);
 
         var result = await service.InterpretarAsync("ciberseguridad para el sector salud");
 
@@ -113,18 +126,23 @@ public class ConsultaSemanticaServiceTests
     }
 
     [Fact]
-    public async Task InterpretarAsync_UsesGemini25FlashLiteModel()
+    public async Task InterpretarAsync_RequestsJsonModeAndSmallOutputBudget()
     {
+        // 033-migracion-qwen-g4: el modelo ya no es una constante del módulo (lo resuelve el
+        // cliente activo); este test ancla el contrato del prompt: JSON mode + presupuesto 1024.
         var handler = new CapturingHttpMessageHandler(
             (WrapAsGeminiResponse("""{"terminosExpandidos": [], "confianza": "baja"}"""), HttpStatusCode.OK));
         var httpClient = new HttpClient(handler);
-        var service = new ConsultaSemanticaService(httpClient, BuildConfig(), FakeTokenProvider(), NullLogger<ConsultaSemanticaService>.Instance);
+        var vertexClient = new VertexGeminiClient(httpClient, BuildConfig(), FakeTokenProvider(), NullLogger<VertexGeminiClient>.Instance);
+        var resolver = new Mock<LlmClientResolver>(null!, null!, NullLogger<LlmClientResolver>.Instance);
+        resolver.Setup(r => r.GetClientAsync(It.IsAny<CancellationToken>())).ReturnsAsync(vertexClient);
+        var service = new ConsultaSemanticaService(resolver.Object, NullLogger<ConsultaSemanticaService>.Instance);
 
         await service.InterpretarAsync("ciberseguridad");
 
-        handler.LastRequestUri.Should().NotBeNull();
-        handler.LastRequestUri!.AbsolutePath.Should().Contain("gemini-2.5-flash-lite");
-        handler.LastAuthHeader.Should().Be($"Bearer {TestToken}");
+        handler.LastRequestBody.Should().NotBeNull();
+        handler.LastRequestBody.Should().Contain("\"responseMimeType\":\"application/json\"");
+        handler.LastRequestBody.Should().Contain("\"maxOutputTokens\":1024");
     }
 
     private static string WrapAsGeminiResponse(string text)
@@ -164,6 +182,7 @@ internal class CapturingHttpMessageHandler : HttpMessageHandler
     private readonly (string Body, HttpStatusCode Status) _response;
     public Uri? LastRequestUri { get; private set; }
     public string? LastAuthHeader { get; private set; }
+    public string? LastRequestBody { get; private set; }
 
     public CapturingHttpMessageHandler((string Body, HttpStatusCode Status) response)
     {
@@ -175,7 +194,7 @@ internal class CapturingHttpMessageHandler : HttpMessageHandler
         LastRequestUri = request.RequestUri;
         LastAuthHeader = request.Headers.Authorization?.ToString();
         if (request.Content != null)
-            await request.Content.ReadAsStringAsync(cancellationToken);
+            LastRequestBody = await request.Content.ReadAsStringAsync(cancellationToken);
 
         return new HttpResponseMessage(_response.Status)
         {
