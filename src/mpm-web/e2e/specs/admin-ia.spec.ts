@@ -11,8 +11,9 @@ test.describe('Admin IA (switch proveedor) @regression', () => {
 
     await page.goto('/admin/ia');
     await expect(page.getByRole('heading', { name: /Configuración del proveedor de IA/ })).toBeVisible();
-    await expect(page.getByText('Proveedor activo')).toBeVisible();
-    await expect(page.getByText(/gemini|openai/)).toBeVisible();
+    await expect(page.getByText('Proveedor activo').first()).toBeVisible();
+    // El Tag del Descriptions muestra exactamente el proveedor activo ('gemini' | 'openai').
+    await expect(page.getByText('gemini', { exact: true }).first()).toBeVisible();
   });
 
   test('super admin cambia a qwen y vuelve a gcloud', async ({ page }) => {
