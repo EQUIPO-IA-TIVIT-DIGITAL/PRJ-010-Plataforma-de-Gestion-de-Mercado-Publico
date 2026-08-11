@@ -1,4 +1,4 @@
-﻿using FluentAssertions;
+using FluentAssertions;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -79,7 +79,7 @@ public class SystemConfigServiceTests
     {
         var data = new Mock<ISystemConfigData>();
         data.Setup(d => d.ObtenerAsync(It.IsAny<CancellationToken>()))
-            .ThrowsAsync(new InvalidOperationException("BD caÃ­da"));
+            .ThrowsAsync(new InvalidOperationException("BD caida"));
 
         var service = BuildService(data.Object, BuildConfig(("AI:Provider", "gemini")));
 

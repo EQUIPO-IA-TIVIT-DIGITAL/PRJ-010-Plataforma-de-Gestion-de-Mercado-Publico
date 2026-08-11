@@ -1,4 +1,4 @@
-﻿using FluentAssertions;
+using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using MPM.Core.SystemConfig;
 using MPM.Shared.Services;
@@ -52,7 +52,7 @@ public class LlmProviderIntegrationTests : IClassFixture<CustomWebApplicationFac
         // openai aÃºn no tiene cliente registrado en este MVP â†’ error claro de configuraciÃ³n.
         var act = () => resolver.GetClientAsync();
         await act.Should().ThrowAsync<InvalidOperationException>()
-            .WithMessage("*no estÃ¡ registrado*");
+            .WithMessage("*no est*registrado*");
     }
 }
 
