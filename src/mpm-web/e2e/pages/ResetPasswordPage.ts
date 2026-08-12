@@ -16,7 +16,9 @@ export class ResetPasswordPage {
     this.submitButton = page.getByTestId('reset-submit');
     this.backToLoginLink = page.getByRole('button', { name: 'Ir al login' });
     this.successMessage = page.getByText('¡Contraseña restablecida!');
-    this.errorMessage = page.locator('.ant-result-subtitle');
+    // La pantalla de token inválido no usa <Result> de AntD (rediseño 019): muestra
+    // el aviso en un Typography.Text dentro del AuthCard.
+    this.errorMessage = page.getByText(/expirado o ya fue utilizado/);
   }
 
   async goto(token: string) {
