@@ -429,7 +429,11 @@ async function cerrarYGenerar(browser, context, page, resultados, carpetaLote, s
       totalSinActa: sinActa.length,
       totalAnalizados: analizados.length,
       duracionMs: Date.now() - horaInicio,
-      estado: errores.length === resultados.length ? 'error' : 'completado',
+      // 0 resultados legítimos (5/5 estados leídos, 0 licitaciones) NO es un fallo: con
+      // resultados vacíos, "errores.length === resultados.length" es 0===0 → 'error' falso
+      // (detectado en prod 2026-08-12 tras el fix 035, ciclo completado pero sync log marcado
+      // como error). El estado 'error' queda solo cuando HAY resultados y TODOS fallaron.
+      estado: resultados.length > 0 && errores.length === resultados.length ? 'error' : 'completado',
     });
   }
 
