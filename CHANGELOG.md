@@ -7,7 +7,31 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **035 — Scraper: falsos "postback colgado" con 0 resultados (corridas incrementales fallaban siempre)**
+  - **Bug real diagnosticado en vivo** (12/08, stack docker): en modo `--incremental` el rango de fechas es corto (última sync + 5 días) y el portal devuelve *"No se han encontrado resultados para su búsqueda."* — texto que `firmaResultados()` en `modulos/buscar.js` no matcheaba (`/Se encontraron/`), la firma del área de resultados quedaba idéntica y el scraper trataba la búsqueda vacía legítima como página colgada: 45s de timeout × 5 estados × 2 intentos ≈ 8 min por ciclo, terminando con `0 de 5 estados exitosos` y error en `scraper_sync_log`
+  - **Fix**: la firma ahora detecta también el texto "No se han encontrado resultados" (firma `sin-resultados`) — el postback se da por completado y el ciclo sigue, reportando 0 licitaciones como resultado legítimo
+  - **Verificación**: reproducción exacta del fallo con `MP_FECHA_DESDE=07-08-2026` (fallaba) → fix aplicado (los 5 estados completan en ~30s, 0 licitaciones, sin error); regresión con rango largo (01-01-2025) sigue extrayendo 32 licitaciones en estado Adjudicada
+  - Diagnóstico: sesión persistida válida (login OK), selectores/filtros/página OK — el problema era exclusivamente la señal de finalización del postback con 0 resultados
+
 ### Added
+
+- **034 — Centro de Administración: usuarios, roles y logs (Admin/SuperAdmin)**
+  - **Backend (`MPM.Modules.Administracion`, nuevo módulo)**: gestión de usuarios (listado paginado, creación con contraseña temporal bcrypt, activación/desactivación, cambio de rol, flag account manager de gobierno) y lectura unificada de logs/auditoría (auth, sync, scraper, extracción de documentos, proveedor IA) — migraciones V131 (SPs `usp_Admin_*`) y V132 (`usp_Admin_ListarLogs` con UNION ALL normalizado)
+  - **Jerarquía de roles** (`AdminRoleRules`): SuperAdmin > Admin > Analista/Usuario; un Admin gestiona solo Analista/Usuario, solo SuperAdmin gestiona Admins/SuperAdmins, y nadie puede desactivarse/cambiarse el rol a sí mismo — validada en servicio + controllers `[Authorize(Roles = "Admin,SuperAdmin")]`
+  - **Frontend**: sección "Administración" en el menú (visible para Admin y SuperAdmin) con `/admin/usuarios` (tabla + modales de creación/cambio de rol, pensados para usuarios no técnicos), `/admin/logs` (resumen del sistema + pestañas por origen) y `/admin/config-ia` (switch de IA movido desde `/admin/ia` con redirect)
+  - **Docs**: `docs/api-first/admin.md` (spec del módulo) + specs api-first de Alertas, Competidores, Notificaciones y Colaboración; manual de usuario en `docs/manual-usuario/`; README/QUICKSTART actualizados con el modelo de roles
+  - **Tests**: 32 tests xUnit de jerarquía/validación (`MPM.Modules.Administracion.Tests`) + E2E Playwright `admin-usuarios.spec.ts` y `admin-logs.spec.ts` (10/10 contra stack docker)
+  - **Fixes encontrados en testing con Docker** (causa raíz + corrección):
+    - `TenantMiddleware` leía `FindAll("role")`, pero el claim JWT corto se re-mapea a `ClaimTypes.Role` al deserializar — `TenantContext.Roles` siempre llegaba vacío (bug latente pre-existente; nadie lo usaba). Corregido a `ClaimTypes.Role`; `AdminUsuariosController.Actor()` lee del principal autenticado
+    - V133: columnas OUT de `usp_Admin_ListarUsuarios` con prefijo `p_` que Dapper no mapeaba (`p_total_count` → TotalCount)
+    - V134: `ORDER BY` inválido en el UNION ALL de `usp_Admin_ListarLogs` (los nombres de columna salen del primer SELECT, sin alias)
+    - V135: tipos `text` vs `VARCHAR(20)` en el RETURN QUERY (42804) — casts explícitos en literales y CASE
+    - `Dockerfile` de la API: faltaba `COPY` del csproj del nuevo módulo antes del restore
+    - Frontend: Select de rol con opciones custom altas rompía el listbox virtualizado de AntD — opciones en texto plano + `virtual={false}` + descripción del rol como `extra` del Form.Item; fix de `Switch size="large"` inválido que bloqueaba `tsc`
+    - **E2E desactualizados vs contrato vigente (V108)**: `catalogo.spec.ts` esperaba ≥8 estados y slugs PascalCase (`Licitacion`, `TratoDirecto`...) del modelo anterior a V108 — actualizados al contrato real (5 estados vigentes `5,6,7,8,15`, slugs minúscula `lp/td/co/ca`); `ResetPasswordPage.ts` buscaba `.ant-result-subtitle` de la UI pre-rediseño 019 — el aviso de token inválido ahora se lee por su texto real ("expirado o ya fue utilizado"). Resultado: **suite E2E completa 91/91 ✓** (antes 87/91)
+  - Fix menor: `Switch size="large"` inválido en `AdminConfiguracionIaPage.tsx` (bloqueaba `tsc`)
 
 - **033 — Migración del proveedor de IA (Gemini → Qwen 3.7 G4) con switch de super admin**
   - **Abstracción del proveedor (US1)**: contrato `ILlmClient` en `MPM.Shared` (request neutral `LlmRequest` con texto/PDF/GCS, JSON mode, presupuesto de tokens) + resolución dinámica por request vía `LlmClientResolver` (MPM.Core) con precedencia **BD > entorno > default** y cache de 30s; `VertexGeminiClient` pasa a implementar el contrato (sin cambios de comportamiento con Gemini); los 4 usos de IA (análisis de PDFs, chat, búsqueda semántica, sinónimos de alertas) migran del cliente directo/HTTP crudo al resolver — `modelo_usado` persiste el modelo real que ejecutó cada análisis

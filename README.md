@@ -35,6 +35,25 @@ El seguimiento de licitaciones en Mercado Público es hoy un proceso manual: rev
 - Chat interno en tiempo real (SignalR)
 - Centro de notificaciones in-app
 
+### Administración (Admin / SuperAdmin)
+- Gestión de usuarios: creación con contraseña temporal, roles, activación/desactivación
+- Jerarquía de roles: **SuperAdmin** gestiona Admins y SuperAdmins; **Admin** gestiona Analistas y Usuarios
+- Logs y actividad del sistema: inicios de sesión, sincronizaciones, scraper, extracción de documentos y cambios de proveedor de IA
+- Switch de proveedor de IA (Gemini ↔ Qwen) — solo SuperAdmin
+
+## Roles
+
+| Rol | Acceso |
+|-----|--------|
+| **SuperAdmin** | Todo: gestión de usuarios (incl. Admins/SuperAdmins), logs, proveedor de IA |
+| **Admin** | Crea/gestiona Analistas y Usuarios, ve logs y resumen del sistema |
+| **Analista** | Toda la plataforma (licitaciones, análisis, alertas, competidores, mensajería) |
+| **Usuario** | Toda la plataforma (hoy con los mismos permisos que Analista) |
+
+> Nota: Analista y Usuario tienen hoy permisos idénticos; la diferenciación es
+> organizacional y queda lista para restricciones futuras. Los seeds de demo
+> incluyen `admin@tivit.cl` (SuperAdmin) y `analista@tivit.cl` (Analista).
+
 ## Tecnologías
 
 **Backend**
@@ -73,6 +92,7 @@ MPM.Modules.Analisis        Workspace de análisis de documentos + IA
 MPM.Modules.Notificaciones  Notificaciones in-app
 MPM.Modules.Alertas         Alertas por keyword, entrega multicanal
 MPM.Modules.Competidores    Inteligencia de competidores
+MPM.Modules.Administracion  Centro de administración (usuarios, roles, logs)
 ```
 
 Detalle técnico completo (flujos de datos, background services, convenciones) en [CLAUDE.md](CLAUDE.md).
