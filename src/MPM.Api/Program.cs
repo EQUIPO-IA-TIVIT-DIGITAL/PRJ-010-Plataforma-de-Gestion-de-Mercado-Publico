@@ -14,6 +14,7 @@ using MPM.Modules.Mensajeria.Hubs;
 using MPM.Modules.Alertas;
 using MPM.Modules.Competidores;
 using MPM.Modules.Colaboracion;
+using MPM.Modules.Administracion;
 using MPM.Shared.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
@@ -131,6 +132,7 @@ builder.Services.AddMensajeriaModule();
 builder.Services.AddAnalisisModule();
 builder.Services.AddCompetidoresModule();
 builder.Services.AddColaboracionModule();
+builder.Services.AddAdministracionModule();
 
 var jwtSection = builder.Configuration.GetSection("JWT");
 var jwtSecret = jwtSection["Secret"];

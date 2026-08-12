@@ -13,6 +13,7 @@ COPY src/MPM.Modules.Notificaciones/MPM.Modules.Notificaciones.csproj src/MPM.Mo
 COPY src/MPM.Modules.Alertas/MPM.Modules.Alertas.csproj src/MPM.Modules.Alertas/
 COPY src/MPM.Modules.Competidores/MPM.Modules.Competidores.csproj src/MPM.Modules.Competidores/
 COPY src/MPM.Modules.Colaboracion/MPM.Modules.Colaboracion.csproj src/MPM.Modules.Colaboracion/
+COPY src/MPM.Modules.Administracion/MPM.Modules.Administracion.csproj src/MPM.Modules.Administracion/
 COPY MPM.sln .
 RUN dotnet restore src/MPM.Api/MPM.Api.csproj
 

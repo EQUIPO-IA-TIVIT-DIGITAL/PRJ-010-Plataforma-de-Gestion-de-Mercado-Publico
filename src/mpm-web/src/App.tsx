@@ -15,6 +15,8 @@ import NotificacionesPage from './pages/NotificacionesPage';
 import { AlertasPage } from './pages/AlertasPage';
 import { CompetidoresPage } from './pages/CompetidoresPage';
 import AdminConfiguracionIaPage from './pages/AdminConfiguracionIaPage';
+import AdminUsuariosPage from './pages/admin/AdminUsuariosPage';
+import AdminLogsPage from './pages/admin/AdminLogsPage';
 import { useAuth } from './hooks/useAuth';
 
 function ProtectedRoute() {
@@ -48,7 +50,11 @@ export default function App() {
           <Route path="/notificaciones" element={<NotificacionesPage />} />
           <Route path="/alertas" element={<AlertasPage />} />
           <Route path="/competidores" element={<CompetidoresPage />} />
-          <Route path="/admin/ia" element={<AdminConfiguracionIaPage />} />
+          <Route path="/admin/usuarios" element={<AdminUsuariosPage />} />
+          <Route path="/admin/logs" element={<AdminLogsPage />} />
+          <Route path="/admin/config-ia" element={<AdminConfiguracionIaPage />} />
+          {/* Redirect: ruta histórica del switch de IA (mantiene e2e y bookmarks) */}
+          <Route path="/admin/ia" element={<Navigate to="/admin/config-ia" replace />} />
         </Route>
       </Routes>
     </BrowserRouter>

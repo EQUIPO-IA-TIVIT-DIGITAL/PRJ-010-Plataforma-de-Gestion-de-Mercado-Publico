@@ -101,7 +101,6 @@ export default function AdminConfiguracionIaPage() {
               loading={mutation.isPending}
               checkedChildren="Qwen"
               unCheckedChildren="Gemini"
-              size="large"
             />
             <Space direction="vertical" align="center" size={4}>
               <SafetyCertificateOutlined style={{ fontSize: 28, opacity: esQwen ? 1 : 0.35 }} />
