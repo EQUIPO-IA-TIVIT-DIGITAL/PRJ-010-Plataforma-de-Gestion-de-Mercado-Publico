@@ -258,6 +258,9 @@ static async Task<int> EjecutarWorkerAsync(string workerMode, string[] args)
     builder.Services.AddLicitacionModule(builder.Configuration);
     builder.Services.AddCatalogoModule();
     builder.Services.AddAnalisisModule();
+    // Worker de backfill de areas de negocio (WORKER_MODE=backfill-areas) — se registra
+    // aca porque solo lo usa el modo worker, no el servicio web.
+    builder.Services.AddScoped<AreasBackfillService>();
 
     using var app = builder.Build();
     using var scope = app.Services.CreateScope();
@@ -272,6 +275,13 @@ static async Task<int> EjecutarWorkerAsync(string workerMode, string[] args)
                 break;
             case "scraper":
                 await scope.ServiceProvider.GetRequiredService<ScraperBackgroundService>().EjecutarCicloUnaVezAsync();
+                break;
+            case "backfill-areas":
+                // 2026-08-13: backfill de areas_negocio (V136) fuera del arranque web --
+                // el intento dentro de DatabaseInitializer crasheo la instancia de Cloud Run
+                // (signal 11 / OOM con 512Mi) y supero el startup timeout. Corre como Cloud
+                // Run Job con memoria propia; la plataforma arranca sin esperarlo.
+                await scope.ServiceProvider.GetRequiredService<AreasBackfillService>().EjecutarAsync();
                 break;
             default:
                 logger.LogError("WORKER_MODE desconocido: {Modo}. Valores válidos: sync, scraper", workerMode);

@@ -233,7 +233,7 @@ deploy_api() {
     --no-cpu-throttling \
     --allow-unauthenticated \
     --port=80 \
-    --startup-probe=tcpSocket.port=80,timeoutSeconds=60,periodSeconds=300,failureThreshold=1 \
+    --startup-probe=tcpSocket.port=80,timeoutSeconds=60,periodSeconds=240,failureThreshold=10 \
     --set-env-vars="^##^RUN_INPROCESS_WORKERS=false##$(common_app_env_vars)" \
     --set-secrets="$(common_app_secrets)"
 }
