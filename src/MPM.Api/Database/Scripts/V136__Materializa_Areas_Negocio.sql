@@ -30,11 +30,41 @@ CREATE TRIGGER trg_licitaciones_search_index
   FOR EACH ROW EXECUTE FUNCTION fn_licitaciones_search_index();
 
 -- Backfill one-shot: clasifica las filas existentes (search_vector ya poblado por
--- V066/V093). Corre una sola vez; en prod (~187k filas) toma unos segundos.
-UPDATE licitaciones
-SET area_codigos = fn_licitacion_area_codigos(search_vector)
-WHERE deleted_at IS NULL
-  AND area_codigos IS NULL;
+-- V066/V093). Version set-based (no funcion por fila): precompila los tsquery de las
+-- keywords UNA vez y matchea con JOIN sobre el GIN de search_vector -- el intento
+-- inicial por fila supero el startup timeout de Cloud Run en prod (187k filas, 30s).
+-- Corre en lotes de 20k para no mantener un bloqueo largo; es idempotente (WHERE
+-- area_codigos IS NULL), asi que un arranque interrumpido retoma donde quedo.
+DO $$
+DECLARE
+    v_lote INT := 1;
+    v_actualizados INT := 0;
+BEGIN
+    LOOP
+        WITH kw AS (
+            SELECT an.codigo, plainto_tsquery('spanish', palabra) AS q
+            FROM areas_negocio an, unnest(an.palabras_clave) AS palabra
+        ),
+        match AS (
+            SELECT lic.id, array_agg(DISTINCT k.codigo ORDER BY k.codigo) AS codigos
+            FROM licitaciones lic
+            JOIN kw k ON lic.search_vector @@ k.q
+            WHERE lic.deleted_at IS NULL
+              AND lic.area_codigos IS NULL
+            GROUP BY lic.id
+            LIMIT 20000
+        )
+        UPDATE licitaciones l
+        SET area_codigos = m.codigos
+        FROM match m
+        WHERE l.id = m.id;
+
+        GET DIAGNOSTICS v_actualizados = ROW_COUNT;
+        EXIT WHEN v_actualizados = 0;
+        RAISE NOTICE 'Backfill areas lote %: % filas', v_lote, v_actualizados;
+        v_lote := v_lote + 1;
+    END LOOP;
+END $$;
 
 -- Índice GIN: acelera "p_area = ANY(area_codigos)" en usp_Licitaciones_Listar y
 -- usp_Licitaciones_ContarPorEstado (reescritos en V137).
