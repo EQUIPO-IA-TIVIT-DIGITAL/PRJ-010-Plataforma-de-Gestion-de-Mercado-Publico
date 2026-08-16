@@ -48,6 +48,18 @@ public class AdjuntoDescargaService(
 
         var error = filas.FirstOrDefault(f => f.DescargaEstado == "error")?.DescargaError;
 
+        // Sin filas de adjuntos: el estado se deriva del último intento de extracción (si falló,
+        // el usuario debe ver el motivo y poder reintentar — antes quedaba invisible como "pendiente").
+        if (filas.Count == 0 && estado == "pendiente")
+        {
+            var ultima = await handler.ObtenerUltimaExtraccionAsync(licitacionId, ct);
+            if (ultima is { Estado: "fallo" } && !string.IsNullOrWhiteSpace(ultima.Error))
+            {
+                estado = "error";
+                error = ultima.Error;
+            }
+        }
+
         return new EstadoDocumentosDto
         {
             EstadoConjunto = estado,
@@ -182,8 +194,12 @@ public class AdjuntoDescargaService(
         startInfo.EnvironmentVariables["MP_RUT"] = config["MP_RUT"] ?? "";
         startInfo.EnvironmentVariables["MP_PASSWORD"] = config["MP_PASSWORD"] ?? "";
         startInfo.EnvironmentVariables["MP_HEADLESS"] = config["MP_HEADLESS"] ?? "true";
-        startInfo.EnvironmentVariables["ADJUNTOS_DIR"] =
-            config["Extraccion:AdjuntosDir"] ?? Path.Combine(Directory.GetCurrentDirectory(), "uploads");
+        // Default: raíz de uploads del proceso (cwd/uploads) — el storage local del backend.
+        // OJO: una clave vacía en appsettings NO debe anular el default ("" ?? default = "").
+        var adjuntosDir = config["Extraccion:AdjuntosDir"];
+        startInfo.EnvironmentVariables["ADJUNTOS_DIR"] = string.IsNullOrWhiteSpace(adjuntosDir)
+            ? Path.Combine(Directory.GetCurrentDirectory(), "uploads")
+            : adjuntosDir;
 
         logger.LogInformation(
             "Disparando descarga de documentos para licitación {Codigo} (id={LicitacionId}) con script {Script}",

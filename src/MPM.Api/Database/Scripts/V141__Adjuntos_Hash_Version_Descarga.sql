@@ -186,7 +186,9 @@ END;
 $$;
 
 -- ─────────────────────────────────────────────────────────────────────────────
--- Cierra la extracción: completado o error (solo filas en 'descargando')
+-- Cierra la extracción: completado o error. Marca TODAS las filas activas de la
+-- licitación (las filas nuevas se insertan como 'pendiente' durante la corrida y
+-- no pasaron por 'descargando' cuando no existían previamente).
 -- ─────────────────────────────────────────────────────────────────────────────
 CREATE OR REPLACE PROCEDURE usp_Adjuntos_MarcarDescargaFinalizada(
     p_licitacion_id BIGINT,
@@ -203,8 +205,7 @@ BEGIN
         descarga_fin_at = CURRENT_TIMESTAMP,
         updated_at = CURRENT_TIMESTAMP
     WHERE licitacion_id = p_licitacion_id
-      AND record_status = 1
-      AND descarga_estado = 'descargando';
+      AND record_status = 1;
 
     p_error_msg := NULL;
 EXCEPTION WHEN OTHERS THEN

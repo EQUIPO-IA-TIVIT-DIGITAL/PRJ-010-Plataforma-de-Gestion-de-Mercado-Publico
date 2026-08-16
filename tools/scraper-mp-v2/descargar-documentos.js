@@ -26,8 +26,7 @@ dotenv.config({ path: path.join(__dirname, '.env'), override: !hasSystemDb });
 dotenv.config({ path: path.join(__dirname, '..', '..', '.env'), override: !hasSystemDb });
 
 import { launch, close, esperarConDelay, screenshotOnError } from './modulos/browser.js';
-import { login } from './modulos/login.js';
-import { initDB, closeDB, obtenerEstadoSesion, guardarEstadoSesion, limpiarEstadoSesion } from './modulos/db.js';
+import { initDB, closeDB } from './modulos/db.js';
 
 const FICHA_URL_TEMPLATE = 'https://www.mercadopublico.cl/Procurement/Modules/RFB/DetailsAcquisition.aspx?idlicitacion={codigo}';
 const HEADLESS = process.env.MP_HEADLESS === 'true';
@@ -257,7 +256,12 @@ async function descargarTodos(licitacionId, codigo, fichaPage, context, carpetaB
           continue;
         }
 
-        const nombreArchivo = sanitizarNombre(download.suggestedFilename() || fila.nombre);
+        // Nombre: se prefiere el nombre de la grilla del portal (descriptivo); si el archivo
+        // descargado trae extensión y el nombre de la grilla no, se agrega la extensión
+        // (el portal a veces sugiere "download" sin extensión).
+        const sug = download.suggestedFilename() || '';
+        const extSug = path.extname(sug);
+        const nombreArchivo = sanitizarNombre(fila.nombre) + (path.extname(fila.nombre) ? '' : extSug);
         const rutaLocal = path.join(carpeta, nombreArchivo);
         await download.saveAs(rutaLocal);
 
@@ -301,32 +305,30 @@ async function main() {
 
   let browser, context, page;
   try {
-    const sessionState = await obtenerEstadoSesion();
-    const instancia = await launch(HEADLESS, sessionState);
+    // IMPORTANTE (verificado en vivo 2026-08-15): la ficha pública por idlicitacion= responde
+    // 200 SIN sesión, pero con sesión de proveedor logueada REDIRIGE al portal interno
+    // (Menu.aspx) y nunca carga. Además ViewAttachmentLC.aspx resuelve su reCAPTCHA Enterprise
+    // con el navegador Chromium channel (mismo fingerprint del daemon) sin necesidad de login.
+    // Por eso este script va SIN sesión: más simple, no gasta credenciales ni sesión.
+    const instancia = await launch(HEADLESS, null);
     browser = instancia.browser;
     context = instancia.context;
     page = instancia.page;
 
-    try {
-      await login(page, context);
-    } catch (loginErr) {
-      if (loginErr.isRobotBlock) {
-        console.log('[DESCARGA] BLOQUEO_ROBOT: true -- bloqueo anti-robot durante login');
-      }
-      await limpiarEstadoSesion().catch(() => {});
-      throw loginErr;
-    }
-
-    const nuevoEstado = await context.storageState();
-    await guardarEstadoSesion(nuevoEstado);
-
     const fichaUrl = FICHA_URL_TEMPLATE.replace('{codigo}', encodeURIComponent(codigo));
     console.log(`[DESCARGA] Abriendo ficha: ${fichaUrl}`);
-    await page.goto(fichaUrl, { waitUntil: 'domcontentloaded', timeout: 45000 });
+    // La ficha del portal tarda en completar domcontentloaded por scripts pesados (analytics,
+    // hotjar, recaptcha) — esperar solo el commit del documento y luego aguardar el elemento
+    // clave #imgAdjuntos con waitFor explícito (más robusto que depender del evento de carga).
+    await page.goto(fichaUrl, { waitUntil: 'commit', timeout: 60000 }).catch(async (e) => {
+      console.log(`[DESCARGA] Primer goto con timeout: ${e.message.split('\n')[0]} — reintentando...`);
+      await page.goto(fichaUrl, { waitUntil: 'commit', timeout: 60000 }).catch(() => {});
+    });
 
+    await page.locator('#imgAdjuntos').waitFor({ state: 'visible', timeout: 45000 }).catch(() => {});
     const hayAdjuntos = await page.locator('#imgAdjuntos').count().catch(() => 0);
     if (!hayAdjuntos) {
-      console.log('[DESCARGA] La ficha no tiene "Ver Adjuntos" (licitación sin documentos)');
+      console.log('[DESCARGA] La ficha no tiene "Ver Adjuntos" (licitación sin documentos o página no cargada)');
       await marcarFinalizada(licitacionId, 'completado', null);
       await registrarLogExtraccion(licitacionId, 'sin_adjuntos', 0, null, Date.now() - inicioMs);
       console.log('[DESCARGA] resultado=exito descargados=0 errores=0');

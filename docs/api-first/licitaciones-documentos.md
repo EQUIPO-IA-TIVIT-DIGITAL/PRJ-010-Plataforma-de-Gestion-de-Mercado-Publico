@@ -312,6 +312,11 @@ de la §2 + 3 SPs nuevos + índice `sha256_hash`.
   autenticado (Usuario/Analista/Admin) — consistente con el módulo Licitaciones.
 - `DOC-R021`: se registra quién disparó cada extracción (`descarga_iniciada_por`).
 - `DOC-R022`: la ruta `ruta_storage` interna NO se expone en DTOs.
+- `DOC-R023` *(hallazgo en vivo 2026-08-15)*: la descarga NO requiere sesión de
+  proveedor MP — la ficha pública por `idlicitacion=` responde 200 sin sesión
+  pero **redirige al portal interno con sesión logueada**, y el reCAPTCHA de
+  `ViewAttachmentLC.aspx` se resuelve con Chromium channel (mismo fingerprint
+  del daemon). El script va sin login: más simple y no gasta credenciales.
 
 ### Cross-entity rules
 - `DOC-R030`: el registro de extracción se refleja en `extraccion_documentos_log`

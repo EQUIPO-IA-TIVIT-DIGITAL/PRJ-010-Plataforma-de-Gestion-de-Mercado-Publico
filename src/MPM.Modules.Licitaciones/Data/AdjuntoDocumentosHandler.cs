@@ -49,6 +49,23 @@ public class AdjuntoDocumentosHandler(DbConnectionFactory dbFactory)
         return result.FirstOrDefault() > 0;
     }
 
+    /// <summary>Último registro de extracción (para reportar error aunque no existan filas de adjuntos).</summary>
+    public virtual async Task<UltimaExtraccionRow?> ObtenerUltimaExtraccionAsync(long licitacionId, CancellationToken ct = default)
+    {
+        await using var conn = _dbFactory.Create();
+        return (await conn.QueryAsync<UltimaExtraccionRow>(
+            AdjuntoDocumentosStoredProcedures.UltimaExtraccion,
+            new { p_licitacion_id = licitacionId },
+            commandType: CommandType.Text)).FirstOrDefault();
+    }
+
+    public class UltimaExtraccionRow
+    {
+        public string Estado { get; set; } = string.Empty;
+        public string? Error { get; set; }
+        public DateTime EjecutadoEn { get; set; }
+    }
+
     public class AdjuntoDocumentoFila
     {
         public long Id { get; set; }

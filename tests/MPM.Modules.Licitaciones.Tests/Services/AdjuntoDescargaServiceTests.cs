@@ -130,6 +130,27 @@ public class AdjuntoDescargaServiceTests
     }
 
     [Fact]
+    public async Task ObtenerEstadoAsync_SinFilasPeroUltimaExtraccionFallida_ReportaError()
+    {
+        // V141: sin filas de adjuntos, el estado se deriva del último log de extracción —
+        // si falló (cupo/captcha), el usuario debe ver el motivo y poder reintentar.
+        _handlerMock.Setup(h => h.ListarAsync(10, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<AdjuntoDocumentosHandler.AdjuntoDocumentoFila>());
+        _handlerMock.Setup(h => h.ObtenerUltimaExtraccionAsync(10, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new AdjuntoDocumentosHandler.UltimaExtraccionRow
+            {
+                Estado = "fallo",
+                Error = "cupo de Ver Adjuntos agotado, reintente mas tarde",
+                EjecutadoEn = DateTime.UtcNow,
+            });
+
+        var estado = await _service.ObtenerEstadoAsync(10);
+
+        estado.EstadoConjunto.Should().Be("error");
+        estado.DescargaError.Should().Be("cupo de Ver Adjuntos agotado, reintente mas tarde");
+    }
+
+    [Fact]
     public async Task IniciarDescargaAsync_DescargaViva_NoRedisparaYDevuelveYaEnCurso()
     {
         _handlerMock.Setup(h => h.ExistenDescargasVivasAsync(10, It.IsAny<CancellationToken>()))
