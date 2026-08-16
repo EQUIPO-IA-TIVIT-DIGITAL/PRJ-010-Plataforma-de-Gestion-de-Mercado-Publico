@@ -29,6 +29,10 @@ public static class ModuleRegistration
         services.AddScoped<AdjuntosHttpExtractor>();
         services.AddScoped<DocumentExtractionService>();
 
+        // 036-flujo-comercial-ofertas: descarga bajo demanda de documentos + cache por hash.
+        services.AddScoped<AdjuntoDocumentosHandler>();
+        services.AddScoped<AdjuntoDescargaService>();
+
         // Registrados también como singleton de su propio tipo (no solo IHostedService) para
         // poder resolverlos directamente desde el "modo worker" de Program.cs y llamar
         // EjecutarCicloUnaVezAsync() sin depender del Timer del BackgroundService.

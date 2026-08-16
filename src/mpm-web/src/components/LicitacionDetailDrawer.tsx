@@ -1,8 +1,10 @@
-import { Drawer, Descriptions, Table, Typography, Empty, Spin } from 'antd';
+import { Drawer, Descriptions, Table, Typography, Empty, Spin, Button, Alert, List, App as AntdApp } from 'antd';
+import { DownloadOutlined, ReloadOutlined } from '@ant-design/icons';
 import type { LicitacionDetalle } from '../types/licitacion';
 import { LicitacionInteresPanel } from './LicitacionInteresPanel';
 import { StatusBadge } from './StatusBadge';
 import type { StatusBadgeVariant } from './StatusBadge';
+import { descargarArchivoDocumento, formatTamanio, useDescargarDocumentos, useEstadoDocumentos } from '../hooks/useDocumentosLicitacion';
 
 // US1 (spec 019): mismo mapeo que LicitacionesTable.tsx (ESTADO_VARIANT) -- via StatusBadge.
 const ESTADO_VARIANT: Record<number, StatusBadgeVariant> = {
@@ -28,6 +30,23 @@ interface Props {
 }
 
 export function LicitacionDetailDrawer({ open, data, loading, onClose }: Props) {
+  const { message } = AntdApp.useApp();
+  const codigoExterno = open && data ? data.codigoExterno : null;
+  const { data: estadoData, isLoading: estadoLoading } = useEstadoDocumentos(codigoExterno);
+  const descargar = useDescargarDocumentos();
+  const estado = estadoData?.data;
+
+  const iniciarDescarga = () => {
+    if (!data) return;
+    descargar.mutate(
+      { codigoExterno: data.codigoExterno },
+      {
+        onSuccess: () => message.success('Descarga de documentos iniciada (puede tardar unos minutos)'),
+        onError: (e) => message.error(e instanceof Error ? e.message : 'No se pudo iniciar la descarga'),
+      },
+    );
+  };
+
   return (
     <Drawer
       title={data ? `Licitacion ${data.codigoExterno}` : 'Detalle'}
@@ -36,6 +55,20 @@ export function LicitacionDetailDrawer({ open, data, loading, onClose }: Props) 
       open={open}
       onClose={onClose}
       data-testid="licitacion-drawer"
+      extra={
+        data ? (
+          <Button
+            type="primary"
+            icon={<DownloadOutlined />}
+            loading={descargar.isPending}
+            disabled={estado?.estadoConjunto === 'descargando'}
+            onClick={iniciarDescarga}
+            data-testid="btn-descargar-documentos"
+          >
+            Descargar documentos
+          </Button>
+        ) : undefined
+      }
     >
       {loading && !data ? (
         <div style={{ textAlign: 'center', padding: 40 }}>
@@ -71,9 +104,78 @@ export function LicitacionDetailDrawer({ open, data, loading, onClose }: Props) 
             )}
           </Descriptions>
 
+          {/* 036-flujo-comercial-ofertas (Fase 1): documentos de la licitación */}
+          <Typography.Title level={5} style={{ marginTop: 24 }}>
+            Documentos de la licitacion
+          </Typography.Title>
+          {estadoLoading && !estado ? (
+            <Spin />
+          ) : !estado || estado.estadoConjunto === 'pendiente' ? (
+            <Alert
+              type="info"
+              showIcon
+              message="Los pliegos aun no se han descargado"
+              description="Usa el boton 'Descargar documentos' para traerlos desde Mercado Publico (una sola vez: quedan en cache para todo el equipo)."
+            />
+          ) : estado.estadoConjunto === 'descargando' ? (
+            <Alert
+              type="info"
+              showIcon
+              message="Descargando documentos..."
+              description="La extraccion puede tardar unos minutos (sesion + cupo de 'Ver Adjuntos'). Esta seccion se actualiza sola."
+            />
+          ) : estado.estadoConjunto === 'error' ? (
+            <Alert
+              type="error"
+              showIcon
+              message="La descarga fallo"
+              description={estado.descargaError ?? 'Intente nuevamente'}
+              action={
+                <Button size="small" icon={<ReloadOutlined />} onClick={iniciarDescarga}>
+                  Reintentar
+                </Button>
+              }
+            />
+          ) : (
+            <>
+              <List
+                size="small"
+                dataSource={estado.documentos}
+                renderItem={(doc) => (
+                  <List.Item
+                    actions={[
+                      <Button
+                        key="descargar"
+                        type="link"
+                        size="small"
+                        onClick={() =>
+                          descargarArchivoDocumento(data.codigoExterno, doc).catch(() =>
+                            message.error('No se pudo descargar el archivo'),
+                          )
+                        }
+                      >
+                        Descargar
+                      </Button>,
+                    ]}
+                  >
+                    <List.Item.Meta
+                      title={doc.nombreArchivo}
+                      description={`${doc.esActa ? 'Acta de evaluacion · ' : ''}${formatTamanio(doc.tamanioBytes)} · v${doc.version}${doc.fechaGrilla ? ` · portal: ${doc.fechaGrilla}` : ''}`}
+                    />
+                  </List.Item>
+                )}
+              />
+              {estado.conjuntoHash && (
+                <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                  Cache activo ({estado.conjuntoHash.slice(0, 16)}…): los documentos ya estan guardados para todo el equipo.
+                </Typography.Text>
+              )}
+            </>
+          )}
+
           {/* spec 031 (US5): flujo colaborativo go/no-go */}
           <Typography.Title level={5} style={{ marginTop: 24 }}>
-            Interés y colaboración
+            Interes y colaboracion
           </Typography.Title>
           <LicitacionInteresPanel licitacionId={data.id} licitacionNombre={data.nombre} />
 

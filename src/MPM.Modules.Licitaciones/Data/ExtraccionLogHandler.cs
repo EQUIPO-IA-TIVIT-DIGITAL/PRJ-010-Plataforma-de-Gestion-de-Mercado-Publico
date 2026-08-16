@@ -8,7 +8,7 @@ public class ExtraccionLogHandler(DbConnectionFactory dbFactory)
 {
     private readonly DbConnectionFactory _dbFactory = dbFactory;
 
-    public async Task<long> RegistrarAsync(
+    public virtual async Task<long> RegistrarAsync(
         long licitacionId, string metodo, string estado, int documentosObtenidos,
         bool actaObtenida, bool esFallback, string? error, long duracionMs,
         CancellationToken ct = default)

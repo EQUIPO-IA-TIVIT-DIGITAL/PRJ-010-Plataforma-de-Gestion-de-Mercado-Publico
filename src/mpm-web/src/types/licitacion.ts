@@ -87,3 +87,36 @@ export interface PaginationInfo {
   hasNext: boolean;
   hasPrevious: boolean;
 }
+
+// 036-flujo-comercial-ofertas (Fase 1): documentos de licitación.
+export interface AdjuntoDocumento {
+  id: number;
+  tipo: string;
+  nombreArchivo: string;
+  tamanioBytes: number | null;
+  mimeType: string | null;
+  sha256Hash: string | null;
+  fechaGrilla: string | null;
+  version: number;
+  esActa: boolean;
+  descargaEstado: string;
+  descargadoAt: string | null;
+}
+
+export interface EstadoDocumentos {
+  estadoConjunto: 'pendiente' | 'descargando' | 'completado' | 'error';
+  descargaError: string | null;
+  conjuntoHash: string | null;
+  documentos: AdjuntoDocumento[];
+}
+
+export interface DescargarDocumentosResult {
+  estadoConjunto: string;
+  accion: string;
+  descargados: number;
+  reutilizados: number;
+  actualizados: number;
+  errores: number;
+  descargaError: string | null;
+  conjuntoHash: string | null;
+}
