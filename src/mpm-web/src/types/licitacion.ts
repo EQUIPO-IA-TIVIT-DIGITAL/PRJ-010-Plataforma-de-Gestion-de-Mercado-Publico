@@ -120,3 +120,27 @@ export interface DescargarDocumentosResult {
   descargaError: string | null;
   conjuntoHash: string | null;
 }
+
+// 036-flujo-comercial-ofertas (Fase 1.3): análisis comercial con IA.
+export interface AnalisisComercialEstado {
+  estado: 'pendiente' | 'analizando' | 'completado' | 'error';
+  error: string | null;
+  conjuntoHash: string | null;
+  desactualizado: boolean;
+  resumenEjecutivo: string | null;
+  goNoGo: string | null;
+  scoreConfianza: number | null;
+  modeloUsado: string | null;
+  tokensEntrada: number | null;
+  tokensSalida: number | null;
+  creadoPor: string | null;
+  createdAt: string | null;
+  updatedAt: string | null;
+  resultado: Record<string, unknown> | null;
+}
+
+export interface IniciarAnalisisComercialResult {
+  estado: string;
+  cacheHit: boolean;
+  conjuntoHash: string | null;
+}

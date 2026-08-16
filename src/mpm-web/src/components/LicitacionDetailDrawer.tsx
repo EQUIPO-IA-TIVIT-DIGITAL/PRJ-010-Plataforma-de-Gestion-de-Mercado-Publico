@@ -1,10 +1,12 @@
-import { Drawer, Descriptions, Table, Typography, Empty, Spin, Button, Alert, List, App as AntdApp } from 'antd';
-import { DownloadOutlined, ReloadOutlined } from '@ant-design/icons';
+import { Drawer, Descriptions, Table, Typography, Empty, Spin, Button, Alert, List, Space, App as AntdApp } from 'antd';
+import { DownloadOutlined, ReloadOutlined, RobotOutlined } from '@ant-design/icons';
 import type { LicitacionDetalle } from '../types/licitacion';
 import { LicitacionInteresPanel } from './LicitacionInteresPanel';
+import { AnalisisComercialPanel } from './AnalisisComercialPanel';
 import { StatusBadge } from './StatusBadge';
 import type { StatusBadgeVariant } from './StatusBadge';
 import { descargarArchivoDocumento, formatTamanio, useDescargarDocumentos, useEstadoDocumentos } from '../hooks/useDocumentosLicitacion';
+import { useIniciarAnalisisComercial } from '../hooks/useAnalisisComercial';
 
 // US1 (spec 019): mismo mapeo que LicitacionesTable.tsx (ESTADO_VARIANT) -- via StatusBadge.
 const ESTADO_VARIANT: Record<number, StatusBadgeVariant> = {
@@ -34,7 +36,9 @@ export function LicitacionDetailDrawer({ open, data, loading, onClose }: Props) 
   const codigoExterno = open && data ? data.codigoExterno : null;
   const { data: estadoData, isLoading: estadoLoading } = useEstadoDocumentos(codigoExterno);
   const descargar = useDescargarDocumentos();
+  const iniciarAnalisis = useIniciarAnalisisComercial();
   const estado = estadoData?.data;
+  const documentosListos = estado?.estadoConjunto === 'completado' && (estado.documentos.length ?? 0) > 0;
 
   const iniciarDescarga = () => {
     if (!data) return;
@@ -47,6 +51,17 @@ export function LicitacionDetailDrawer({ open, data, loading, onClose }: Props) 
     );
   };
 
+  const iniciarAnalisisIa = () => {
+    if (!data) return;
+    iniciarAnalisis.mutate(data.codigoExterno, {
+      onSuccess: (r) => {
+        if (r.data.cacheHit) message.info('Análisis recuperado de cache (los documentos no cambiaron)');
+        else message.success('Análisis con IA iniciado (puede tardar unos minutos)');
+      },
+      onError: (e) => message.error(e instanceof Error ? e.message : 'No se pudo iniciar el análisis'),
+    });
+  };
+
   return (
     <Drawer
       title={data ? `Licitacion ${data.codigoExterno}` : 'Detalle'}
@@ -57,16 +72,27 @@ export function LicitacionDetailDrawer({ open, data, loading, onClose }: Props) 
       data-testid="licitacion-drawer"
       extra={
         data ? (
-          <Button
-            type="primary"
-            icon={<DownloadOutlined />}
-            loading={descargar.isPending}
-            disabled={estado?.estadoConjunto === 'descargando'}
-            onClick={iniciarDescarga}
-            data-testid="btn-descargar-documentos"
-          >
-            Descargar documentos
-          </Button>
+          <Space>
+            <Button
+              icon={<RobotOutlined />}
+              loading={iniciarAnalisis.isPending}
+              disabled={!documentosListos}
+              onClick={iniciarAnalisisIa}
+              data-testid="btn-analizar-ia"
+            >
+              Analizar con IA
+            </Button>
+            <Button
+              type="primary"
+              icon={<DownloadOutlined />}
+              loading={descargar.isPending}
+              disabled={estado?.estadoConjunto === 'descargando'}
+              onClick={iniciarDescarga}
+              data-testid="btn-descargar-documentos"
+            >
+              Descargar documentos
+            </Button>
+          </Space>
         ) : undefined
       }
     >
@@ -172,6 +198,9 @@ export function LicitacionDetailDrawer({ open, data, loading, onClose }: Props) 
               )}
             </>
           )}
+
+          {/* 036-flujo-comercial-ofertas (Fase 1.3): zona IA on-demand */}
+          <AnalisisComercialPanel codigoExterno={data.codigoExterno} />
 
           {/* spec 031 (US5): flujo colaborativo go/no-go */}
           <Typography.Title level={5} style={{ marginTop: 24 }}>

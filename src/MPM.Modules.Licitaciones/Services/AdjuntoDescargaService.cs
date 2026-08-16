@@ -1,7 +1,5 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
-using System.Security.Cryptography;
-using System.Text;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using MPM.Modules.Licitaciones.Data;
@@ -64,7 +62,7 @@ public class AdjuntoDescargaService(
         {
             EstadoConjunto = estado,
             DescargaError = error,
-            ConjuntoHash = CalcularConjuntoHash(filas),
+            ConjuntoHash = AdjuntoDocumentosHash.CalcularConjuntoHash(filas),
             Documentos = filas.Select(MapToDto).ToList(),
         };
     }
@@ -250,20 +248,6 @@ public class AdjuntoDescargaService(
         if (File.Exists(repoPath)) return repoPath;
 
         return null;
-    }
-
-    private static string? CalcularConjuntoHash(List<AdjuntoDocumentosHandler.AdjuntoDocumentoFila> filas)
-    {
-        var hashes = filas
-            .Where(f => !string.IsNullOrWhiteSpace(f.Sha256Hash))
-            .OrderBy(f => f.NombreArchivo, StringComparer.Ordinal)
-            .Select(f => f.Sha256Hash!)
-            .ToList();
-
-        if (hashes.Count == 0 || hashes.Count != filas.Count) return null;
-
-        var joined = string.Join('|', hashes);
-        return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(joined))).ToLowerInvariant();
     }
 
     private static AdjuntoDocumentoDto MapToDto(AdjuntoDocumentosHandler.AdjuntoDocumentoFila f) => new()

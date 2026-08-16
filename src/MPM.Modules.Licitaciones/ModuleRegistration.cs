@@ -33,6 +33,10 @@ public static class ModuleRegistration
         services.AddScoped<AdjuntoDocumentosHandler>();
         services.AddScoped<AdjuntoDescargaService>();
 
+        // 036-flujo-comercial-ofertas (Fase 1.3): zona IA on-demand con cache por conjunto.
+        services.AddScoped<AnalisisComercialHandler>();
+        services.AddScoped<AnalisisComercialService>();
+
         // Registrados también como singleton de su propio tipo (no solo IHostedService) para
         // poder resolverlos directamente desde el "modo worker" de Program.cs y llamar
         // EjecutarCicloUnaVezAsync() sin depender del Timer del BackgroundService.
