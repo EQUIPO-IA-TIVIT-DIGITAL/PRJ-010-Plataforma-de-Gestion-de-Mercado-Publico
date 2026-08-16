@@ -255,3 +255,84 @@ gerente comercial (HITL) antes de pasar a la siguiente.
   ApiMpService / mpm-web), que no son parte de este flujo y no se tocan.
 - Los artefactos de diseño (`docs/design/flujo-ofertas.md`) se incorporan a la
   rama dedicada en su primer commit.
+
+---
+
+## 11. Fase 2 — Diseño detallado (cerrado 2026-08-16)
+
+> **Objetivo**: responder "¿puede TIVIT ofertar? ¿tenemos la gente?" con match
+> real contra Census, y formalizar la decisión GO/NO GO. Todo lo crítico fue
+> **verificado en vivo** (benchmarks y hallazgos en D7.x).
+
+### 11.1 Componentes (`MPM.Modules.Censo`, nuevo)
+
+| Componente | Responsabilidad | Verificado |
+|---|---|---|
+| `CensusTokenManager` | Cache del token (JWT `exp` con margen 2 min), renovación con `SemaphoreSlim`, retry ante 401 (token invalidado antes de expirar — BUG-023) | D7.4 |
+| `CensusClient` | Auth (`/external-auth/token`, `{Username,Password}`) + búsquedas: `technologies/users?technologyName=X` y `certifications/users?certificationName=X` (substring, sin país por defecto) + catálogo `census/knowledge` + archivo `certifications/file/{fileId}` | D7.1-D7.11 |
+| `CensoCatalogoService` | Catálogo local refrescable desde `census/knowledge` (59 KB, 210 types, ~939 tecnologías): tabla `censo_catalogo` (grupo→categoría→type→tecnología) | D7.7/D7.8 |
+| `CensoExpansionService` | **Capa 1** (fuzzy types ≥80 → tecnologías del type, sin IA, ~22 ms), **Capa 2** (fuzzy tecnología), **Capa 3** (IA fallback cacheada en `censo_expansiones`, una vez por concepto) | D7.8/D7.10 |
+| `CensoMatchService` | Match multi-skill: expandir → validar → **consultas paralelas (semáforo 8)** → **cache por tecnología** (TTL 24 h) → dedup por email → scoring de cobertura (skills matcheados + levelSkill 1-4 + bonus país de ejecución) | D7.9/D7.10/D7.12 |
+| Config de usuario | Toggle "Filtrar por país" (OFF default) + selector; preferencia persistida + override por licitación | D7.12 |
+
+### 11.2 Flujo del match (tiempos reales benchmarkeados)
+
+```
+Requisitos de la licitación (del análisis comercial, Fase 1.3: certificaciones +
+personal requerido + skills de experiencia)
+  → Expansión por capas (22,6 ms, $0; IA solo primera vez por concepto)
+  → Consultas Census paralelas (16 consultas = 3.044 ms, $0) 
+      · tecnologías → technologies/users (cache 24 h por tecnología)
+      · certificaciones → certifications/users (substring, sin país)
+  → Dedup por email/corporateId + cobertura por candidato (x/10 skills)
+  → Scoring: cobertura + levelSkill + bonus país ejecución (OFF no excluye)
+  → Top candidatos por rol → vista ejecutiva
+```
+
+**Números verificados**: análisis IA 60 s (~USD 0,02) + match 3 s ($0) + candidatos
+con cobertura real (2 personas 10/10 en la licitación de antivirus). Con cache
+caliente: match ≈ 0 ms.
+
+### 11.3 Endpoints — `[Authorize]`
+
+| Método | Ruta | Descripción |
+|--------|------|-------------|
+| POST | `/api/v1/licitaciones/{codigoExterno}/match-capacidades` | Ejecuta el match contra Census usando los requisitos del análisis (o los que reciba en el body); responde 202 + polling si es primera vez, 200 con cache |
+| GET | `/api/v1/licitaciones/{codigoExterno}/match-capacidades` | Estado + resultado del match (personas por rol con cobertura, resumen) |
+| POST | `/api/v1/licitaciones/{codigoExterno}/decision` | GO/NO GO formal: `{decision, motivo}` → registra y (Fase 3) notifica |
+| GET | `/api/v1/licitaciones/{codigoExterno}/decision` | Estado de la decisión (para la ficha) |
+| GET/PUT | `/api/v1/usuarios/me/preferencias-censo` | Toggle de país + país preferido (persistido por usuario) |
+| GET | `/api/v1/censo/catalogo` | Catálogo de types/tecnologías (autocompletar en la UI) |
+
+### 11.4 Modelo de datos (migraciones nuevas)
+
+```
+censo_catalogo          — grupo/categoría/type/tecnología (refresco desde census/knowledge)
+censo_expansiones       — concepto → [tecnologías validadas] (cache IA, UK concepto)
+censo_cache_personas    — tecnología + país → personas JSON (TTL 24 h, refresco lazy)
+licitaciones_interes    — EVOLUCIÓN (V122): + decision, motivo, recomendacion_ia,
+                          score_confianza, decidido_por, decidido_at, notificados
+```
+
+### 11.5 Reglas de negocio
+
+- `CEN-R001`: el match devuelve personas con **cobertura parcial válida** (7/10 > 3/10).
+- `CEN-R002`: decisión GO/NO GO **siempre humana**; la IA solo recomienda (`strong_go`…`strong_no_go`).
+- `CEN-R003`: filtro de país OFF por defecto; ON acota con `workCountry`; OFF aplica bonus por país de ejecución (no excluye).
+- `CEN-R004`: token renovado automáticamente (margen 2 min + retry 401).
+- `CEN-R005`: cache por tecnología 24 h — la 2ª licitación con los mismos skills no consulta Census.
+- `CEN-R006`: cero réplica persistente de Census (solo cache de resultados y expansiones).
+- `CEN-R007`: la vista ejecutiva combina: resumen del análisis IA + match de capacidades + recomendación → el gerente decide.
+
+### 11.6 Errores
+
+`CEN_001` (sin requisitos para match) · `CEN_002` (Census inalcanzable) · `CEN_003` (en curso) ·
+`CEN_004` (sin documentos analizados) · reutiliza `LIC_001`, `AUTH_*`.
+
+### 11.7 UI (vista ejecutiva + GO/NO GO)
+
+- Sección "Capacidades TIVIT" en la ficha: toggle país, personas por rol (con
+  cobertura x/10 y nivel), certificaciones con archivo.
+- Panel GO/NO GO: recomendación IA (badge + score) + botones GO/NO GO + motivo
+  obligatorio en NO GO → estado persistido en la ficha.
+- Criterio de corte: HITL con el gerente sobre una licitación real de ciberseguridad.
