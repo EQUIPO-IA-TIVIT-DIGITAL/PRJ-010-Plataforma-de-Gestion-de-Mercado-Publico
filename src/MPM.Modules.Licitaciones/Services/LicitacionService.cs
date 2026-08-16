@@ -91,7 +91,8 @@ public class LicitacionService(
             FechaCierre = DateTime.TryParse(fechas?.FechaCierre, out var fc) ? fc : existing.FechaCierre,
             FechaAdjudicacion = DateTime.TryParse(fechas?.FechaAdjudicacion, out var fa) ? fa : existing.FechaAdjudicacion,
             FechaEstimadaAdjudicacion = DateTime.TryParse(fechas?.FechaEstimadaAdjudicacion, out var fea) ? fea : existing.FechaEstimadaAdjudicacion,
-            Link = $"https://www.mercadopublico.cl/Procurement/Modules/RFB/DetailsAcquisition.aspx?qs=/{api.CodigoExterno}",
+            // V138: ?idlicitacion= es la URL PUBLICA de la ficha (sin login) -- ver ApiMpService.
+            Link = $"https://www.mercadopublico.cl/Procurement/Modules/RFB/DetailsAcquisition.aspx?idlicitacion={api.CodigoExterno}",
             Items = api.Items?.Select(i => new LicitacionItemDto
             {
                 Codigo = i.Correlativo ?? i.CodigoProducto.GetHashCode(),

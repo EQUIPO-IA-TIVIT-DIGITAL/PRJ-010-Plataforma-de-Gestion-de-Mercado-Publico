@@ -77,6 +77,20 @@ El seguimiento de licitaciones en Mercado Público es hoy un proceso manual: rev
 - Docker Compose (Postgres, Redis, API, Web) para desarrollo local
 - Despliegue en GCP (Cloud Run + Cloud Run Jobs), almacenamiento de adjuntos en Google Cloud Storage
 
+## Skills locales del framework (adicionales a TIVIT Foundry)
+
+Este proyecto mantiene skills propias en `.opencode/skills/` que no vienen en el repo del
+framework (se restauran después de cada `update-framework.ps1`):
+
+| Skill | Uso |
+|-------|-----|
+| `changelog` | Entradas en CHANGELOG.md formato keepachangelog |
+| `database` | Convenciones SQL del proyecto (schemas, naming, errores) |
+| `dotnet-gateway` | Patrones de API Gateway con Ocelot (.NET) |
+| `react-hooks` | Patrones de hooks React (Query/Mutation con TanStack Query) |
+| `skill-sync` | Regenerar SKILLS-MANIFEST.md tras crear/modificar skills |
+| `swagger` | Generación y mantención de OpenAPI/Swagger |
+
 ## Arquitectura
 
 Monolito modular: cada dominio de negocio es una librería de clases independiente con su propio `Controllers/`, `Services/`, `Data/` y `Models/`, registrada vía `AddXxxModule()` en `Program.cs`.

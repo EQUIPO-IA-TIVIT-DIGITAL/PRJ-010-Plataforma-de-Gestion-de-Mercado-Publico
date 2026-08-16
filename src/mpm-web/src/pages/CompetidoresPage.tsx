@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Space, Table, AutoComplete, DatePicker, Button, Tag, Empty, App as AntApp, Card, Typography, Tooltip, Select, Spin } from 'antd';
+import { Space, Table, AutoComplete, DatePicker, Button, Tag, Empty, App as AntApp, Card, Typography, Tooltip, Select, Spin, Alert } from 'antd';
 import { TeamOutlined, ExperimentOutlined, BulbOutlined, GlobalOutlined } from '@ant-design/icons';
 import { PageHeader } from '../components/PageHeader';
 import dayjs, { type Dayjs } from 'dayjs';
@@ -23,7 +23,7 @@ export function CompetidoresPage() {
   const { data, isLoading } = useBuscarCompetidor(nombreBuscado);
   const analizar = useAnalizarCompetidor();
   const { data: areasNegocio } = useAreasNegocio();
-  const { data: actividadMercado, isLoading: cargandoActividadMercado } = useActividadMercado(
+  const { data: actividadMercado, isLoading: cargandoActividadMercado, refetch: reintentarActividadMercado } = useActividadMercado(
     nombreBuscado || null,
     areaMercado,
     rango ? rango[0].format('YYYY-MM-DD') : dayjs().subtract(6, 'month').format('YYYY-MM-DD'),
@@ -232,6 +232,20 @@ export function CompetidoresPage() {
             )}
 
             {cargandoActividadMercado && !actividadMercado && <Spin size="small" />}
+
+            {actividadMercado?.estado === 'error' && (
+              <Alert
+                type="error"
+                showIcon
+                message="No se pudo calcular la actividad de mercado"
+                description="El scraper de fondo falló (o quedó estancado). Podés reintentar; si persiste, revisá los logs del API (Scraper:CompetidorMercadoScriptPath)."
+                action={
+                  <Button size="small" onClick={() => reintentarActividadMercado()} loading={cargandoActividadMercado}>
+                    Reintentar
+                  </Button>
+                }
+              />
+            )}
 
             {actividadMercado?.estado === 'listo' && (
               <Space direction="vertical" style={{ width: '100%' }}>

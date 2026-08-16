@@ -17,4 +17,5 @@ public static class CompetidoresStoredProcedures
     // US4 (spec 031): actividad total de mercado de un competidor (V124)
     public const string ActividadMercadoObtenerCache = "SELECT * FROM usp_CompetidoresActividadMercado_ObtenerCache(@p_nombre_competidor, @p_area_codigo, @p_fecha_desde, @p_fecha_hasta)";
     public const string ActividadMercadoEncolar = "SELECT usp_CompetidoresActividadMercado_Encolar(@p_nombre_competidor, @p_area_codigo, @p_fecha_desde, @p_fecha_hasta)";
+    public const string ActividadMercadoMarcarError = "SELECT usp_CompetidoresActividadMercado_MarcarError(@p_nombre_competidor, @p_area_codigo, @p_fecha_desde, @p_fecha_hasta)";
 }
