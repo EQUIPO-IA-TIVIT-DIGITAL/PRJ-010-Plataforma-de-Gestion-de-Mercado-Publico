@@ -31,8 +31,11 @@ public class CensoCatalogoController(CensoCatalogoService catalogoService) : Con
         return Ok(ApiResponse<CensoCatalogoListadoDto>.Ok(listado));
     }
 
-    /// <summary>Refresca el catálogo desde census/knowledge (limpia y reinserta).</summary>
+    /// <summary>Refresca el catálogo desde census/knowledge (limpia y reinserta).
+    /// QA (2026-08-16): requiere rol Admin/SuperAdmin — cualquier JWT podía truncar y
+    /// reinsertar el catálogo (hallazgo O-2 del control-agent).</summary>
     [HttpPost("catalogo/refrescar")]
+    [Authorize(Roles = "Admin,SuperAdmin")]
     [ProducesResponseType(typeof(ApiResponse<CensoRefrescoResultDto>), 200)]
     [ProducesResponseType(typeof(ApiResponse<object>), 502)]
     public async Task<ActionResult<ApiResponse<CensoRefrescoResultDto>>> Refrescar(CancellationToken ct = default)

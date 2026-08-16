@@ -535,3 +535,10 @@ requiere `pais` no vacÃ­o.
 8. **`censo_cache_personas` guarda la respuesta cruda de Census** (JSONB) sin normalizar;
    la normalizaciÃ³n (dedup, scoring) ocurre en `CensoMatchService` al leer el cache o la
    respuesta fresca. El borrador del handler es consistente con esto.
+
+### Notas del QA (2026-08-16) — observaciones resueltas
+- POST /censo/catalogo/refrescar requiere [Authorize(Roles = "Admin,SuperAdmin")] (O-2 del control-agent).
+- CEN-R008: las certificaciones del análisis se tratan como requisitos (mandatorias) y las tecnologías como skills buscados; no hay ranking diferenciado mandatorias/deseables — límite documentado (backlog).
+- CensusClient.DownloadCertificationFileAsync es adelanto de Fase 3 (no expuesto por endpoint).
+- El GET de decisión devuelve 
+otificados: null hasta la Fase 3.
