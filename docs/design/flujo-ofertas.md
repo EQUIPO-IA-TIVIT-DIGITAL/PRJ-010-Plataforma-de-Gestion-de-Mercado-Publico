@@ -239,6 +239,11 @@ gerente comercial (HITL) antes de pasar a la siguiente.
 - **Skills a activar en las siguientes fases**: `api-first-spec` (specs por módulo), `hu-template` (HUs), `tasks`, `api-first-backend`, `api-first-frontend`, `api-first-testing`, `qa-validation`, `converge`, `changelog`/`pull-request`.
 - **Agentes**: design (specs/HUs) → delivery (implementación) → control (validación y go/no-go por fase).
 - **Artefactos previos consumidos**: entendimiento validado con el negocio (rondas 2026-08-15), exploración de la base PRJ-001 (2 subagentes), verificación en vivo de ChileCompra.
+- **Registro de routing — Fase 2 (2026-08-16)**:
+  - Skills activadas: `api-first-spec` (specs `censo.md` + `decisiones.md`, **aprobadas por el negocio**) → `tasks` (breakdown `docs/design/tasks-fase2.md`) → `api-first-backend`/`api-first-frontend` (delivery-agent) → `api-first-testing` + `qa-validation` (control-agent).
+  - Agentes: **design** (specs — hecho) → **delivery** (backend + frontend en bundles) → **control** (tests + validación).
+  - Decisiones de spec tomadas: match síncrono (200), precedencia de país (body > usuario > default), snapshot inmutable de recomendación IA en la decisión, CEN_002=502.
+  - Inconsistencias a corregir en implementación (delegadas al delivery): V144 `estado_licitacion_al_marcar` real (no hardcode 1), `notificados` JSONB, adopción de `censo_match`/`censo_preferencias`/refresco de catálogo.
 - **Decisiones abiertas al cierre de este diseño**: tarifas oficiales, plantilla DOCX vigente, destino Drive (individual vs. compartido), autenticación Census en MPM.
 
 ---

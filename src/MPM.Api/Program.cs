@@ -15,6 +15,7 @@ using MPM.Modules.Alertas;
 using MPM.Modules.Competidores;
 using MPM.Modules.Colaboracion;
 using MPM.Modules.Administracion;
+using MPM.Modules.Censo;
 using MPM.Shared.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
@@ -127,6 +128,7 @@ builder.Services.AddAuthModule();
 builder.Services.AddNotificacionesModule();
 builder.Services.AddAlertasModule();
 builder.Services.AddLicitacionModule(builder.Configuration);
+builder.Services.AddCensoModule(builder.Configuration);
 builder.Services.AddCatalogoModule();
 builder.Services.AddMensajeriaModule();
 builder.Services.AddAnalisisModule();
@@ -255,7 +257,8 @@ static async Task<int> EjecutarWorkerAsync(string workerMode, string[] args)
     builder.Services.AddAuthModule();
     builder.Services.AddNotificacionesModule();
     builder.Services.AddAlertasModule();
-    builder.Services.AddLicitacionModule(builder.Configuration);
+builder.Services.AddLicitacionModule(builder.Configuration);
+builder.Services.AddCensoModule(builder.Configuration);
     builder.Services.AddCatalogoModule();
     builder.Services.AddAnalisisModule();
     // Worker de backfill de areas de negocio (WORKER_MODE=backfill-areas) — se registra

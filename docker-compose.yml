@@ -78,6 +78,9 @@ services:
       - Extraccion__ExportarSesionScriptPath=/app/tools/exportar-sesion.js
       - MP_ANALISIS_IA=${MP_ANALISIS_IA:-true}
       - MP_HEADLESS=true
+      - Censo__Url=${CENSO_URL:-}
+      - Censo__Username=${CENSO_USERNAME:-}
+      - Censo__Password=${CENSO_PASSWORD:-}
       - MP_FECHA_DESDE=${MP_FECHA_DESDE:-01-01-2025}
       - API_BASE_URL=http://localhost:80
       # Monitor de aclaraciones
