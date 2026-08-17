@@ -1,5 +1,25 @@
-import { Alert, App as AntdApp, Button, Collapse, List, Spin, Tag, Typography } from 'antd';
-import { ReloadOutlined, RobotOutlined } from '@ant-design/icons';
+import {
+  Alert,
+  App as AntdApp,
+  Button,
+  Card,
+  Collapse,
+  Descriptions,
+  List,
+  Space,
+  Spin,
+  Table,
+  Tag,
+  Typography,
+  theme,
+} from 'antd';
+import {
+  ReloadOutlined,
+  RobotOutlined,
+  CheckCircleOutlined,
+  CloseCircleOutlined,
+  ExclamationCircleOutlined,
+} from '@ant-design/icons';
 import { useAnalisisComercialEstado, useIniciarAnalisisComercial } from '../hooks/useAnalisisComercial';
 import type { AnalisisComercialEstado } from '../types/licitacion';
 
@@ -24,29 +44,64 @@ function fmtMoneda(v: unknown): string | null {
 
 function goNoGoTag(go: string | null) {
   if (!go) return null;
-  const map: Record<string, { color: string; label: string }> = {
-    strong_go: { color: 'success', label: 'GO fuerte' },
-    go: { color: 'green', label: 'GO' },
-    no_go: { color: 'orange', label: 'NO GO' },
-    strong_no_go: { color: 'error', label: 'NO GO fuerte' },
+  const map: Record<string, { color: string; label: string; icon: React.ReactNode }> = {
+    strong_go: { color: 'success', label: 'GO FUERTE', icon: <CheckCircleOutlined /> },
+    go: { color: 'green', label: 'GO', icon: <CheckCircleOutlined /> },
+    no_go: { color: 'warning', label: 'NO GO', icon: <ExclamationCircleOutlined /> },
+    strong_no_go: { color: 'error', label: 'STRONG NO GO', icon: <CloseCircleOutlined /> },
   };
-  const m = map[go] ?? { color: 'default', label: go };
-  return <Tag color={m.color}>{m.label}</Tag>;
+  const m = map[go] ?? { color: 'default', label: go.toUpperCase(), icon: null };
+  return (
+    <Tag color={m.color} icon={m.icon} style={{ fontSize: 13, padding: '4px 10px', fontWeight: 600 }}>
+      {m.label}
+    </Tag>
+  );
 }
 
-function TextoOLista(v: unknown, fallback: string): string {
-  const s = str(v);
-  if (s) return s;
-  const list = strList(v);
-  if (list.length) return list.join(', ');
-  return fallback;
-}
+const LABELS: Record<string, string> = {
+  nombre_licitacion: 'Nombre de la licitación',
+  codigo_licitacion: 'Código Mercado Público',
+  organismo_demandante: 'Organismo demandante',
+  unidad_tecnica: 'Unidad técnica',
+  tipo_licitacion: 'Tipo de licitación',
+  monto_estimado: 'Monto estimado',
+  moneda: 'Moneda',
+  duracion_meses: 'Duración (meses)',
+  renovacion: 'Renovable',
+  presupuesto_publicado: 'Presupuesto publicado',
+  fecha_publicacion: 'Fecha de publicación',
+  fecha_cierre: 'Fecha de cierre',
+  fecha_apertura_tecnica: 'Apertura técnica',
+  fecha_apertura_economica: 'Apertura económica',
+  fecha_estimada_adjudicacion: 'Estimación de adjudicación',
+};
 
-function ItemsKeyValue(obj: Record<string, unknown> | null, orden: string[]): { k: string; v: string }[] {
-  if (!obj) return [];
-  return orden
-    .filter((k) => obj[k] != null && obj[k] !== '')
-    .map((k) => ({ k, v: TextoOLista(obj[k], '-') }));
+function fmtValor(key: string, v: unknown): string {
+  if (v == null || v === '') return '-';
+  if (typeof v === 'boolean') return v ? 'Sí' : 'No';
+  if (typeof v === 'number') return v.toLocaleString('es-CL');
+  if (typeof v === 'string') {
+    if (v.toLowerCase() === 'true') return 'Sí';
+    if (v.toLowerCase() === 'false') return 'No';
+    // Si es formato fecha ISO (e.g. 2026-07-23T16:00:00)
+    if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(v)) {
+      try {
+        const d = new Date(v);
+        if (!isNaN(d.getTime())) {
+          const pad = (n: number) => String(n).padStart(2, '0');
+          return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())} hrs`;
+        }
+      } catch {
+        // fallback
+      }
+    }
+    // Si es formato fecha YYYY-MM-DD
+    if (/^\d{4}-\d{2}-\d{2}$/.test(v)) {
+      const [y, m, d] = v.split('-');
+      return `${d}/${m}/${y}`;
+    }
+  }
+  return String(v);
 }
 
 interface Props {
@@ -55,6 +110,7 @@ interface Props {
 
 export function AnalisisComercialPanel({ codigoExterno }: Props) {
   const { message } = AntdApp.useApp();
+  const { token } = theme.useToken();
   const { data, isLoading } = useAnalisisComercialEstado(codigoExterno);
   const iniciar = useIniciarAnalisisComercial();
   const estado = data?.data;
@@ -64,8 +120,8 @@ export function AnalisisComercialPanel({ codigoExterno }: Props) {
     iniciar.mutate(codigoExterno, {
       onSuccess: (r) => {
         const res = r.data;
-        if (res.cacheHit) message.info('Análisis recuperado de cache (los documentos no cambiaron)');
-        else message.success('Análisis iniciado (puede tardar unos minutos)');
+        if (res.cacheHit) message.info('Análisis recuperado de caché (los documentos no cambiaron)');
+        else message.success('Análisis comercial con IA iniciado en segundo plano');
       },
       onError: (e) => message.error(e instanceof Error ? e.message : 'No se pudo iniciar el análisis'),
     });
@@ -83,228 +139,344 @@ export function AnalisisComercialPanel({ codigoExterno }: Props) {
     const match = asObj(r?.match_tivit);
     const estim = asObj(r?.estimacion);
 
-    const datosClave = [
-      ...ItemsKeyValue(ident, ['nombre_licitacion', 'codigo_licitacion', 'organismo_demandante', 'unidad_tecnica', 'tipo_licitacion']),
-      ...ItemsKeyValue(montos, ['monto_estimado', 'moneda', 'duracion_meses', 'renovacion']),
-      ...ItemsKeyValue(fechas, ['fecha_publicacion', 'fecha_cierre', 'fecha_apertura_tecnica', 'fecha_apertura_economica', 'fecha_estimada_adjudicacion']),
-    ];
+    const puede = str(match?.puede_ofertar)?.toLowerCase();
+    const puedeLabel = puede === 'si' ? 'Sí' : puede === 'no' ? 'No' : puede === 'parcial' ? 'Parcial' : (puede ? puede.toUpperCase() : 'No especificado');
+    const puedeColor = puede === 'si' ? 'success' : puede === 'no' ? 'error' : 'warning';
 
     return (
-      <>
+      <div style={{ padding: '4px 0' }}>
         {estado.desactualizado && (
           <Alert
             type="warning"
             showIcon
-            style={{ marginBottom: 12 }}
+            style={{ marginBottom: 16 }}
             message="Los documentos cambiaron desde el último análisis"
-            description="Descarga los documentos nuevamente y vuelve a analizar para actualizar el resultado."
+            description="Se han detectado nuevos documentos o versiones. Vuelve a analizar para actualizar el análisis comercial."
+            action={
+              <Button size="small" type="primary" onClick={disparar}>
+                Re-analizar
+              </Button>
+            }
           />
         )}
-        <Typography.Paragraph style={{ marginBottom: 8 }}>{estado.resumenEjecutivo ?? 'Sin resumen ejecutivo.'}</Typography.Paragraph>
-        <div style={{ marginBottom: 8 }}>
-          {goNoGoTag(estado.goNoGo)}
-          {estado.scoreConfianza != null && (
-            <Typography.Text type="secondary" style={{ marginLeft: 8 }}>
-              Confianza: {(estado.scoreConfianza * 100).toFixed(0)}%
-            </Typography.Text>
-          )}
-          {estado.modeloUsado && (
-            <Typography.Text type="secondary" style={{ marginLeft: 8, fontSize: 12 }}>
-              {estado.modeloUsado}
-              {estado.tokensEntrada != null ? ` · ${estado.tokensEntrada.toLocaleString('es-CL')} tokens` : ''}
-            </Typography.Text>
-          )}
-        </div>
 
-        <Collapse
+        {/* Resumen Ejecutivo Card */}
+        <Card
           size="small"
-          style={{ marginTop: 8 }}
+          style={{
+            marginBottom: 20,
+            background: token.colorFillAlter,
+            borderColor: token.colorBorderSecondary,
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12, marginBottom: 12 }}>
+            <Space size={10} wrap>
+              {goNoGoTag(estado.goNoGo)}
+              {estado.scoreConfianza != null && (
+                <Tag color="blue" style={{ fontSize: 13, padding: '4px 8px' }}>
+                  Confianza: {(estado.scoreConfianza * 100).toFixed(0)}%
+                </Tag>
+              )}
+            </Space>
+
+            <Space size={8}>
+              {estado.modeloUsado && (
+                <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                  Modelo: <code>{estado.modeloUsado}</code>
+                  {estado.tokensEntrada != null ? ` · ${estado.tokensEntrada.toLocaleString('es-CL')} tokens` : ''}
+                </Typography.Text>
+              )}
+              <Button size="small" icon={<ReloadOutlined />} onClick={disparar}>
+                Re-analizar
+              </Button>
+            </Space>
+          </div>
+
+          <Typography.Title level={5} style={{ margin: '8px 0 4px 0' }}>
+            Resumen Ejecutivo
+          </Typography.Title>
+          <Typography.Paragraph style={{ margin: 0, fontSize: 13, lineHeight: 1.6 }}>
+            {estado.resumenEjecutivo ?? 'Sin resumen ejecutivo disponible.'}
+          </Typography.Paragraph>
+        </Card>
+
+        {/* Secciones de Análisis */}
+        <Collapse
+          defaultActiveKey={['match', 'riesgos', 'clave']}
           items={[
             {
-              key: 'clave',
-              label: 'Datos clave',
+              key: 'match',
+              label: <Typography.Text strong>Match TIVIT y Capacidad de Oferta</Typography.Text>,
               children: (
-                <List
-                  size="small"
-                  dataSource={datosClave}
-                  renderItem={(it) => (
-                    <List.Item style={{ padding: '4px 0' }}>
-                      <Typography.Text strong style={{ width: 160, display: 'inline-block' }}>{it.k}</Typography.Text>
-                      <Typography.Text>{it.v}</Typography.Text>
-                    </List.Item>
-                  )}
-                />
-              ),
-            },
-            {
-              key: 'requisitos',
-              label: 'Requisitos',
-              children: (
-                <>
-                  <Typography.Text strong>Administrativos</Typography.Text>
-                  <List
-                    size="small"
-                    dataSource={[
-                      ...strList(reqAdmin?.documentos_obligatorios).map((x) => ({ tipo: 'Documento', v: x })),
-                      ...strList(reqAdmin?.garantias).map((x) => ({ tipo: 'Garantía', v: x })),
-                      ...strList(reqAdmin?.seguros).map((x) => ({ tipo: 'Seguro', v: x })),
-                    ]}
-                    renderItem={(it) => (
-                      <List.Item style={{ padding: '2px 0' }}>
-                        <Tag style={{ marginRight: 8 }}>{it.tipo}</Tag>
-                        <Typography.Text>{it.v}</Typography.Text>
-                      </List.Item>
-                    )}
-                  />
-                  <Typography.Text strong style={{ display: 'block', marginTop: 8 }}>
-                    Técnicos
-                  </Typography.Text>
-                  <List
-                    size="small"
-                    dataSource={[
-                      ...strList(reqTec?.certificaciones_requeridas).map((x) => ({ tipo: 'Certificación', v: x })),
-                      ...strList(reqTec?.personal_requerido).map((x) => ({ tipo: 'Personal', v: x })),
-                      ...strList(reqTec?.infraestructura_requerida).map((x) => ({ tipo: 'Infraestructura', v: x })),
-                    ]}
-                    renderItem={(it) => (
-                      <List.Item style={{ padding: '2px 0' }}>
-                        <Tag style={{ marginRight: 8 }}>{it.tipo}</Tag>
-                        <Typography.Text>{it.v}</Typography.Text>
-                      </List.Item>
-                    )}
-                  />
-                  {str(reqTec?.experiencia_minima) && (
-                    <Typography.Paragraph style={{ marginTop: 8 }} type="secondary">
-                      Experiencia mínima: {str(reqTec?.experiencia_minima)}
+                <div style={{ padding: '4px 0' }}>
+                  <div style={{ marginBottom: 12 }}>
+                    <Tag color={puedeColor} style={{ fontSize: 13, padding: '4px 12px', fontWeight: 600 }}>
+                      ¿Puede ofertar TIVIT?: {puedeLabel}
+                    </Tag>
+                  </div>
+
+                  {str(match?.observaciones) && (
+                    <Typography.Paragraph style={{ marginBottom: 16, fontSize: 13, lineHeight: 1.6 }}>
+                      {str(match?.observaciones)}
                     </Typography.Paragraph>
                   )}
-                </>
-              ),
-            },
-            {
-              key: 'criterios',
-              label: 'Criterios de evaluación',
-              children: (
-                <List
-                  size="small"
-                  dataSource={criterios}
-                  renderItem={(c) => (
-                    <List.Item style={{ padding: '4px 0' }}>
-                      <Typography.Text strong>{str(c.nombre) ?? 'Criterio'}</Typography.Text>
-                      <Typography.Text style={{ marginLeft: 8 }}>
-                        {c.ponderacion_porcentaje != null ? `${c.ponderacion_porcentaje}%` : ''}
-                      </Typography.Text>
-                    </List.Item>
-                  )}
-                />
-              ),
-            },
-            {
-              key: 'match',
-              label: 'Match TIVIT',
-              children: (
-                <>
-                  {str(match?.puede_ofertar) && <Tag color="blue">Puede ofertar: {str(match?.puede_ofertar)}</Tag>}
-                  <Typography.Paragraph style={{ marginTop: 8 }} type="secondary">
-                    {str(match?.observaciones) ?? 'Sin observaciones.'}
-                  </Typography.Paragraph>
+
                   {strList(match?.brechas_detectadas).length > 0 && (
-                    <>
-                      <Typography.Text strong>Brechas detectadas</Typography.Text>
+                    <Card size="small" style={{ background: '#fffbe6', borderColor: '#ffe58f', marginBottom: 12 }}>
+                      <Typography.Text strong style={{ color: '#d48806', display: 'block', marginBottom: 6 }}>
+                        Brechas detectadas
+                      </Typography.Text>
                       <List
                         size="small"
                         dataSource={strList(match?.brechas_detectadas)}
                         renderItem={(b) => (
-                          <List.Item style={{ padding: '2px 0' }}>
+                          <List.Item style={{ padding: '3px 0', border: 'none' }}>
                             <Typography.Text type="warning">• {b}</Typography.Text>
                           </List.Item>
                         )}
                       />
-                    </>
+                    </Card>
                   )}
-                </>
+
+                  {strList(match?.requisitos_clave).length > 0 && (
+                    <div style={{ marginTop: 8 }}>
+                      <Typography.Text strong style={{ display: 'block', marginBottom: 6 }}>
+                        Requisitos clave evaluados
+                      </Typography.Text>
+                      <List
+                        size="small"
+                        dataSource={strList(match?.requisitos_clave)}
+                        renderItem={(r) => (
+                          <List.Item style={{ padding: '2px 0', border: 'none' }}>
+                            <Typography.Text>✓ {r}</Typography.Text>
+                          </List.Item>
+                        )}
+                      />
+                    </div>
+                  )}
+                </div>
               ),
             },
             {
               key: 'riesgos',
-              label: 'Riesgos',
+              label: (
+                <Typography.Text strong>
+                  Riesgos Detectados {riesgos.length > 0 && <Tag color="red" style={{ marginLeft: 6 }}>{riesgos.length}</Tag>}
+                </Typography.Text>
+              ),
               children: (
-                <List
+                <Table
                   size="small"
-                  dataSource={riesgos}
-                  renderItem={(x) => (
-                    <List.Item style={{ padding: '4px 0' }}>
-                      <Tag color={str(x.severidad) === 'alta' ? 'red' : str(x.severidad) === 'media' ? 'orange' : 'green'}>
-                        {str(x.severidad) ?? 'baja'}
-                      </Tag>
-                      <Typography.Text strong>{str(x.categoria) ?? 'Riesgo'}: </Typography.Text>
-                      <Typography.Text>{str(x.descripcion) ?? ''}</Typography.Text>
-                    </List.Item>
-                  )}
+                  pagination={false}
+                  dataSource={riesgos.map((item, idx) => ({ ...item, key: idx }))}
+                  columns={[
+                    {
+                      title: 'Severidad',
+                      dataIndex: 'severidad',
+                      width: 110,
+                      render: (sev: string) => {
+                        const s = (sev || 'baja').toLowerCase();
+                        const color = s === 'alta' ? 'error' : s === 'media' ? 'warning' : 'default';
+                        const label = s.charAt(0).toUpperCase() + s.slice(1);
+                        return <Tag color={color} style={{ fontWeight: 600 }}>{label}</Tag>;
+                      },
+                    },
+                    {
+                      title: 'Categoría',
+                      dataIndex: 'categoria',
+                      width: 180,
+                      render: (cat: string) => <Typography.Text strong>{cat || 'General'}</Typography.Text>,
+                    },
+                    {
+                      title: 'Descripción del Riesgo',
+                      dataIndex: 'descripcion',
+                      render: (desc: string) => <Typography.Text style={{ fontSize: 13 }}>{desc}</Typography.Text>,
+                    },
+                  ]}
+                />
+              ),
+            },
+            {
+              key: 'clave',
+              label: <Typography.Text strong>Datos Clave de la Licitación</Typography.Text>,
+              children: (
+                <Descriptions bordered size="small" column={{ xxl: 2, xl: 2, lg: 2, md: 1, sm: 1, xs: 1 }}>
+                  {ident &&
+                    Object.entries(ident)
+                      .filter(([_, v]) => v != null && v !== '')
+                      .map(([k, v]) => (
+                        <Descriptions.Item key={k} label={LABELS[k] ?? k}>
+                          {fmtValor(k, v)}
+                        </Descriptions.Item>
+                      ))}
+                  {montos &&
+                    Object.entries(montos)
+                      .filter(([_, v]) => v != null && v !== '')
+                      .map(([k, v]) => (
+                        <Descriptions.Item key={k} label={LABELS[k] ?? k}>
+                          {fmtValor(k, v)}
+                        </Descriptions.Item>
+                      ))}
+                  {fechas &&
+                    Object.entries(fechas)
+                      .filter(([_, v]) => v != null && v !== '')
+                      .map(([k, v]) => (
+                        <Descriptions.Item key={k} label={LABELS[k] ?? k}>
+                          {fmtValor(k, v)}
+                        </Descriptions.Item>
+                      ))}
+                </Descriptions>
+              ),
+            },
+            {
+              key: 'requisitos',
+              label: <Typography.Text strong>Requisitos Administrativos y Técnicos</Typography.Text>,
+              children: (
+                <Space direction="vertical" size={16} style={{ width: '100%' }}>
+                  <div>
+                    <Typography.Text strong style={{ fontSize: 14 }}>
+                      Requisitos Administrativos
+                    </Typography.Text>
+                    <List
+                      size="small"
+                      dataSource={[
+                        ...strList(reqAdmin?.documentos_obligatorios).map((x) => ({ tipo: 'Documento', v: x })),
+                        ...strList(reqAdmin?.garantias).map((x) => ({ tipo: 'Garantía', v: x })),
+                        ...strList(reqAdmin?.seguros).map((x) => ({ tipo: 'Seguro', v: x })),
+                      ]}
+                      renderItem={(it) => (
+                        <List.Item style={{ padding: '4px 0' }}>
+                          <Tag color="geekblue" style={{ marginRight: 8 }}>{it.tipo}</Tag>
+                          <Typography.Text>{it.v}</Typography.Text>
+                        </List.Item>
+                      )}
+                    />
+                  </div>
+
+                  <div>
+                    <Typography.Text strong style={{ fontSize: 14 }}>
+                      Requisitos Técnicos
+                    </Typography.Text>
+                    <List
+                      size="small"
+                      dataSource={[
+                        ...strList(reqTec?.certificaciones_requeridas).map((x) => ({ tipo: 'Certificación', v: x })),
+                        ...strList(reqTec?.personal_requerido).map((x) => ({ tipo: 'Personal', v: x })),
+                        ...strList(reqTec?.infraestructura_requerida).map((x) => ({ tipo: 'Infraestructura', v: x })),
+                      ]}
+                      renderItem={(it) => (
+                        <List.Item style={{ padding: '4px 0' }}>
+                          <Tag color="cyan" style={{ marginRight: 8 }}>{it.tipo}</Tag>
+                          <Typography.Text>{it.v}</Typography.Text>
+                        </List.Item>
+                      )}
+                    />
+                    {str(reqTec?.experiencia_minima) && (
+                      <Typography.Paragraph style={{ marginTop: 8 }} type="secondary">
+                        <strong>Experiencia mínima:</strong> {str(reqTec?.experiencia_minima)}
+                      </Typography.Paragraph>
+                    )}
+                  </div>
+                </Space>
+              ),
+            },
+            {
+              key: 'criterios',
+              label: <Typography.Text strong>Criterios de Evaluación</Typography.Text>,
+              children: (
+                <Table
+                  size="small"
+                  pagination={false}
+                  dataSource={criterios.map((c, i) => ({ ...c, key: i }))}
+                  columns={[
+                    {
+                      title: 'Criterio',
+                      dataIndex: 'nombre',
+                      render: (n: string) => <Typography.Text strong>{n || 'Criterio'}</Typography.Text>,
+                    },
+                    {
+                      title: 'Ponderación',
+                      dataIndex: 'ponderacion_porcentaje',
+                      width: 120,
+                      render: (p: number) => (p != null ? <Tag color="blue">{p}%</Tag> : '-'),
+                    },
+                    {
+                      title: 'Descripción / Detalle',
+                      dataIndex: 'descripcion',
+                      render: (d: string) => d || '-',
+                    },
+                  ]}
                 />
               ),
             },
             {
               key: 'estimacion',
-              label: 'Estimación de oferta (orientativa)',
+              label: <Typography.Text strong>Estimación de Oferta (Orientativa)</Typography.Text>,
               children: (
-                <>
+                <div style={{ padding: '4px 0' }}>
                   {fmtMoneda(estim?.monto_referencial) && (
-                    <Typography.Paragraph>
-                      Monto referencial: <Typography.Text strong>{fmtMoneda(estim?.monto_referencial)}</Typography.Text>{' '}
+                    <Typography.Paragraph style={{ fontSize: 14 }}>
+                      Monto referencial: <Typography.Text strong style={{ fontSize: 15 }}>{fmtMoneda(estim?.monto_referencial)}</Typography.Text>{' '}
                       {str(estim?.moneda) ?? ''}
                     </Typography.Paragraph>
                   )}
                   {str(estim?.nota) && (
-                    <Typography.Paragraph type="warning" style={{ fontSize: 12 }}>
-                      ⚠ {str(estim?.nota)}
-                    </Typography.Paragraph>
+                    <Alert
+                      type="warning"
+                      showIcon
+                      message="Estimación orientativa"
+                      description={str(estim?.nota)}
+                      style={{ marginBottom: 12 }}
+                    />
                   )}
                   {strList(estim?.supuestos).length > 0 && (
                     <>
-                      <Typography.Text strong>Supuestos</Typography.Text>
+                      <Typography.Text strong style={{ display: 'block', marginBottom: 6 }}>
+                        Supuestos considerados
+                      </Typography.Text>
                       <List
                         size="small"
                         dataSource={strList(estim?.supuestos)}
                         renderItem={(s) => (
-                          <List.Item style={{ padding: '2px 0' }}>
+                          <List.Item style={{ padding: '2px 0', border: 'none' }}>
                             <Typography.Text type="secondary">• {s}</Typography.Text>
                           </List.Item>
                         )}
                       />
                     </>
                   )}
-                </>
-              ),
-            },
-            {
-              key: 'json',
-              label: 'JSON completo del análisis',
-              children: (
-                <pre style={{ fontSize: 11, maxHeight: 300, overflow: 'auto', whiteSpace: 'pre-wrap' }}>
-                  {JSON.stringify(estado.resultado, null, 2)}
-                </pre>
+                </div>
               ),
             },
           ]}
         />
-      </>
+      </div>
     );
   };
 
   return (
-    <>
-      <Typography.Title level={5} style={{ marginTop: 24 }}>
-        Análisis con IA
-      </Typography.Title>
+    <div style={{ padding: '8px 0' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+        <div>
+          <Typography.Title level={5} style={{ margin: 0 }}>
+            Análisis Comercial y Extracción Inteligente
+          </Typography.Title>
+          <Typography.Text type="secondary" style={{ fontSize: 13 }}>
+            Extracción automática de cláusulas, requisitos técnicos, riesgos y recomendación preliminar de oferta.
+          </Typography.Text>
+        </div>
+      </div>
+
       {isLoading && !estado ? (
-        <Spin />
+        <div style={{ textAlign: 'center', padding: 40 }}>
+          <Spin tip="Consultando estado del análisis comercial..." />
+        </div>
       ) : !estado || estado.estado === 'pendiente' ? (
         <Alert
           type="info"
           showIcon
           message="Los pliegos aún no se han analizado"
-          description="La IA lee todos los documentos descargados y extrae datos clave, requisitos, riesgos, match TIVIT y una recomendación GO/NO GO (la decisión final es humana)."
+          description="La IA leerá todos los documentos descargados (PDF y Word) y extraerá los datos clave, requisitos, riesgos, match TIVIT y una recomendación GO/NO GO."
           action={
             <Button size="small" type="primary" icon={<RobotOutlined />} onClick={disparar}>
               Analizar con IA
@@ -317,14 +489,14 @@ export function AnalisisComercialPanel({ codigoExterno }: Props) {
           showIcon
           icon={<Spin size="small" />}
           message="Analizando documentos con IA..."
-          description="Puede tardar unos minutos (todos los pliegos se envían en una sola llamada). Esta sección se actualiza sola."
+          description="Se están procesando todos los pliegos y bases. Esta sección se actualizará automáticamente al finalizar."
         />
       ) : estado.estado === 'error' ? (
         <Alert
           type="error"
           showIcon
           message="El análisis falló"
-          description={estado.error ?? 'Intente nuevamente'}
+          description={estado.error ?? 'Ocurrió un problema al procesar los documentos'}
           action={
             <Button size="small" icon={<ReloadOutlined />} onClick={disparar}>
               Reintentar
@@ -334,6 +506,6 @@ export function AnalisisComercialPanel({ codigoExterno }: Props) {
       ) : (
         renderResultado(estado)
       )}
-    </>
+    </div>
   );
 }
