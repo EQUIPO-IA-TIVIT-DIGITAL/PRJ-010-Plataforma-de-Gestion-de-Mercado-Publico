@@ -52,4 +52,29 @@ public class CensoCatalogoController(CensoCatalogoService catalogoService) : Con
                 [new ErrorDetail { Code = "CEN_002", Message = ex.Message }]));
         }
     }
+
+    /// <summary>Descarga o visualiza el archivo PDF de la certificación desde Census.</summary>
+    [HttpGet("certificaciones/archivo/{fileId}")]
+    [ProducesResponseType(typeof(FileContentResult), 200)]
+    [ProducesResponseType(typeof(ApiResponse<object>), 404)]
+    [ProducesResponseType(typeof(ApiResponse<object>), 502)]
+    public async Task<IActionResult> DescargarArchivoCertificacion(
+        string fileId, [FromServices] CensusClient censusClient, CancellationToken ct = default)
+    {
+        try
+        {
+            var bytes = await censusClient.DownloadCertificationFileAsync(fileId, ct);
+            if (bytes == null || bytes.Length == 0)
+                return NotFound(ApiResponse<object>.Fail("Archivo de certificación no encontrado en Census"));
+
+            Response.Headers["Content-Disposition"] = $"inline; filename=\"Certificacion_{fileId}.pdf\"";
+            return File(bytes, "application/pdf");
+        }
+        catch (HttpRequestException ex)
+        {
+            return StatusCode(502, ApiResponse<object>.Fail(
+                "Census inalcanzable",
+                [new ErrorDetail { Code = "CEN_002", Message = ex.Message }]));
+        }
+    }
 }

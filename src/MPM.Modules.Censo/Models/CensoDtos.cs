@@ -30,6 +30,13 @@ public class CensoPersonaDto
     public int TotalRequeridos { get; set; }      // total de skills buscados
     public List<string> Skills { get; set; } = new();
     public List<string> Certificaciones { get; set; } = new();
+    public List<CensoPersonaCertificacionDto> CertificacionesDetalle { get; set; } = new();
+}
+
+public class CensoPersonaCertificacionDto
+{
+    public string Nombre { get; set; } = string.Empty;
+    public string? FileId { get; set; }
 }
 
 /// <summary>Estado + resultado del último match (GET /match-capacidades).</summary>

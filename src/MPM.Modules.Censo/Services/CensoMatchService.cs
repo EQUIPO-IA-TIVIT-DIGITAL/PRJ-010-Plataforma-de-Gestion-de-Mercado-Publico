@@ -226,8 +226,21 @@ public class CensoMatchService(
 
                 if (resultado.Concepto.EsCertificacion)
                 {
-                    if (!dto.Certificaciones.Contains(resultado.Concepto.Termino))
-                        dto.Certificaciones.Add(resultado.Concepto.Termino);
+                    var certInfo = CertificacionCoincidente(persona, resultado.Concepto.Termino);
+                    var certNombre = certInfo?.Nombre ?? resultado.Concepto.Termino;
+                    var fileId = certInfo?.FileId;
+
+                    if (!dto.Certificaciones.Contains(certNombre))
+                        dto.Certificaciones.Add(certNombre);
+
+                    if (!dto.CertificacionesDetalle.Any(cd => cd.Nombre.Equals(certNombre, StringComparison.OrdinalIgnoreCase)))
+                    {
+                        dto.CertificacionesDetalle.Add(new CensoPersonaCertificacionDto
+                        {
+                            Nombre = certNombre,
+                            FileId = fileId
+                        });
+                    }
                 }
                 else
                 {
@@ -253,6 +266,25 @@ public class CensoMatchService(
             .ThenByDescending(x => x.Persona.Cobertura)
             .Select(x => x.Persona)
             .ToList();
+    }
+
+    /// <summary>¿La persona tiene la certificación consultada? Devuelve nombre y fileId.</summary>
+    private static (string Nombre, string? FileId)? CertificacionCoincidente(JsonElement persona, string termino)
+    {
+        if (!persona.TryGetProperty("certifications", out var certs) || certs.ValueKind != JsonValueKind.Array)
+            return null;
+
+        foreach (var c in certs.EnumerateArray())
+        {
+            var nombre = (c.TryGetProperty("name", out var n) && n.ValueKind == JsonValueKind.String) ? n.GetString() : null;
+            if (string.IsNullOrWhiteSpace(nombre)) continue;
+            if (nombre.Contains(termino, StringComparison.OrdinalIgnoreCase) || termino.Contains(nombre, StringComparison.OrdinalIgnoreCase))
+            {
+                var fileId = GetStr(c, "fileId") ?? GetStr(c, "fileID") ?? GetStr(c, "id");
+                return (nombre, fileId);
+            }
+        }
+        return null;
     }
 
     /// <summary>¿La persona tiene la tecnología consultada? Devuelve el nombre canónico (case-insensitive).</summary>

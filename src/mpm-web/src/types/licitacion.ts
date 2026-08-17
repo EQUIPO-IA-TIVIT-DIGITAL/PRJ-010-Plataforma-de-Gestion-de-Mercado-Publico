@@ -1,110 +1,70 @@
-export const TIPO_LICITACION = {
-  LICITACION: 'Licitacion',
-  TRATO_DIRECTO: 'TratoDirecto',
-  CONVENIO_MARCO: 'ConvenioMarco',
-  COMPRA_AGIL: 'CompraAgil',
-} as const;
+// src/types/licitacion.ts
+// Tipos para licitaciones y el flujo de oferta (Fase 1..5)
 
-export type TipoLicitacion = (typeof TIPO_LICITACION)[keyof typeof TIPO_LICITACION];
-
-export interface LicitacionResumen {
+export interface LicitacionListItem {
   id: number;
   codigoExterno: string;
   nombre: string;
-  tipo: TipoLicitacion;
-  estado: { codigo: number; nombre: string };
   organismo: string;
-  fechaPublicacion: string | null;
+  region: string | null;
+  montoNetoEstimado: number | null;
+  moneda: string | null;
   fechaCierre: string | null;
-  montoEstimado: number | null;
-  moneda: string;
-  itemsCount: number;
+  estado: string;
+  estadoOferta: string | null; // no_iniciada | pliegos_descargados | analisis_listo | go | no_go | propuesta_enviada
 }
 
-export interface LicitacionDetalle extends LicitacionResumen {
-  descripcion: string | null;
-  unidadTecnica: string | null;
-  fechaAdjudicacion: string | null;
-  fechaEstimadaAdjudicacion: string | null;
-  link: string | null;
-  items: LicitacionItem[];
-}
-
-export interface LicitacionItem {
-  codigo: number;
-  nombre: string;
-  cantidad: number | null;
-  unidadMedida: string | null;
-  precioEstimado: number | null;
-  categoria: string | null;
-}
-
-export interface LicitacionFilter {
-  page?: number;
-  pageSize?: number;
-  search?: string;
-  estado?: number | null;
-  tipo?: string | null;
-  organismo?: string;
-  fechaDesde?: string | null;
-  fechaHasta?: string | null;
-  sortBy?: string;
-  sortDir?: 'asc' | 'desc';
-  area?: number | null;
-  sinClasificar?: boolean | null;
-}
-
-export interface EstadoConteo {
-  codigoEstado: number;
-  nombreEstado: string;
-  cantidad: number;
-}
-
-export interface LicitacionSearchResult {
-  codigoExterno: string;
-  nombre: string;
-  tipo: TipoLicitacion;
-  organismo: string;
-}
-
-export interface LicitacionNaturalSearchResult {
+export interface LicitacionResumenOferta {
   id: number;
   codigoExterno: string;
   nombre: string;
-  descripcion: string | null;
-  organismo: string | null;
-  codigoEstado: number;
-  tipo: string;
-  fechaPublicacion: string | null;
-  relevancia: number;
+  organismo: string;
+  montoNetoEstimado: number | null;
+  moneda: string | null;
+  fechaCierre: string | null;
+  estadoOferta: string;
+  tieneDocumentos: boolean;
+  totalDocumentos: number;
+  tieneAnalisis: boolean;
+  decision: string | null;
+  tienePropuesta: boolean;
+  totalPropuestas: number;
 }
 
-export interface PaginationInfo {
-  page: number;
-  pageSize: number;
-  totalRecords: number;
-  totalPages: number;
-  hasNext: boolean;
-  hasPrevious: boolean;
+// 036-flujo-comercial-ofertas (Fase 1.1 / 1.2): documentos de la licitación.
+export interface LicitacionDocumentoItem {
+  id: number;
+  licitacionId: number;
+  adjuntoId: number | null;
+  nombreArchivo: string;
+  extension: string;
+  mimeType: string | null;
+  tamanioBytes: number | null;
+  checksumSha256: string | null;
+  origen: string;
+  metadataExtra: Record<string, unknown> | null;
+  createdAt: string;
 }
 
-// 036-flujo-comercial-ofertas (Fase 1): documentos de licitación.
 export interface AdjuntoDocumento {
   id: number;
-  tipo: string;
   nombreArchivo: string;
   tamanioBytes: number | null;
-  mimeType: string | null;
-  sha256Hash: string | null;
-  fechaGrilla: string | null;
-  version: number;
-  esActa: boolean;
-  descargaEstado: string;
-  descargadoAt: string | null;
+  extension: string;
+  fechaDescarga: string | null;
 }
 
 export interface EstadoDocumentos {
-  estadoConjunto: 'pendiente' | 'descargando' | 'completado' | 'error';
+  estadoConjunto: 'no_descargado' | 'descargando' | 'completado' | 'error';
+  documentos: LicitacionDocumentoItem[];
+  descargaError: string | null;
+  conjuntoHash: string | null;
+}
+
+export interface DocumentosLicitacionResponse {
+  licitacionId: number;
+  codigoExterno: string;
+  estadoConjunto: 'no_descargado' | 'descargando' | 'completado' | 'error';
   descargaError: string | null;
   conjuntoHash: string | null;
   documentos: AdjuntoDocumento[];
@@ -146,6 +106,11 @@ export interface IniciarAnalisisComercialResult {
 }
 
 // 036-flujo-comercial-ofertas (Fase 2): match de capacidades TIVIT contra Census (spec censo.md).
+export interface CensoPersonaCertificacion {
+  nombre: string;
+  fileId?: string | null;
+}
+
 export interface CensoPersona {
   nombre: string;
   email: string;
@@ -158,6 +123,7 @@ export interface CensoPersona {
   totalRequeridos: number;
   skills: string[];
   certificaciones: string[];
+  certificacionesDetalle?: CensoPersonaCertificacion[];
 }
 
 export interface CensoResumen {

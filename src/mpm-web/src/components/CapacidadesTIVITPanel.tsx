@@ -59,7 +59,7 @@ function coberturaColor(p: CensoPersona): string {
   return 'red';
 }
 
-/** Skills/certificaciones como tags compactos: primeras N + tooltip con el resto. */
+/** Skills como tags compactos. */
 function TagsConTooltip({ items, max, color }: { items: string[]; max: number; color?: string }) {
   if (items.length === 0) return null;
   const visibles = items.slice(0, max);
@@ -76,6 +76,52 @@ function TagsConTooltip({ items, max, color }: { items: string[]; max: number; c
           <Tag style={{ marginInlineEnd: 0, fontSize: 11 }}>+{restantes}</Tag>
         </Tooltip>
       )}
+    </Space>
+  );
+}
+
+/** Certificaciones interactivas: al hacer clic en una con archivo adjunto se previsualiza el PDF. */
+function CertificacionesTags({ persona }: { persona: CensoPersona }) {
+  const { message } = AntdApp.useApp();
+  const certs = persona.certificacionesDetalle && persona.certificacionesDetalle.length > 0
+    ? persona.certificacionesDetalle
+    : (persona.certificaciones || []).map((c) => ({ nombre: c, fileId: null }));
+
+  if (certs.length === 0) return null;
+
+  const handleDescargar = async (fileId: string, _nombre: string) => {
+    try {
+      const token = localStorage.getItem('mpm_auth_token') || sessionStorage.getItem('mpm_auth_token');
+      const res = await fetch(`/api/v1/censo/certificaciones/archivo/${encodeURIComponent(fileId)}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!res.ok) throw new Error('No se pudo obtener el archivo de certificación desde Census');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      window.open(url, '_blank');
+    } catch (e) {
+      message.error(e instanceof Error ? e.message : 'Error al abrir certificación');
+    }
+  };
+
+  return (
+    <Space size={[4, 2]} wrap>
+      {certs.map((c) => (
+        <Tooltip key={c.nombre} title={c.fileId ? 'Ver documento de certificación (PDF)' : 'Certificación registrada en Census'}>
+          <Tag
+            color="purple"
+            style={{
+              marginInlineEnd: 0,
+              fontSize: 11,
+              cursor: c.fileId ? 'pointer' : 'default',
+              userSelect: 'none',
+            }}
+            onClick={c.fileId ? () => void handleDescargar(c.fileId!, c.nombre) : undefined}
+          >
+            {c.nombre} {c.fileId ? '📄' : ''}
+          </Tag>
+        </Tooltip>
+      ))}
     </Space>
   );
 }
@@ -219,7 +265,7 @@ export function CapacidadesTIVITPanel({ codigoExterno }: Props) {
                       {p.cargo} · {p.email}
                     </Typography.Text>
                     <TagsConTooltip items={p.skills} max={4} color="geekblue" />
-                    <TagsConTooltip items={p.certificaciones} max={3} color="purple" />
+                    <CertificacionesTags persona={p} />
                   </Space>
                 }
               />
