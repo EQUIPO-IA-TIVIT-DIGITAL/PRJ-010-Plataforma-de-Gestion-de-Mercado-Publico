@@ -45,10 +45,10 @@ function fmtMoneda(v: unknown): string | null {
 function goNoGoTag(go: string | null) {
   if (!go) return null;
   const map: Record<string, { color: string; label: string; icon: React.ReactNode }> = {
-    strong_go: { color: 'success', label: 'GO FUERTE', icon: <CheckCircleOutlined /> },
-    go: { color: 'green', label: 'GO', icon: <CheckCircleOutlined /> },
-    no_go: { color: 'warning', label: 'NO GO', icon: <ExclamationCircleOutlined /> },
-    strong_no_go: { color: 'error', label: 'STRONG NO GO', icon: <CloseCircleOutlined /> },
+    strong_go: { color: 'success', label: 'OFERTAR PRIORITARIO (GO)', icon: <CheckCircleOutlined /> },
+    go: { color: 'green', label: 'OFERTAR (GO)', icon: <CheckCircleOutlined /> },
+    no_go: { color: 'warning', label: 'NO OFERTAR', icon: <ExclamationCircleOutlined /> },
+    strong_no_go: { color: 'error', label: 'NO OFERTAR (CRÍTICO)', icon: <CloseCircleOutlined /> },
   };
   const m = map[go] ?? { color: 'default', label: go.toUpperCase(), icon: null };
   return (
@@ -180,12 +180,6 @@ export function AnalisisComercialPanel({ codigoExterno }: Props) {
             </Space>
 
             <Space size={8}>
-              {estado.modeloUsado && (
-                <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                  Modelo: <code>{estado.modeloUsado}</code>
-                  {estado.tokensEntrada != null ? ` · ${estado.tokensEntrada.toLocaleString('es-CL')} tokens` : ''}
-                </Typography.Text>
-              )}
               <Button size="small" icon={<ReloadOutlined />} onClick={disparar}>
                 Re-analizar
               </Button>

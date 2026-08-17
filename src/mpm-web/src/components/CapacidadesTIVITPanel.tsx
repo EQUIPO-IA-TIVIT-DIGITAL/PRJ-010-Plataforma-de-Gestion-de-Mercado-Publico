@@ -1,6 +1,26 @@
 import { useMemo, useState } from 'react';
-import { Alert, App as AntdApp, Button, Empty, List, Select, Space, Spin, Switch, Tag, Tooltip, Typography } from 'antd';
-import { ReloadOutlined, SearchOutlined, TeamOutlined } from '@ant-design/icons';
+import {
+  Alert,
+  App as AntdApp,
+  Button,
+  Card,
+  Empty,
+  List,
+  Select,
+  Space,
+  Spin,
+  Switch,
+  Tag,
+  Tooltip,
+  Typography,
+} from 'antd';
+import {
+  ReloadOutlined,
+  SearchOutlined,
+  TeamOutlined,
+  InfoCircleOutlined,
+  PlusOutlined,
+} from '@ant-design/icons';
 import {
   useActualizarPreferenciasCenso,
   useEjecutarMatch,
@@ -71,6 +91,8 @@ export function CapacidadesTIVITPanel({ codigoExterno }: Props) {
   const { data, isLoading, error, refetch } = useMatchCapacidades(codigoExterno);
   const ejecutar = useEjecutarMatch();
   const [verTodas, setVerTodas] = useState(false);
+  const [tecnologiasManuales, setTecnologiasManuales] = useState<string[]>([]);
+  const [sinRequisitosInfo, setSinRequisitosInfo] = useState<string | null>(null);
 
   // Preferencias con defaults (spec: OFF + Chile) mientras no hay fila persistida.
   const pref = prefsData?.data ?? { filtrarPais: false, pais: DEFAULT_PAIS };
@@ -103,17 +125,36 @@ export function CapacidadesTIVITPanel({ codigoExterno }: Props) {
     );
   };
 
-  const buscar = () => {
+  const buscar = (overrideTechs?: string[]) => {
     if (!codigoExterno) return;
-    // Override por licitación: la preferencia actual viaja en el body (body > preferencias).
+    setSinRequisitosInfo(null);
+
+    const techs = overrideTechs ?? tecnologiasManuales;
+    const body: { filtrarPais?: boolean; pais?: string; tecnologias?: string[] } = {
+      filtrarPais: pref.filtrarPais,
+      pais: pref.pais,
+    };
+    if (techs.length > 0) {
+      body.tecnologias = techs;
+    }
+
     ejecutar.mutate(
-      { codigoExterno, body: { filtrarPais: pref.filtrarPais, pais: pref.pais } },
+      { codigoExterno, body },
       {
         onSuccess: (r) => {
           const n = r.data.resumen.totalPersonas;
           message.success(`Match completado: ${n} ${n === 1 ? 'persona encontrada' : 'personas encontradas'}`);
         },
-        onError: (e) => message.error(e instanceof Error ? e.message : 'No se pudo ejecutar el match'),
+        onError: (e) => {
+          const msg = e instanceof Error ? e.message : 'No se pudo ejecutar el match';
+          if (msg.includes('CEN_001') || msg.toLowerCase().includes('sin requisitos') || msg.toLowerCase().includes('certificaciones')) {
+            setSinRequisitosInfo(
+              'Esta licitación no contiene certificaciones ni requisitos tecnológicos TI en sus bases. Puedes ingresar habilidades o perfiles manualmente abajo para consultar en Census.',
+            );
+          } else {
+            message.error(msg);
+          }
+        },
       },
     );
   };
@@ -200,12 +241,17 @@ export function CapacidadesTIVITPanel({ codigoExterno }: Props) {
   };
 
   return (
-    <>
-      <Typography.Title level={5} style={{ marginTop: 24 }}>
-        Match de capacidades TIVIT
-      </Typography.Title>
+    <div style={{ padding: '8px 0' }}>
+      <div style={{ marginBottom: 16 }}>
+        <Typography.Title level={5} style={{ margin: 0 }}>
+          Match de Capacidades TIVIT (Census)
+        </Typography.Title>
+        <Typography.Text type="secondary" style={{ fontSize: 13 }}>
+          Cruce automático de los requerimientos y perfiles de la licitación con el catálogo de colaboradores y habilidades de TIVIT.
+        </Typography.Text>
+      </div>
 
-      <Space wrap style={{ marginBottom: 12 }}>
+      <Space wrap style={{ marginBottom: 16 }}>
         <Space size={8}>
           <Typography.Text>Filtrar por país</Typography.Text>
           <Switch
@@ -230,15 +276,50 @@ export function CapacidadesTIVITPanel({ codigoExterno }: Props) {
           icon={<SearchOutlined />}
           loading={ejecutar.isPending}
           disabled={!codigoExterno || prefsLoading}
-          onClick={buscar}
+          onClick={() => buscar()}
           data-testid="btn-buscar-capacidades"
         >
-          {match ? 'Actualizar match' : 'Buscar capacidades'}
+          {match ? 'Actualizar match' : 'Buscar capacidades para esta licitación'}
         </Button>
       </Space>
 
+      {sinRequisitosInfo && (
+        <Alert
+          type="warning"
+          showIcon
+          icon={<InfoCircleOutlined />}
+          style={{ marginBottom: 16 }}
+          message="Sin requisitos tecnológicos automáticos"
+          description={
+            <div>
+              <p style={{ margin: '0 0 8px 0' }}>{sinRequisitosInfo}</p>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                <Select
+                  mode="tags"
+                  style={{ minWidth: 320, flex: 1 }}
+                  placeholder="Ej: PostgreSQL, Docker, Gestión de Proyectos, Linux..."
+                  value={tecnologiasManuales}
+                  onChange={setTecnologiasManuales}
+                />
+                <Button
+                  type="primary"
+                  icon={<SearchOutlined />}
+                  loading={ejecutar.isPending}
+                  disabled={tecnologiasManuales.length === 0}
+                  onClick={() => buscar(tecnologiasManuales)}
+                >
+                  Buscar con estas tecnologías
+                </Button>
+              </div>
+            </div>
+          }
+        />
+      )}
+
       {isLoading && !estado ? (
-        <Spin />
+        <div style={{ textAlign: 'center', padding: 30 }}>
+          <Spin tip="Consultando estado de capacidades..." />
+        </div>
       ) : error && !estado ? (
         <Alert
           type="error"
@@ -252,12 +333,14 @@ export function CapacidadesTIVITPanel({ codigoExterno }: Props) {
           }
         />
       ) : !estado || estado.estado === 'no_ejecutado' ? (
-        <Alert
-          type="info"
-          showIcon
-          message="Aún no se ha buscado capacidades TIVIT"
-          description="El match cruza los requisitos de la licitación con las personas de Census (skills y certificaciones) para ver qué cobertura tiene TIVIT."
-        />
+        !sinRequisitosInfo && (
+          <Alert
+            type="info"
+            showIcon
+            message="Aún no se ha buscado capacidades TIVIT"
+            description="El match cruza los requisitos de la licitación con el catálogo de colaboradores de Census (skills y certificaciones) para evaluar la cobertura de TIVIT."
+          />
+        )
       ) : estado.estado === 'error' ? (
         <Alert
           type="error"
@@ -265,7 +348,7 @@ export function CapacidadesTIVITPanel({ codigoExterno }: Props) {
           message="El match de capacidades falló"
           description="Census no respondió o no hay requisitos extraíbles del análisis. Intente nuevamente."
           action={
-            <Button size="small" icon={<ReloadOutlined />} onClick={buscar}>
+            <Button size="small" icon={<ReloadOutlined />} onClick={() => buscar()}>
               Reintentar
             </Button>
           }
@@ -276,6 +359,6 @@ export function CapacidadesTIVITPanel({ codigoExterno }: Props) {
           {renderPersonas()}
         </>
       )}
-    </>
+    </div>
   );
 }
