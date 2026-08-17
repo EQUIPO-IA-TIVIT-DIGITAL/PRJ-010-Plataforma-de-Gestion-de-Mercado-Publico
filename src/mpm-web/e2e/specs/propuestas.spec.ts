@@ -101,25 +101,32 @@ test.describe('Propuestas API — Contratos y validaciones (Fase 3) @regression'
   });
 });
 
-test.describe('Propuestas UI — Panel en detalle de licitacion (Fase 3) @regression', () => {
+test.describe('Propuestas UI — Sala de Oferta y Espacio Comercial (Fase 3) @regression', () => {
   test.beforeEach(async ({ page }) => {
     const loginPage = new LoginPage(page);
     await loginPage.goto();
     await loginPage.loginAndWaitForRedirect('admin@tivit.cl', 'test123');
   });
 
-  test('Apertura de drawer y visualizacion de seccion de propuestas si existe decision @critical', async ({ page }) => {
+  test('Apertura de drawer y navegacion a la Sala de Oferta a pantalla completa con pestañas @critical', async ({ page }) => {
     const licitacionesPage = new LicitacionesPage(page);
     await licitacionesPage.waitForReady();
     await licitacionesPage.clickFirstRow();
 
-    const propuestasPanel = new PropuestasPanel(page);
+    // El drawer debe mostrar el CTA hacia la Sala de Oferta
+    const btnSalaOferta = page.getByTestId('btn-abrir-sala-oferta');
+    await expect(btnSalaOferta).toBeVisible({ timeout: 5000 });
+    await btnSalaOferta.click();
 
-    // Si la licitación ya tiene decisión, el panel de avisos o propuesta debe estar montado
-    const panelAvisosVisible = await propuestasPanel.selectDestinatarios.isVisible().catch(() => false);
-    if (panelAvisosVisible) {
-      await expect(propuestasPanel.selectDestinatarios).toBeVisible();
-      await expect(propuestasPanel.avisarButton).toBeVisible();
-    }
+    // Debe navegar a /licitaciones/:codigo/oferta
+    await expect(page).toHaveURL(/\/licitaciones\/.*\/oferta/);
+    await expect(page.getByRole('heading', { level: 4, name: /Sala de Oferta/i })).toBeVisible({ timeout: 5000 });
+
+    // Deben estar visibles las pestañas del flujo comercial
+    await expect(page.getByRole('tab', { name: /1\. Bases y Pliegos/i })).toBeVisible();
+    await expect(page.getByRole('tab', { name: /2\. Análisis IA/i })).toBeVisible();
+    await expect(page.getByRole('tab', { name: /3\. Capacidades TIVIT/i })).toBeVisible();
+    await expect(page.getByRole('tab', { name: /4\. Decisión GO\/NO GO/i })).toBeVisible();
+    await expect(page.getByRole('tab', { name: /5\. Propuesta Comercial/i })).toBeVisible();
   });
 });

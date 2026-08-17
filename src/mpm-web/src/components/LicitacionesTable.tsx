@@ -1,5 +1,6 @@
 import { Table, Tooltip, Button, message } from 'antd';
-import { StarOutlined, StarFilled, LoadingOutlined } from '@ant-design/icons';
+import { StarOutlined, StarFilled, LoadingOutlined, RocketOutlined } from '@ant-design/icons';
+import { useNavigate } from 'react-router-dom';
 import type { ColumnsType } from 'antd/es/table';
 import type { LicitacionResumen, PaginationInfo } from '../types/licitacion';
 import { useEsSeguida, useSeguirToggle } from '../hooks/useLicitaciones';
@@ -77,6 +78,7 @@ function isClosingSoon(fechaCierre: string | null): boolean {
 }
 
 export function LicitacionesTable({ dataSource, pagination, loading, onRowClick, onPageChange }: Props) {
+  const navigate = useNavigate();
   const columns: ColumnsType<LicitacionResumen> = [
     {
       title: 'Código',
@@ -169,6 +171,26 @@ export function LicitacionesTable({ dataSource, pagination, loading, onRowClick,
           </span>
         );
       },
+    },
+    {
+      title: '',
+      key: 'oferta',
+      width: 44,
+      align: 'center',
+      render: (_: unknown, record: LicitacionResumen) => (
+        <Tooltip title="Abrir Sala de Oferta y Análisis IA">
+          <Button
+            type="text"
+            size="small"
+            icon={<RocketOutlined style={{ color: '#1677ff', fontSize: 14 }} />}
+            onClick={(e) => {
+              e.stopPropagation();
+              navigate(`/licitaciones/${encodeURIComponent(record.codigoExterno)}/oferta`);
+            }}
+            data-testid={`btn-sala-oferta-${record.codigoExterno}`}
+          />
+        </Tooltip>
+      ),
     },
     {
       title: '',
