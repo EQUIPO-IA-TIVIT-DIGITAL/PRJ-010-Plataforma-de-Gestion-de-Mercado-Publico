@@ -134,3 +134,55 @@ public sealed class RecomendacionResumenDto
     public int Posibles { get; init; }
     public int Descartados { get; init; }
 }
+
+public sealed class GenerarPropuestaRequest
+{
+    public List<long>? CapitulosIds { get; set; }
+    public List<long>? CertificacionesIds { get; set; }
+    public List<long>? ExperienciasIds { get; set; }
+}
+
+public sealed class GenerarPropuestaResponse
+{
+    public long PropuestaId { get; init; }
+    public int Version { get; init; }
+    public string Estado { get; init; } = "generada";
+    public string RutaDescarga { get; init; } = string.Empty;
+    public string GeneradoPor { get; init; } = string.Empty;
+    public DateTime GeneradoAt { get; init; }
+    public PropuestaResumenDto Resumen { get; init; } = new();
+}
+
+public sealed class PropuestaResumenDto
+{
+    public int Capitulos { get; init; }
+    public int Certificaciones { get; init; }
+    public int CertificacionesSinPdf { get; init; }
+    public int Experiencias { get; init; }
+    public string ArchivosStorage { get; init; } = "local";
+}
+
+public sealed class PropuestaHistorialDto
+{
+    public long PropuestaId { get; init; }
+    public int Version { get; init; }
+    public string Estado { get; init; } = string.Empty;
+    public int Capitulos { get; init; }
+    public int Certificaciones { get; init; }
+    public int Experiencias { get; init; }
+    public string? GeneradoPor { get; init; }
+    public DateTime? GeneradoAt { get; init; }
+    public string? RutaDescarga { get; set; }
+}
+
+public sealed class PropuestaEstadoRequest
+{
+    public string Estado { get; set; } = string.Empty;
+}
+
+public sealed class PropuestaCatalogSnapshot
+{
+    public IReadOnlyList<CapituloCatalogoDto> Capitulos { get; init; } = [];
+    public IReadOnlyList<CertificacionCatalogoDto> Certificaciones { get; init; } = [];
+    public IReadOnlyList<ExperienciaCatalogoDto> Experiencias { get; init; } = [];
+}

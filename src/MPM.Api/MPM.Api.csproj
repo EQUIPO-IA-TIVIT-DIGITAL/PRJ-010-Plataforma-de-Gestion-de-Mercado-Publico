@@ -22,6 +22,10 @@
 
   <ItemGroup>
     <EmbeddedResource Include="Database\Scripts\*.sql" />
+    <Content Include="Templates\tivit_proposal_template.docx">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>Always</CopyToPublishDirectory>
+    </Content>
   </ItemGroup>
 
   <ItemGroup>

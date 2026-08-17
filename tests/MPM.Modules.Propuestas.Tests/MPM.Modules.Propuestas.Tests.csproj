@@ -15,10 +15,16 @@
     </PackageReference>
     <PackageReference Include="FluentAssertions" Version="6.12.0" />
     <PackageReference Include="Moq" Version="4.20.70" />
+    <PackageReference Include="DocumentFormat.OpenXml" Version="3.1.1" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\MPM.Modules.Propuestas\MPM.Modules.Propuestas.csproj" />
     <ProjectReference Include="..\..\src\MPM.Modules.Censo\MPM.Modules.Censo.csproj" />
     <ProjectReference Include="..\..\src\MPM.Core\MPM.Core.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\..\src\MPM.Api\Templates\tivit_proposal_template.docx" Link="Templates\tivit_proposal_template.docx">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 </Project>

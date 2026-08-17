@@ -16,6 +16,7 @@ public sealed class PropuestasExceptionFilter : IExceptionFilter
             PropuestasHandler.PropuestasDataException ex => (ex.Code switch { "PRO_001" => 404, "PRO_002" => 409, _ => 500 }, ex.Code, ex.Message),
             CensusCertificationSyncService.CensusPayloadTooLargeException ex => (400, "VAL_008", ex.Message),
             PropuestasRecomendacionService.RecomendacionException ex => (ex.Code == "LIC_001" ? 404 : 422, ex.Code, ex.Message),
+            PropuestaService.PropuestaException ex => (StatusFor(ex.Code), ex.Code, ex.Message),
             HttpRequestException ex => (502, "CEN_002", ex.Message),
             _ => (500, "SYS_001", "Error interno del módulo Propuestas"),
         };
@@ -24,4 +25,13 @@ public sealed class PropuestasExceptionFilter : IExceptionFilter
             message, [new ErrorDetail { Code = code, Message = message }])) { StatusCode = status };
         context.ExceptionHandled = true;
     }
+
+    private static int StatusFor(string code) => code switch
+    {
+        "LIC_001" or "PRO_001" => 404,
+        "PRO_002" => 409,
+        "PRO_003" or "PRO_006" or "PRO_008" => 422,
+        "VAL_001" or "VAL_007" => 400,
+        _ => 500,
+    };
 }

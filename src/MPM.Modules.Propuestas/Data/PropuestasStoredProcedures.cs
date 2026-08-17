@@ -20,4 +20,10 @@ public static class PropuestasStoredProcedures
     public const string CapitulosInsertar = "CALL usp_CatalogoCapitulos_Insertar(@p_titulo, @p_contenido_markdown, @p_orden, @p_id, @p_error_msg)";
     public const string CapitulosActualizar = "CALL usp_CatalogoCapitulos_Actualizar(@p_id, @p_titulo, @p_contenido_markdown, @p_orden, @p_activo, @p_error_msg)";
     public const string CapitulosEliminar = "CALL usp_CatalogoCapitulos_Eliminar(@p_id, @p_error_msg)";
+
+    public const string DecisionObtener = "SELECT * FROM usp_LicitacionesDecision_Obtener(@p_licitacion_id)";
+    public const string PropuestaGenerar = "CALL usp_Propuestas_Generar(@p_licitacion_id, @p_capitulos_json, @p_certificaciones_json, @p_experiencias_json, @p_ruta_archivo, @p_generado_por, @p_version, @p_id, @p_error_msg)";
+    public const string PropuestasListar = "SELECT * FROM usp_Propuestas_Listar(@p_licitacion_id, @p_estado, @p_offset, @p_limit)";
+    public const string PropuestaObtener = "SELECT * FROM usp_Propuestas_Obtener(@p_id)";
+    public const string PropuestaEstadoActualizar = "CALL usp_Propuestas_ActualizarEstado(@p_id, @p_estado, @p_error_msg)";
 }

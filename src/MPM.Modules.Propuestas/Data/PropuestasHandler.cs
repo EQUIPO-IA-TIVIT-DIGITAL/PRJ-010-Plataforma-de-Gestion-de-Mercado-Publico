@@ -118,6 +118,81 @@ public class PropuestasHandler(DbConnectionFactory dbFactory)
     public virtual async Task EliminarCapituloAsync(long id, CancellationToken ct = default)
         => await ExecuteMutationAsync<MutationResult>(PropuestasStoredProcedures.CapitulosEliminar, new { p_id = id, p_error_msg = "" });
 
+    public virtual Task<CatalogoPage<CapituloCatalogoDto>> ListarCapitulosActivosAsync(CancellationToken ct = default)
+        => ListarCapitulosAsync(null, true, 1, 1000, ct);
+
+    public virtual Task<CatalogoPage<CertificacionCatalogoDto>> ListarCertificacionesActivasAsync(CancellationToken ct = default)
+        => ListarCertificacionesAsync(null, true, null, 1, 1000, ct);
+
+    public virtual Task<CatalogoPage<ExperienciaCatalogoDto>> ListarExperienciasActivasAsync(CancellationToken ct = default)
+        => ListarExperienciasAsync(null, true, 1, 1000, ct);
+
+    public virtual async Task<DecisionProposalRow?> ObtenerDecisionAsync(long licitacionId, CancellationToken ct = default)
+    {
+        await using var conn = _dbFactory.Create();
+        return await conn.QuerySingleOrDefaultAsync<DecisionProposalRow>(
+            PropuestasStoredProcedures.DecisionObtener,
+            new { p_licitacion_id = licitacionId }, commandType: CommandType.Text);
+    }
+
+    public virtual async Task<ProposalMutationResult> GenerarPropuestaAsync(
+        long licitacionId, string capitulosJson, string certificacionesJson, string experienciasJson,
+        string rutaArchivo, string generadoPor, CancellationToken ct = default)
+    {
+        await using var conn = _dbFactory.Create();
+        var result = await conn.QuerySingleAsync<ProposalMutationResult>(
+            PropuestasStoredProcedures.PropuestaGenerar,
+            new
+            {
+                p_licitacion_id = licitacionId,
+                p_capitulos_json = capitulosJson,
+                p_certificaciones_json = certificacionesJson,
+                p_experiencias_json = experienciasJson,
+                p_ruta_archivo = rutaArchivo,
+                p_generado_por = generadoPor,
+                p_version = 0,
+                p_id = 0L,
+                p_error_msg = "",
+            }, commandType: CommandType.Text);
+        ThrowIfError(result.ErrorMessage);
+        return result;
+    }
+
+    public virtual async Task<CatalogoPage<PropuestaHistorialDto>> ListarPropuestasAsync(
+        long licitacionId, string? estado, int page, int size, CancellationToken ct = default)
+    {
+        await using var conn = _dbFactory.Create();
+        var rows = (await conn.QueryAsync<PropuestaRow>(
+            PropuestasStoredProcedures.PropuestasListar,
+            new { p_licitacion_id = licitacionId, p_estado = estado, p_offset = (page - 1) * size, p_limit = size },
+            commandType: CommandType.Text)).ToList();
+        var total = rows.FirstOrDefault()?.TotalCount ?? 0;
+        return new CatalogoPage<PropuestaHistorialDto>
+        {
+            Items = rows.Select(ToHistorialDto).ToList(),
+            Page = page,
+            Size = size,
+            TotalRecords = total,
+            TotalPages = Pages(total, size),
+        };
+    }
+
+    public virtual async Task<PropuestaRow?> ObtenerPropuestaAsync(long propuestaId, CancellationToken ct = default)
+    {
+        await using var conn = _dbFactory.Create();
+        return await conn.QuerySingleOrDefaultAsync<PropuestaRow>(
+            PropuestasStoredProcedures.PropuestaObtener,
+            new { p_id = propuestaId }, commandType: CommandType.Text);
+    }
+
+    public virtual async Task ActualizarEstadoPropuestaAsync(long propuestaId, string estado, CancellationToken ct = default)
+    {
+        var result = await ExecuteMutationAsync<MutationResult>(
+            PropuestasStoredProcedures.PropuestaEstadoActualizar,
+            new { p_id = propuestaId, p_estado = estado, p_error_msg = "" });
+        ThrowIfError(result.ErrorMessage);
+    }
+
     private async Task<ExperienciaCatalogoDto?> ObtenerExperienciaAsync(long id, CancellationToken ct)
     {
         await using var conn = _dbFactory.Create();
@@ -158,6 +233,28 @@ public class PropuestasHandler(DbConnectionFactory dbFactory)
     private static ExperienciaCatalogoDto ToDto(ExperienciaRow row) => new() { Id = row.Id, Titulo = row.Titulo, Cliente = row.Cliente, Descripcion = row.Descripcion, FechaInicio = row.FechaInicio, FechaFin = row.FechaFin, MontoUsd = row.MontoUsd, Pais = row.Pais, Activo = row.Activo, CreatedAt = row.CreatedAt, UpdatedAt = row.UpdatedAt };
     private static CertificacionCatalogoDto ToDto(CertificacionRow row) => new() { Id = row.Id, Nombre = row.Nombre, FileIdCensus = row.FileIdCensus, Institucion = row.Institucion, Vigencia = row.Vigencia, Activo = row.Activo, CreatedAt = row.CreatedAt, UpdatedAt = row.UpdatedAt };
     private static CapituloCatalogoDto ToDto(CapituloRow row) => new() { Id = row.Id, Titulo = row.Titulo, ContenidoMarkdown = row.ContenidoMarkdown, Orden = row.Orden, Activo = row.Activo, CreatedAt = row.CreatedAt, UpdatedAt = row.UpdatedAt };
+    private static PropuestaHistorialDto ToHistorialDto(PropuestaRow row) => new()
+    {
+        PropuestaId = row.Id,
+        Version = row.Version,
+        Estado = row.Estado,
+        Capitulos = CountJsonItems(row.CapitulosSeleccionados),
+        Certificaciones = CountJsonItems(row.CertificacionesIds),
+        Experiencias = CountJsonItems(row.ExperienciasIds),
+        GeneradoPor = row.GeneradoPor,
+        GeneradoAt = row.GeneradoAt,
+    };
+
+    private static int CountJsonItems(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json)) return 0;
+        try
+        {
+            using var doc = JsonDocument.Parse(json);
+            return doc.RootElement.ValueKind == JsonValueKind.Array ? doc.RootElement.GetArrayLength() : 0;
+        }
+        catch (JsonException) { return 0; }
+    }
 
     private sealed class ExperienciaRow { public long Id { get; set; } public string Titulo { get; set; } = ""; public string Cliente { get; set; } = ""; public string? Descripcion { get; set; } public DateOnly? FechaInicio { get; set; } public DateOnly? FechaFin { get; set; } public decimal? MontoUsd { get; set; } public string? Pais { get; set; } public bool Activo { get; set; } public DateTime CreatedAt { get; set; } public DateTime UpdatedAt { get; set; } public long TotalCount { get; set; } }
     private sealed class CertificacionRow { public long Id { get; set; } public string Nombre { get; set; } = ""; public string NombreNormalizado { get; set; } = ""; public string? FileIdCensus { get; set; } public string? Institucion { get; set; } public string? Vigencia { get; set; } public bool Activo { get; set; } public DateTime CreatedAt { get; set; } public DateTime UpdatedAt { get; set; } public long TotalCount { get; set; } }
@@ -167,3 +264,34 @@ public class PropuestasHandler(DbConnectionFactory dbFactory)
 
 public sealed record CertificationSyncItem(string Nombre, string NombreNormalizado, string? FileIdCensus, string? Institucion, string? Vigencia);
 public sealed class CensusSyncMutationResult { public int Insertadas { get; set; } public int Actualizadas { get; set; } public int SinArchivo { get; set; } }
+
+public sealed class ProposalMutationResult
+{
+    public long Id { get; set; }
+    public int Version { get; set; }
+    public string? ErrorMessage { get; set; }
+}
+
+public sealed class DecisionProposalRow
+{
+    public long LicitacionId { get; set; }
+    public string? Decision { get; set; }
+    public string? Motivo { get; set; }
+}
+
+public sealed class PropuestaRow
+{
+    public long Id { get; set; }
+    public long LicitacionId { get; set; }
+    public int Version { get; set; }
+    public string? CapitulosSeleccionados { get; set; }
+    public string? CertificacionesIds { get; set; }
+    public string? ExperienciasIds { get; set; }
+    public string? RutaArchivo { get; set; }
+    public string Estado { get; set; } = string.Empty;
+    public string? GeneradoPor { get; set; }
+    public DateTime? GeneradoAt { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
+    public long TotalCount { get; set; }
+}

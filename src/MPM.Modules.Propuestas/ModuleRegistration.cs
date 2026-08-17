@@ -14,6 +14,12 @@ public static class ModuleRegistration
         services.AddScoped<PropuestasCatalogoService>();
         services.AddScoped<CensusCertificationSyncService>();
         services.AddScoped<PropuestasRecomendacionService>();
+        services.AddSingleton<ProposalTemplateProvider>();
+        services.AddScoped<IProposalLicitacionLookup, ProposalLicitacionLookup>();
+        services.AddScoped<ICertificationFileProvider, CensusCertificationFileProvider>();
+        services.AddScoped<IProposalSummaryProvider, AnalisisProposalSummaryProvider>();
+        services.AddScoped<DocxProposalGenerator>();
+        services.AddScoped<IPropuestaService, PropuestaService>();
         return services;
     }
 }
