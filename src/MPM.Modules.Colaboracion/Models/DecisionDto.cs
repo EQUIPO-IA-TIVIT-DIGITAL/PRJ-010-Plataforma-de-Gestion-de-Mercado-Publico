@@ -18,6 +18,7 @@ public class DecisionDto
     public string? DecididoPor { get; set; }          // email del gerente (JWT)
     public DateTime? DecididoAt { get; set; }
     public List<string>? Notificados { get; set; }    // Fase 3 (queda NULL)
+    public DateTime? NotificadoAt { get; set; }
 }
 
 /// <summary>Estado vigente de la decisión (GET /decision) para la ficha de la licitación.</summary>
@@ -31,4 +32,5 @@ public class DecisionEstadoDto
     public string? DecididoPor { get; set; }
     public DateTime? DecididoAt { get; set; }
     public List<string>? Notificados { get; set; }
+    public DateTime? NotificadoAt { get; set; }
 }

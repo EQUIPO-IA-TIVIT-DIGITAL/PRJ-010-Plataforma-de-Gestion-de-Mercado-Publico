@@ -76,6 +76,7 @@ public class DecisionHandler(DbConnectionFactory dbFactory)
         public string? DecididoPor { get; set; }
         public DateTime? DecididoAt { get; set; }
         public string? Notificados { get; set; } // JSONB → string (Fase 3 lo estructura)
+        public DateTime? NotificadoAt { get; set; }
     }
 
     private class RegistrarResult

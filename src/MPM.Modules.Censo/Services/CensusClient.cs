@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using MPM.Modules.Censo.Models;
 
 namespace MPM.Modules.Censo.Services;
 
@@ -78,6 +79,50 @@ public class CensusClient(
     {
         using var resp = await EnviarConRetryAsync($"/services/knowledge/certifications/file/{Uri.EscapeDataString(fileId)}", ct);
         return await resp.Content.ReadAsByteArrayAsync(ct);
+    }
+
+    /// <summary>
+    /// Lee la fuente de archivos de certificaciones de Fase 3. Sólo devuelve la proyección
+    /// necesaria para sincronizar el catálogo; no expone el payload crudo ni nombres/emails.
+    /// </summary>
+    public virtual async Task<List<CensusCertificationRecord>> GetUserCertificationsAsync(CancellationToken ct = default)
+    {
+        using var resp = await EnviarConRetryAsync("/intellectual-capital/user-certifications", ct);
+        var json = await resp.Content.ReadAsStringAsync(ct);
+        return ParseUserCertifications(json);
+    }
+
+    internal static List<CensusCertificationRecord> ParseUserCertifications(string json)
+    {
+        using var doc = JsonDocument.Parse(json);
+        var root = doc.RootElement;
+        if (root.ValueKind == JsonValueKind.Object)
+        {
+            foreach (var property in new[] { "data", "items", "results" })
+                if (root.TryGetProperty(property, out var nested) && nested.ValueKind == JsonValueKind.Array)
+                {
+                    root = nested;
+                    break;
+                }
+        }
+        if (root.ValueKind != JsonValueKind.Array) return [];
+
+        var result = new List<CensusCertificationRecord>();
+        foreach (var item in root.EnumerateArray())
+        {
+            var certification = GetString(item, "certificationTypeName")
+                ?? GetString(item, "certificationName");
+            if (string.IsNullOrWhiteSpace(certification)) continue;
+
+            result.Add(new CensusCertificationRecord(
+                certification,
+                GetFileId(item),
+                GetString(item, "institution") ?? GetString(item, "institutionName") ?? GetString(item, "issuingOrganization"),
+                GetString(item, "validity") ?? GetString(item, "vigencia") ?? GetString(item, "validUntil") ?? GetString(item, "expirationDate"),
+                GetString(item, "userId") ?? GetString(item, "userID"),
+                GetString(item, "corporateId") ?? GetString(item, "corporateID")));
+        }
+        return result;
     }
 
     // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -157,5 +202,30 @@ public class CensusClient(
         if (!string.IsNullOrWhiteSpace(security))
             req.Headers.TryAddWithoutValidation("x-security", security);
         return req;
+    }
+
+    private static string? GetFileId(JsonElement item)
+    {
+        var direct = GetString(item, "fileId") ?? GetString(item, "fileID");
+        if (!string.IsNullOrWhiteSpace(direct)) return direct;
+        if (!item.TryGetProperty("file", out var file)) return null;
+        if (file.ValueKind == JsonValueKind.String) return file.GetString();
+        if (file.ValueKind == JsonValueKind.Object)
+            return GetString(file, "fileId") ?? GetString(file, "fileID") ?? GetString(file, "id");
+        if (file.ValueKind == JsonValueKind.Array)
+            return file.EnumerateArray().Select(x => GetString(x, "fileId") ?? GetString(x, "fileID") ?? GetString(x, "id"))
+                .FirstOrDefault(x => !string.IsNullOrWhiteSpace(x));
+        return null;
+    }
+
+    private static string? GetString(JsonElement item, string name)
+    {
+        if (item.ValueKind != JsonValueKind.Object || !item.TryGetProperty(name, out var value)) return null;
+        return value.ValueKind switch
+        {
+            JsonValueKind.String => value.GetString(),
+            JsonValueKind.Number => value.GetRawText(),
+            _ => null,
+        };
     }
 }

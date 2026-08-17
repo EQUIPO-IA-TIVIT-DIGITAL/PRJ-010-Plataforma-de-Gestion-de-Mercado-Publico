@@ -89,3 +89,15 @@ public class CensoPreferenciasUpdateDto
     public bool? FiltrarPais { get; set; }
     public string? Pais { get; set; }
 }
+
+/// <summary>
+/// Proyección acotada del endpoint Census user-certifications. Los identificadores de
+/// usuario sólo viven en memoria durante la sincronización y nunca se persisten en MPM.
+/// </summary>
+public sealed record CensusCertificationRecord(
+    string CertificationTypeName,
+    string? FileId,
+    string? Institution,
+    string? Validity,
+    string? UserId,
+    string? CorporateId);

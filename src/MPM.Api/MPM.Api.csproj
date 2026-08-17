@@ -29,6 +29,7 @@
     <ProjectReference Include="..\MPM.Core\MPM.Core.csproj" />
     <ProjectReference Include="..\MPM.Modules.Licitaciones\MPM.Modules.Licitaciones.csproj" />
     <ProjectReference Include="..\MPM.Modules.Censo\MPM.Modules.Censo.csproj" />
+    <ProjectReference Include="..\MPM.Modules.Propuestas\MPM.Modules.Propuestas.csproj" />
     <ProjectReference Include="..\MPM.Modules.Catalogo\MPM.Modules.Catalogo.csproj" />
     <ProjectReference Include="..\MPM.Modules.Mensajeria\MPM.Modules.Mensajeria.csproj" />
     <ProjectReference Include="..\MPM.Modules.Auth\MPM.Modules.Auth.csproj" />

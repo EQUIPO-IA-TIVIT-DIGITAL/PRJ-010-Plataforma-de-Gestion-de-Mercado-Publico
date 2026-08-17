@@ -50,6 +50,7 @@ public class DecisionService(DecisionHandler handler)
             DecididoPor = decididoPor,
             DecididoAt = DateTime.UtcNow,
             Notificados = null, // DEC-R010: Fase 3.
+            NotificadoAt = null,
         };
     }
 
@@ -81,6 +82,7 @@ public class DecisionService(DecisionHandler handler)
             DecididoPor = row.DecididoPor,
             DecididoAt = row.DecididoAt,
             Notificados = ParseNotificados(row.Notificados),
+            NotificadoAt = row.NotificadoAt,
         };
     }
 
