@@ -48,7 +48,7 @@ function getFileIcon(nombre: string) {
 
 export function DocumentosLicitacionPanel({ codigoExterno, onIrAAnalisis }: Props) {
   const { message } = AntdApp.useApp();
-  const { data: estadoData, isLoading: estadoLoading } = useEstadoDocumentos(codigoExterno);
+  const { data: estadoData, isLoading: estadoLoading, refetch } = useEstadoDocumentos(codigoExterno);
   const descargarMutation = useDescargarDocumentos();
   const estado = estadoData?.data;
 
@@ -61,19 +61,22 @@ export function DocumentosLicitacionPanel({ codigoExterno, onIrAAnalisis }: Prop
   useEffect(() => {
     let timer: any;
     if (enProgreso) {
-      timer = setInterval(() => setSegundosTranscurridos((prev) => prev + 1), 1000);
+      timer = setInterval(() => {
+        setSegundosTranscurridos((prev) => prev + 1);
+        void refetch();
+      }, 1500);
     } else {
       setSegundosTranscurridos(0);
     }
     return () => clearInterval(timer);
-  }, [enProgreso]);
+  }, [enProgreso, refetch]);
 
   const iniciarDescarga = (forzar = false) => {
     descargarMutation.mutate(
       { codigoExterno, forzar },
       {
         onSuccess: () => {
-          message.info('Extracción iniciada en segundo plano con Playwright');
+          message.info('Descarga de documentos iniciada en segundo plano');
         },
         onError: (e) => {
           message.error(e instanceof Error ? e.message : 'No se pudo iniciar la descarga');
@@ -102,7 +105,7 @@ export function DocumentosLicitacionPanel({ codigoExterno, onIrAAnalisis }: Prop
             )}
           </Typography.Title>
           <Typography.Text type="secondary" style={{ fontSize: 13 }}>
-            Descarga bajo demanda y extracción automatizada desde Mercado Público sin colisiones de sesión.
+            Descarga bajo demanda y extracción automatizada desde Mercado Público.
           </Typography.Text>
         </div>
 
@@ -152,7 +155,7 @@ export function DocumentosLicitacionPanel({ codigoExterno, onIrAAnalisis }: Prop
             borderColor: '#91caff',
           }}
         >
-          <Space orientation="vertical" size={12} style={{ width: '100%' }}>
+          <Space direction="vertical" size={12} style={{ width: '100%' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <Space>
                 <SyncOutlined spin style={{ fontSize: 20, color: '#1677ff' }} />
@@ -166,7 +169,7 @@ export function DocumentosLicitacionPanel({ codigoExterno, onIrAAnalisis }: Prop
             <Progress percent={99} status="active" showInfo={false} />
 
             <Typography.Text type="secondary" style={{ fontSize: 13 }}>
-              El agente Playwright está autenticando en el portal, superando la ventana de adjuntos y descargando las bases en segundo plano. Esta sección se actualizará sola automáticamente en cuanto finalice.
+              Descargando las bases y documentos oficiales desde Mercado Público. Esta sección se actualizará automáticamente una vez finalizada la extracción.
             </Typography.Text>
           </Space>
         </Card>

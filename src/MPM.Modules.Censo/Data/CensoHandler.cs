@@ -91,21 +91,49 @@ public class CensoHandler(DbConnectionFactory dbFactory)
             new { p_licitacion_id = licitacionId });
 
         if (row == null || row.Estado != "completado" || string.IsNullOrWhiteSpace(row.ResultadoJson))
-            return new AnalisisRequisitosResult(false, new List<string>());
+            return new AnalisisRequisitosResult(false, new List<string>(), new List<string>());
 
         var certificaciones = new List<string>();
+        var tecnologias = new List<string>();
         try
         {
             using var doc = JsonDocument.Parse(row.ResultadoJson);
             var root = doc.RootElement;
-            if (root.TryGetProperty("requisitos_tecnicos", out var rt) &&
-                rt.TryGetProperty("certificaciones_requeridas", out var certs) &&
-                certs.ValueKind == JsonValueKind.Array)
+            if (root.TryGetProperty("requisitos_tecnicos", out var rt))
             {
-                foreach (var c in certs.EnumerateArray())
+                if (rt.TryGetProperty("certificaciones_requeridas", out var certs) && certs.ValueKind == JsonValueKind.Array)
                 {
-                    if (c.ValueKind == JsonValueKind.String && !string.IsNullOrWhiteSpace(c.GetString()))
-                        certificaciones.Add(c.GetString()!);
+                    foreach (var c in certs.EnumerateArray())
+                    {
+                        var s = c.ValueKind == JsonValueKind.String ? c.GetString() : null;
+                        if (!string.IsNullOrWhiteSpace(s))
+                        {
+                            if (s.Length <= 60)
+                                certificaciones.Add(s);
+                            else
+                                tecnologias.Add(s); // Oraciones largas se envían a expansión de conceptos
+                        }
+                    }
+                }
+
+                if (rt.TryGetProperty("personal_requerido", out var personal) && personal.ValueKind == JsonValueKind.Array)
+                {
+                    foreach (var p in personal.EnumerateArray())
+                    {
+                        var s = p.ValueKind == JsonValueKind.String ? p.GetString() : null;
+                        if (!string.IsNullOrWhiteSpace(s))
+                            tecnologias.Add(s);
+                    }
+                }
+
+                if (rt.TryGetProperty("infraestructura_requerida", out var infra) && infra.ValueKind == JsonValueKind.Array)
+                {
+                    foreach (var i in infra.EnumerateArray())
+                    {
+                        var s = i.ValueKind == JsonValueKind.String ? i.GetString() : null;
+                        if (!string.IsNullOrWhiteSpace(s))
+                            tecnologias.Add(s);
+                    }
                 }
             }
         }
@@ -114,10 +142,10 @@ public class CensoHandler(DbConnectionFactory dbFactory)
             // Resultado corrupto → sin requisitos extraíbles (CEN_001).
         }
 
-        return new AnalisisRequisitosResult(true, certificaciones);
+        return new AnalisisRequisitosResult(true, certificaciones, tecnologias);
     }
 
-    public record AnalisisRequisitosResult(bool TieneAnalisisCompletado, List<string> Certificaciones);
+    public record AnalisisRequisitosResult(bool TieneAnalisisCompletado, List<string> Certificaciones, List<string> Tecnologias);
 
     private class AnalisisRequisitosRow
     {

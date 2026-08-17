@@ -176,10 +176,10 @@ public class CensoMatchService(
         if (!analisis.TieneAnalisisCompletado)
             throw new SinAnalisisException("No hay un análisis comercial completado para esta licitación");
 
-        if (analisis.Certificaciones.Count == 0)
-            throw new SinRequisitosException("La licitación no tiene requisitos (certificaciones) extraíbles para el match");
+        if (analisis.Certificaciones.Count == 0 && analisis.Tecnologias.Count == 0)
+            throw new SinRequisitosException("La licitación no tiene requisitos ni tecnologías extraíbles para el match");
 
-        return (new List<string>(), analisis.Certificaciones);
+        return (analisis.Tecnologias, analisis.Certificaciones);
     }
 
     /// <summary>Precedencia del país (CEN-R010): body del match > preferencias > defaults.</summary>
