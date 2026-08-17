@@ -30,6 +30,7 @@ import {
   useMatchCapacidades,
   usePreferenciasCenso,
 } from '../hooks/useCenso';
+import { apiDownload } from '../lib/apiClient';
 import type { CensoMatchResult, CensoPersona } from '../types/licitacion';
 
 // Selector de país de la preferencia (spec censo.md §3: Paises).
@@ -131,12 +132,7 @@ function CertificacionesTags({ persona }: { persona: CensoPersona }) {
 
   const handleDescargar = async (fileId: string, _nombre: string) => {
     try {
-      const token = localStorage.getItem('mpm_auth_token') || sessionStorage.getItem('mpm_auth_token');
-      const res = await fetch(`/api/v1/censo/certificaciones/archivo/${encodeURIComponent(fileId)}`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
-      if (!res.ok) throw new Error('No se pudo obtener el archivo de certificación desde Census');
-      const blob = await res.blob();
+      const blob = await apiDownload(`/api/v1/censo/certificaciones/archivo/${encodeURIComponent(fileId)}`);
       const url = URL.createObjectURL(blob);
       window.open(url, '_blank');
     } catch (e) {

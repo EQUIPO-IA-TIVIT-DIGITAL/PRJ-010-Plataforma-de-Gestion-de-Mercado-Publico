@@ -37,6 +37,7 @@ import dayjs from 'dayjs';
 import { PageHeader } from '../components/PageHeader';
 import { StatusBadge } from '../components/StatusBadge';
 import { useCatalogos } from '../hooks/useCatalogos';
+import { apiDownload } from '../lib/apiClient';
 import {
   useActualizarExperiencia,
   useCatalogoCapitulos,
@@ -49,7 +50,7 @@ import {
   useSincronizarCertificacionesCensus,
 } from '../hooks/usePropuestas';
 import type { CatalogoCapitulo, CatalogoCertificacion, CatalogoExperiencia } from '../types/propuestas';
-import type { EstadoItem, MonedaItem } from '../types/catalogo';
+import type { EstadoItem, MonedaItem, TipoLicitacionItem } from '../types/catalogo';
 import type { StatusBadgeVariant } from '../components/StatusBadge';
 
 const ESTADO_VARIANT: Record<number, StatusBadgeVariant> = {
@@ -90,6 +91,15 @@ export function CatalogoPage() {
 
   const [modalCertVisible, setModalCertVisible] = useState(false);
   const [formCert] = Form.useForm();
+
+  const tiposAgrupados = useMemo(() => {
+    const vistos = new Set<string>();
+    return (mpData?.tiposLicitacion ?? []).filter((t) => {
+      if (vistos.has(t.nombre)) return false;
+      vistos.add(t.nombre);
+      return true;
+    });
+  }, [mpData?.tiposLicitacion]);
 
   // ── Casos de Éxito / Experiencias ──────────────────────────────────────────
   const experiencias = experienciasQuery.data?.data?.items ?? [];
@@ -207,12 +217,7 @@ export function CatalogoPage() {
 
   const handleVerArchivoCert = async (fileId: string) => {
     try {
-      const token = localStorage.getItem('mpm_auth_token') || sessionStorage.getItem('mpm_auth_token');
-      const res = await fetch(`/api/v1/censo/certificaciones/archivo/${encodeURIComponent(fileId)}`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
-      if (!res.ok) throw new Error('No se pudo obtener el archivo');
-      const blob = await res.blob();
+      const blob = await apiDownload(`/api/v1/censo/certificaciones/archivo/${encodeURIComponent(fileId)}`);
       const url = URL.createObjectURL(blob);
       window.open(url, '_blank');
     } catch (e) {
@@ -495,13 +500,13 @@ export function CatalogoPage() {
               children: (
                 <div style={{ padding: '8px 0' }}>
                   <Typography.Title level={5} style={{ marginBottom: 12 }}>
-                    Estados de Licitación en Mercado Público
+                    Estados de Licitación en Mercado Público ({mpData?.estadosLicitacion?.length ?? 0})
                   </Typography.Title>
                   <Table<EstadoItem>
                     size="small"
                     rowKey="codigo"
                     loading={mpLoading}
-                    dataSource={mpData?.estados ?? []}
+                    dataSource={mpData?.estadosLicitacion ?? []}
                     pagination={false}
                     style={{ marginBottom: 24 }}
                     columns={[
@@ -516,7 +521,23 @@ export function CatalogoPage() {
                   />
 
                   <Typography.Title level={5} style={{ marginBottom: 12 }}>
-                    Monedas Reconocidas
+                    Tipos de Licitación ({tiposAgrupados.length})
+                  </Typography.Title>
+                  <Table<TipoLicitacionItem>
+                    size="small"
+                    rowKey="codigo"
+                    loading={mpLoading}
+                    dataSource={tiposAgrupados}
+                    pagination={false}
+                    style={{ marginBottom: 24 }}
+                    columns={[
+                      { title: 'Nombre', dataIndex: 'nombre', key: 'nombre', render: (v: string) => <span style={{ fontWeight: 500 }}>{v}</span> },
+                      { title: 'Código', dataIndex: 'codigo', key: 'codigo', width: 120, render: (c: string) => <Tag color="blue">{c}</Tag> },
+                    ]}
+                  />
+
+                  <Typography.Title level={5} style={{ marginBottom: 12 }}>
+                    Monedas Reconocidas ({mpData?.monedas?.length ?? 0})
                   </Typography.Title>
                   <Table<MonedaItem>
                     size="small"
