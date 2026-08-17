@@ -47,6 +47,7 @@ export default function App() {
           <Route path="/analisis" element={<AnalisisListPage />} />
           <Route path="/analisis/ejecutivo" element={<EjecutivoDashboardPage />} />
           <Route path="/analisis/:id" element={<AnalisisWorkspacePage />} />
+          <Route path="/analisis/workspace/:id" element={<AnalisisWorkspacePage />} />
           <Route path="/analisis/:id/dashboard" element={<AnalisisDashboardPage />} />
           <Route path="/analisis/:id/chat" element={<AnalisisChatPage />} />
           <Route path="/notificaciones" element={<NotificacionesPage />} />

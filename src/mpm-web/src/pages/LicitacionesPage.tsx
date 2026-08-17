@@ -13,6 +13,7 @@ import {
   Tooltip,
   Typography,
   theme,
+  message,
 } from 'antd';
 import {
   FileTextOutlined,
@@ -25,6 +26,8 @@ import {
   MessageOutlined,
   BarChartOutlined,
   EyeOutlined,
+  PlusOutlined,
+  CheckCircleOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { LicitacionFilterBar } from '../components/LicitacionFilterBar';
@@ -42,7 +45,7 @@ import {
   useSeguirToggle,
   useEstadisticasEstado,
 } from '../hooks/useLicitaciones';
-import { useLicitacionesInteresListado } from '../hooks/useLicitacionesInteres';
+import { useLicitacionesInteresListado, useMarcarInteres } from '../hooks/useLicitacionesInteres';
 import { useLicitacionDetalle } from '../hooks/useLicitacionDetalle';
 import type { LicitacionResumen, LicitacionFilter } from '../types/licitacion';
 
@@ -85,7 +88,7 @@ export function LicitacionesPage() {
   const [naturalQuery, setNaturalQuery] = useState('');
   const [submittedNaturalQuery, setSubmittedNaturalQuery] = useState('');
 
-  // Filtro de búsqueda rápida en pestaña seguidas
+  // Filtro de búsqueda rápida en pestañas
   const [filtroSeguidas, setFiltroSeguidas] = useState('');
   const [filtroInteres, setFiltroInteres] = useState('');
 
@@ -98,6 +101,7 @@ export function LicitacionesPage() {
   const { data: seguidasData, isLoading: seguidasLoading } = useLicitacionesSeguidas();
   const { data: interesData, isLoading: interesLoading } = useLicitacionesInteresListado();
   const toggleSeguir = useSeguirToggle();
+  const marcarInteres = useMarcarInteres();
 
   const licitaciones = useMemo(() => data?.data?.items ?? [], [data]);
   const pagination = useMemo(() => {
@@ -134,6 +138,7 @@ export function LicitacionesPage() {
     return interesLista.filter(
       (i) =>
         i.licitacionNombre.toLowerCase().includes(q) ||
+        (i.codigoExterno && i.codigoExterno.toLowerCase().includes(q)) ||
         String(i.licitacionId).includes(q) ||
         i.marcadoPor.toLowerCase().includes(q),
     );
@@ -520,9 +525,12 @@ export function LicitacionesPage() {
                     <Button
                       size="small"
                       icon={<BarChartOutlined />}
-                      onClick={() => navigate(`/analisis/${encodeURIComponent(row.codigoExterno)}`)}
+                      onClick={() => {
+                        setSelectedCodigo(row.codigoExterno);
+                        setDrawerOpen(true);
+                      }}
                     >
-                      Análisis IA
+                      Pliegos
                     </Button>
                   </Space>
                 ),
@@ -554,11 +562,28 @@ export function LicitacionesPage() {
             pagination={{ pageSize: 15, showSizeChanger: true }}
             columns={[
               {
-                title: 'ID Licitación',
-                dataIndex: 'licitacionId',
-                key: 'licitacionId',
-                width: 120,
-                render: (id: number) => <Tag color="purple">#{id}</Tag>,
+                title: 'Código',
+                key: 'codigo',
+                width: 150,
+                render: (_, row) => (
+                  row.codigoExterno ? (
+                    <span
+                      style={{
+                        fontFamily: 'monospace',
+                        fontSize: 12,
+                        fontWeight: 700,
+                        color: '#2563eb',
+                        background: '#eff6ff',
+                        padding: '3px 8px',
+                        borderRadius: 6,
+                      }}
+                    >
+                      {row.codigoExterno}
+                    </span>
+                  ) : (
+                    <Tag color="purple">#{row.licitacionId}</Tag>
+                  )
+                ),
               },
               {
                 title: 'Licitación / Oportunidad',
@@ -578,7 +603,7 @@ export function LicitacionesPage() {
               {
                 title: 'Workspace IA',
                 key: 'workspace',
-                width: 140,
+                width: 150,
                 render: (_, row) => (
                   row.workspaceId ? (
                     <Tag color="green" icon={<BarChartOutlined />}>Workspace #{row.workspaceId}</Tag>
@@ -590,7 +615,7 @@ export function LicitacionesPage() {
               {
                 title: 'Discusión Grupal',
                 key: 'conversacion',
-                width: 140,
+                width: 150,
                 render: (_, row) => (
                   row.conversacionId ? (
                     <Tag color="blue" icon={<MessageOutlined />}>Sala #{row.conversacionId}</Tag>
@@ -602,29 +627,72 @@ export function LicitacionesPage() {
               {
                 title: 'Acceso Rápido',
                 key: 'acciones',
-                width: 280,
-                render: (_, row) => (
-                  <Space size={6} wrap>
-                    {row.conversacionId && (
-                      <Button
-                        size="small"
-                        icon={<MessageOutlined />}
-                        onClick={() => navigate(`/mensajes?conversacionId=${row.conversacionId}`)}
-                      >
-                        Discusión
-                      </Button>
-                    )}
-                    {row.workspaceId && (
-                      <Button
-                        size="small"
-                        icon={<BarChartOutlined />}
-                        onClick={() => navigate(`/analisis/workspace/${row.workspaceId}`)}
-                      >
-                        Workspace
-                      </Button>
-                    )}
-                  </Space>
-                ),
+                width: 360,
+                render: (_, row) => {
+                  const tieneWorkspace = !!row.workspaceId;
+                  const tieneConversacion = !!row.conversacionId;
+
+                  return (
+                    <Space size={6} wrap>
+                      {/* Si no tiene workspace o chat, botón para generarlos de inmediato */}
+                      {(!tieneWorkspace || !tieneConversacion) && (
+                        <Button
+                          size="small"
+                          type="primary"
+                          icon={<ThunderboltOutlined />}
+                          loading={marcarInteres.isPending}
+                          style={{ background: '#7e22ce', color: '#fff' }}
+                          onClick={() => {
+                            marcarInteres.mutate(
+                              { licitacionId: row.licitacionId, nombreLicitacion: row.licitacionNombre },
+                              {
+                                onSuccess: () => message.success('Workspace y sala de discusión creados exitosamente'),
+                                onError: () => message.error('Error al generar workspace y sala de discusión'),
+                              },
+                            );
+                          }}
+                        >
+                          Generar Workspace & Chat
+                        </Button>
+                      )}
+
+                      {/* Ir a Ficha Comercial */}
+                      {row.codigoExterno && (
+                        <Button
+                          type="primary"
+                          size="small"
+                          icon={<ThunderboltOutlined />}
+                          style={{ background: '#1677ff', color: '#fff', fontWeight: 600 }}
+                          onClick={() => navigate(`/licitaciones/${encodeURIComponent(row.codigoExterno!)}/oferta`)}
+                        >
+                          Ficha Comercial
+                        </Button>
+                      )}
+
+                      {/* Ir a Sala de Chat */}
+                      {tieneConversacion && (
+                        <Button
+                          size="small"
+                          icon={<MessageOutlined />}
+                          onClick={() => navigate(`/mensajes?conversacionId=${row.conversacionId}`)}
+                        >
+                          Discusión
+                        </Button>
+                      )}
+
+                      {/* Ir a Workspace IA */}
+                      {tieneWorkspace && (
+                        <Button
+                          size="small"
+                          icon={<BarChartOutlined />}
+                          onClick={() => navigate(`/analisis/${row.workspaceId}`)}
+                        >
+                          Workspace
+                        </Button>
+                      )}
+                    </Space>
+                  );
+                },
               },
             ]}
           />

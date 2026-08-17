@@ -1,4 +1,5 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useConversaciones } from './useConversaciones';
 import { useConversacionDetalle } from './useConversacionDetalle';
 import { useMensajes } from './useMensajes';
@@ -11,7 +12,19 @@ import { useSignalR } from './useSignalR';
 import type { ConversacionFilter, MensajeFilter, CrearConversacionRequest, EnviarMensajeRequest, EditarMensajeRequest } from '../types/mensajeria';
 
 export function useChatLogic() {
-  const [selectedConversacionId, setSelectedConversacionId] = useState<number | null>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const paramConversacionId = searchParams.get('conversacionId');
+  const initialId = paramConversacionId ? Number(paramConversacionId) : null;
+  const [selectedConversacionId, setSelectedConversacionId] = useState<number | null>(initialId);
+
+  useEffect(() => {
+    if (paramConversacionId) {
+      const num = Number(paramConversacionId);
+      if (!isNaN(num) && num !== selectedConversacionId) {
+        setSelectedConversacionId(num);
+      }
+    }
+  }, [paramConversacionId]);
   const [filter, setFilter] = useState<ConversacionFilter>({
     page: 1,
     pageSize: 20,
@@ -38,7 +51,8 @@ export function useChatLogic() {
   const handleSelectConversacion = useCallback((id: number) => {
     setSelectedConversacionId(id);
     setMensajeFilter({ page: 1, pageSize: 50, before: null });
-  }, []);
+    setSearchParams({ conversacionId: String(id) }, { replace: true });
+  }, [setSearchParams]);
 
   const handleCrearConversacion = useCallback((data: CrearConversacionRequest) => {
     crearConversacion(data, {
