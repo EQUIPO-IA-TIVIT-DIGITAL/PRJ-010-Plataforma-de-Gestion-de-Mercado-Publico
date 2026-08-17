@@ -81,5 +81,5 @@ public class PropuestasCatalogoService(PropuestasHandler handler)
     private static void Require(string? value, string field) { if (string.IsNullOrWhiteSpace(value)) throw new PropuestasValidationException("VAL_001", $"El campo '{field}' es obligatorio"); }
     private static void ValidateId(long id) { if (id <= 0) throw new PropuestasValidationException("VAL_007", "El id debe ser positivo"); }
     private static void ValidateOrder(int order) { if (order <= 0) throw new PropuestasValidationException("VAL_007", "El orden debe ser positivo"); }
-    private static void ValidatePage(int page, int size) { if (page < 1) throw new PropuestasValidationException("VAL_007", "page debe ser mayor o igual a 1"); if (size < 1 || size > 100) throw new PropuestasValidationException("VAL_007", "size debe estar entre 1 y 100"); }
+    private static void ValidatePage(int page, int size) { if (page < 1) throw new PropuestasValidationException("VAL_007", "page debe ser mayor o igual a 1"); if (size < 1 || size > 1000) throw new PropuestasValidationException("VAL_007", "size debe estar entre 1 y 1000"); }
 }

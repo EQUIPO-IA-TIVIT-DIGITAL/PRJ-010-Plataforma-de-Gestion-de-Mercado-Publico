@@ -17,8 +17,8 @@ import type {
 const BASE = (codigoExterno: string) =>
   `/api/v1/licitaciones/${encodeURIComponent(codigoExterno)}`;
 
-function catalogoUrl(path: string, activo = true): string {
-  const params = new URLSearchParams({ page: '1', size: '200', activo: String(activo) });
+function catalogoUrl(path: string, activo = true, size = 500): string {
+  const params = new URLSearchParams({ page: '1', size: String(size), activo: String(activo) });
   return `/api/v1/propuestas/catalogos/${path}?${params.toString()}`;
 }
 

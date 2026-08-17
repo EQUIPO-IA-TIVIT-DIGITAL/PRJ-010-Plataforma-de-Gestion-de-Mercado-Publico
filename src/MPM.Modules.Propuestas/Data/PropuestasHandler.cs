@@ -239,7 +239,20 @@ public class PropuestasHandler(DbConnectionFactory dbFactory)
     }
 
     private static int Pages(long total, int size) => total == 0 ? 0 : (int)Math.Ceiling(total / (double)size);
-    private static ExperienciaCatalogoDto ToDto(ExperienciaRow row) => new() { Id = row.Id, Titulo = row.Titulo, Cliente = row.Cliente, Descripcion = row.Descripcion, FechaInicio = row.FechaInicio, FechaFin = row.FechaFin, MontoUsd = row.MontoUsd, Pais = row.Pais, Activo = row.Activo, CreatedAt = row.CreatedAt, UpdatedAt = row.UpdatedAt };
+    private static ExperienciaCatalogoDto ToDto(ExperienciaRow row) => new()
+    {
+        Id = row.Id,
+        Titulo = row.Titulo,
+        Cliente = row.Cliente,
+        Descripcion = row.Descripcion,
+        FechaInicio = row.FechaInicio.HasValue ? DateOnly.FromDateTime(row.FechaInicio.Value) : null,
+        FechaFin = row.FechaFin.HasValue ? DateOnly.FromDateTime(row.FechaFin.Value) : null,
+        MontoUsd = row.MontoUsd,
+        Pais = row.Pais,
+        Activo = row.Activo,
+        CreatedAt = row.CreatedAt,
+        UpdatedAt = row.UpdatedAt
+    };
     private static CertificacionCatalogoDto ToDto(CertificacionRow row) => new() { Id = row.Id, Nombre = row.Nombre, FileIdCensus = row.FileIdCensus, Institucion = row.Institucion, Vigencia = row.Vigencia, Activo = row.Activo, CreatedAt = row.CreatedAt, UpdatedAt = row.UpdatedAt };
     private static CapituloCatalogoDto ToDto(CapituloRow row) => new() { Id = row.Id, Titulo = row.Titulo, ContenidoMarkdown = row.ContenidoMarkdown, Orden = row.Orden, Activo = row.Activo, CreatedAt = row.CreatedAt, UpdatedAt = row.UpdatedAt };
     private static PropuestaHistorialDto ToHistorialDto(PropuestaRow row) => new()
@@ -265,7 +278,7 @@ public class PropuestasHandler(DbConnectionFactory dbFactory)
         catch (JsonException) { return 0; }
     }
 
-    private sealed class ExperienciaRow { public long Id { get; set; } public string Titulo { get; set; } = ""; public string Cliente { get; set; } = ""; public string? Descripcion { get; set; } public DateOnly? FechaInicio { get; set; } public DateOnly? FechaFin { get; set; } public decimal? MontoUsd { get; set; } public string? Pais { get; set; } public bool Activo { get; set; } public DateTime CreatedAt { get; set; } public DateTime UpdatedAt { get; set; } public long TotalCount { get; set; } }
+    private sealed class ExperienciaRow { public long Id { get; set; } public string Titulo { get; set; } = ""; public string Cliente { get; set; } = ""; public string? Descripcion { get; set; } public DateTime? FechaInicio { get; set; } public DateTime? FechaFin { get; set; } public decimal? MontoUsd { get; set; } public string? Pais { get; set; } public bool Activo { get; set; } public DateTime CreatedAt { get; set; } public DateTime UpdatedAt { get; set; } public long TotalCount { get; set; } }
     private sealed class CertificacionRow { public long Id { get; set; } public string Nombre { get; set; } = ""; public string NombreNormalizado { get; set; } = ""; public string? FileIdCensus { get; set; } public string? Institucion { get; set; } public string? Vigencia { get; set; } public bool Activo { get; set; } public DateTime CreatedAt { get; set; } public DateTime UpdatedAt { get; set; } public long TotalCount { get; set; } }
     private sealed class CapituloRow { public long Id { get; set; } public string Titulo { get; set; } = ""; public string? ContenidoMarkdown { get; set; } public int Orden { get; set; } public bool Activo { get; set; } public DateTime CreatedAt { get; set; } public DateTime UpdatedAt { get; set; } public long TotalCount { get; set; } }
     private sealed class MutationResult { public long Id { get; set; } public string? ErrorMessage { get; set; } }
