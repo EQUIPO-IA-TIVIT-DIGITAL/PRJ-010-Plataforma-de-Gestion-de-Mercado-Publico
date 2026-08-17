@@ -54,7 +54,19 @@ public class GeminiService(LlmClientResolver resolver, ILogger<GeminiService> lo
         var parts = new List<LlmPart>();
         foreach (var (bytes, fileName, gcsUri) in documentos)
         {
-            parts.Add(new LlmPdfPart(bytes, fileName, gcsUri));
+            var ext = Path.GetExtension(fileName).ToLowerInvariant();
+            if (ext == ".docx" || ext == ".doc" || ext == ".txt")
+            {
+                var text = DocumentContentExtractor.ExtractText(bytes, fileName);
+                if (!string.IsNullOrWhiteSpace(text))
+                {
+                    parts.Add(new LlmTextPart(DocumentContentExtractor.FormatForPrompt(fileName, text)));
+                }
+            }
+            else
+            {
+                parts.Add(new LlmPdfPart(bytes, fileName, gcsUri));
+            }
         }
         parts.Add(new LlmTextPart(prompt));
 

@@ -87,12 +87,10 @@ public class OpenAiCompatClient(
         LlmTextPart t => new { type = "text", text = t.Text },
         LlmPdfPart p => new
         {
-            type = "file",
-            file = new
-            {
-                mime_type = "application/pdf",
-                data = $"data:application/pdf;base64,{Convert.ToBase64String(p.PdfBytes)}"
-            }
+            type = "text",
+            text = DocumentContentExtractor.FormatForPrompt(
+                p.FileName,
+                DocumentContentExtractor.ExtractTextFromPdf(p.PdfBytes))
         },
         _ => throw new ArgumentOutOfRangeException(nameof(part), part, "Tipo de LlmPart no soportado por OpenAI-compatible")
     };

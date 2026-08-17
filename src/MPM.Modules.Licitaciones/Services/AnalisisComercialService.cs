@@ -159,17 +159,18 @@ public class AnalisisComercialService(
     {
         try
         {
-            // Al LLM solo se envían PDFs: Gemini rechaza otros formatos enviados como parte PDF
-            // ("The document has no pages" con archivos xlsx — verificado en vivo 2026-08-16).
-            var pdfs = filas.Where(EsDocumentoPdf).ToList();
-            if (pdfs.Count == 0)
+            // Se analizan documentos PDF, Word (.docx/.doc) y texto plano
+            var analizables = filas.Where(EsDocumentoAnalizable).ToList();
+            if (analizables.Count == 0)
             {
-                await CompletarErrorAsync(analisisId, "Ninguno de los documentos descargados es un PDF analizable por la IA", ct);
+                await CompletarErrorAsync(analisisId, "Ninguno de los documentos descargados es un archivo analizable por la IA (PDF/Word/Texto)", ct);
                 return;
             }
 
-            var documentos = new List<(byte[] Bytes, string FileName, string? GcsUri)>();
-            foreach (var fila in pdfs)
+            var parts = new List<LlmPart>();
+            var documentosCount = 0;
+
+            foreach (var fila in analizables)
             {
                 var bytes = await LeerBytesAsync(fila, ct);
                 if (bytes == null)
@@ -177,17 +178,35 @@ public class AnalisisComercialService(
                     await CompletarErrorAsync(analisisId, $"No se pudo leer el documento {fila.NombreArchivo}", ct);
                     return;
                 }
-                var gcsUri = fila.RutaStorage.StartsWith("gs://", StringComparison.OrdinalIgnoreCase) ? fila.RutaStorage : null;
-                documentos.Add((bytes, fila.NombreArchivo, gcsUri));
+
+                var ext = Path.GetExtension(fila.NombreArchivo).ToLowerInvariant();
+                if (ext == ".docx" || ext == ".doc" || ext == ".txt")
+                {
+                    var text = DocumentContentExtractor.ExtractText(bytes, fila.NombreArchivo);
+                    if (!string.IsNullOrWhiteSpace(text))
+                    {
+                        parts.Add(new LlmTextPart(DocumentContentExtractor.FormatForPrompt(fila.NombreArchivo, text)));
+                        documentosCount++;
+                    }
+                }
+                else
+                {
+                    var gcsUri = fila.RutaStorage.StartsWith("gs://", StringComparison.OrdinalIgnoreCase) ? fila.RutaStorage : null;
+                    parts.Add(new LlmPdfPart(bytes, fila.NombreArchivo, gcsUri));
+                    documentosCount++;
+                }
+            }
+
+            if (documentosCount == 0)
+            {
+                await CompletarErrorAsync(analisisId, "No se pudo extraer contenido útil de los documentos para el análisis", ct);
+                return;
             }
 
             logger.LogInformation("Analizando {Count} documento(s) de la licitación (conjunto {Hash}) con el proveedor IA activo",
-                documentos.Count, HashCorto(conjuntoHash));
+                documentosCount, HashCorto(conjuntoHash));
 
-            var parts = new List<LlmPart>();
-            foreach (var (bytes, fileName, gcsUri) in documentos)
-                parts.Add(new LlmPdfPart(bytes, fileName, gcsUri));
-            parts.Add(new LlmTextPart(PromptAnalisisComercial(documentos.Count)));
+            parts.Add(new LlmTextPart(PromptAnalisisComercial(documentosCount)));
 
             var request = new LlmRequest(
                 Messages: [new LlmMessage("user", parts)],
@@ -223,10 +242,22 @@ public class AnalisisComercialService(
         }
     }
 
-    /// <summary>¿Es un PDF analizable por el LLM? (los anexos xlsx/docx no se envían como parte PDF).</summary>
+    /// <summary>¿Es un PDF analizable por el LLM?</summary>
     internal static bool EsDocumentoPdf(AdjuntoDocumentosHandler.AdjuntoDocumentoFila fila)
         => fila.MimeType?.Equals("application/pdf", StringComparison.OrdinalIgnoreCase) == true
-           || fila.NombreArchivo.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase);
+           || fila.NombreArchivo?.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase) == true;
+
+    /// <summary>¿Es un documento analizable por el LLM? (PDF, Word DOCX/DOC, Texto).</summary>
+    internal static bool EsDocumentoAnalizable(AdjuntoDocumentosHandler.AdjuntoDocumentoFila fila)
+    {
+        var nombre = fila.NombreArchivo?.ToLowerInvariant() ?? "";
+        var mime = fila.MimeType?.ToLowerInvariant() ?? "";
+        return nombre.EndsWith(".pdf") || nombre.EndsWith(".docx") || nombre.EndsWith(".doc") || nombre.EndsWith(".txt")
+               || mime == "application/pdf"
+               || mime == "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+               || mime == "application/msword"
+               || mime == "text/plain";
+    }
 
     private async Task CompletarErrorAsync(long analisisId, string error, CancellationToken ct)
         => await analisisHandler.CompletarAsync(analisisId, "error", null, null, null, null, null, null, null, error, ct);

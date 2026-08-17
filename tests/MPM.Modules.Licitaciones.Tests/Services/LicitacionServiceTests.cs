@@ -25,8 +25,7 @@ public class LicitacionServiceTests
         var dbFactory = new DbConnectionFactory("Host=localhost;Database=unused");
         _handlerMock = new Mock<LicitacionHandler>(dbFactory);
         _semanticaMock = new Mock<ConsultaSemanticaService>(
-            new HttpClient(), new ConfigurationBuilder().Build(),
-            new MPM.Shared.Services.GoogleAdcTokenProvider(),
+            null!,
             NullLogger<ConsultaSemanticaService>.Instance);
 
         _service = new LicitacionService(
