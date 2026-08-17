@@ -209,6 +209,7 @@ export type DecisionValor = 'go' | 'no_go';
 
 /** Decisión registrada (POST /decision) — incluye el snapshot IA (V142 → V144). */
 export interface Decision {
+  decisionId: number | null;
   codigoExterno: string;
   decision: DecisionValor | null;
   motivo: string | null;
@@ -218,6 +219,7 @@ export interface Decision {
   decididoPor: string | null;
   decididoAt: string | null;
   notificados: string[] | null;
+  notificadoAt: string | null;
 }
 
 /** Estado vigente de la decisión (GET /decision) para la ficha de la licitación. */

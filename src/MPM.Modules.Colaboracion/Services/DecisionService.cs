@@ -74,6 +74,7 @@ public class DecisionService(DecisionHandler handler)
 
         return new DecisionEstadoDto
         {
+            DecisionId = row.Id,
             Decidida = !string.IsNullOrWhiteSpace(row.Decision),
             Decision = row.Decision,
             Motivo = row.Motivo,
@@ -86,7 +87,7 @@ public class DecisionService(DecisionHandler handler)
         };
     }
 
-    /// <summary>notificados es JSONB (lista de strings); queda null hasta Fase 3 (DEC-R010).</summary>
+    /// <summary>notificados es JSONB (lista de strings); las filas antiguas pueden tener NULL.</summary>
     private static List<string>? ParseNotificados(string? json)
     {
         if (string.IsNullOrWhiteSpace(json)) return null;

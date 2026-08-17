@@ -135,6 +135,15 @@ public class PropuestasHandler(DbConnectionFactory dbFactory)
             new { p_licitacion_id = licitacionId }, commandType: CommandType.Text);
     }
 
+    public virtual async Task ActualizarDecisionNotificadosAsync(
+        long decisionId, string notificadosJson, CancellationToken ct = default)
+    {
+        var result = await ExecuteMutationAsync<MutationResult>(
+            PropuestasStoredProcedures.DecisionActualizarNotificados,
+            new { p_id = decisionId, p_notificados_json = notificadosJson, p_error_msg = "" });
+        ThrowIfError(result.ErrorMessage);
+    }
+
     public virtual async Task<ProposalMutationResult> GenerarPropuestaAsync(
         long licitacionId, string capitulosJson, string certificacionesJson, string experienciasJson,
         string rutaArchivo, string generadoPor, CancellationToken ct = default)
@@ -274,9 +283,12 @@ public sealed class ProposalMutationResult
 
 public sealed class DecisionProposalRow
 {
+    public long Id { get; set; }
     public long LicitacionId { get; set; }
     public string? Decision { get; set; }
     public string? Motivo { get; set; }
+    public string? Notificados { get; set; }
+    public DateTime? NotificadoAt { get; set; }
 }
 
 public sealed class PropuestaRow

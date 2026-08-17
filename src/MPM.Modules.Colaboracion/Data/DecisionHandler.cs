@@ -68,6 +68,7 @@ public class DecisionHandler(DbConnectionFactory dbFactory)
     /// <summary>Fila de la decisión vigente (mapeo de usp_LicitacionesDecision_Obtener).</summary>
     public class DecisionRow
     {
+        public long Id { get; set; }
         public long LicitacionId { get; set; }
         public string? Decision { get; set; }
         public string? Motivo { get; set; }

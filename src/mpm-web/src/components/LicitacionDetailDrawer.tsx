@@ -5,6 +5,7 @@ import { LicitacionInteresPanel } from './LicitacionInteresPanel';
 import { AnalisisComercialPanel } from './AnalisisComercialPanel';
 import { CapacidadesTIVITPanel } from './CapacidadesTIVITPanel';
 import { DecisionGoNoGoPanel } from './DecisionGoNoGoPanel';
+import { PropuestaPanel } from './PropuestaPanel';
 import { StatusBadge } from './StatusBadge';
 import type { StatusBadgeVariant } from './StatusBadge';
 import { descargarArchivoDocumento, formatTamanio, useDescargarDocumentos, useEstadoDocumentos } from '../hooks/useDocumentosLicitacion';
@@ -207,6 +208,7 @@ export function LicitacionDetailDrawer({ open, data, loading, onClose }: Props) 
           {/* 036-flujo-comercial-ofertas (Fase 2): match de capacidades TIVIT + decisión GO/NO GO */}
           <CapacidadesTIVITPanel codigoExterno={data.codigoExterno} />
           <DecisionGoNoGoPanel codigoExterno={data.codigoExterno} />
+          <PropuestaPanel codigoExterno={data.codigoExterno} />
 
           {/* spec 031 (US5): flujo colaborativo go/no-go */}
           <Typography.Title level={5} style={{ marginTop: 24 }}>

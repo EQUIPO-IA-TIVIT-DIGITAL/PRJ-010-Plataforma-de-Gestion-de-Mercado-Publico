@@ -10,6 +10,7 @@ public class DecisionRequest
 /// <summary>Decisión registrada (POST /decision) — incluye el snapshot IA (V142).</summary>
 public class DecisionDto
 {
+    public long? DecisionId { get; set; }
     public string CodigoExterno { get; set; } = string.Empty;
     public string? Decision { get; set; }            // go | no_go
     public string? Motivo { get; set; }
@@ -24,6 +25,7 @@ public class DecisionDto
 /// <summary>Estado vigente de la decisión (GET /decision) para la ficha de la licitación.</summary>
 public class DecisionEstadoDto
 {
+    public long? DecisionId { get; set; }
     public bool Decidida { get; set; }
     public string? Decision { get; set; }
     public string? Motivo { get; set; }

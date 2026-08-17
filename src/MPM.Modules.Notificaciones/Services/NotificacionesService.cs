@@ -6,6 +6,8 @@ namespace MPM.Modules.Notificaciones.Services;
 
 public class NotificacionesService(NotificacionesHandler handler)
 {
+    public const string DecisionAvisadaTipo = "decision_avisada";
+
     private readonly NotificacionesHandler _handler = handler;
 
     private static readonly JsonSerializerOptions _jsonOptions = new()

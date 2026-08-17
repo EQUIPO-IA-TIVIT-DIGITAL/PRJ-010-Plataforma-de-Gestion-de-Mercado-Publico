@@ -101,4 +101,38 @@ public class DecisionServiceTests
         dto.ScoreConfianza.Should().BeNull();
         _handlerMock.Verify(h => h.RegistrarAsync(10, "go", "Operación viable dentro del plan comercial", null, null, "gerente@tivit.cl", It.IsAny<CancellationToken>()), Times.Once);
     }
+
+    [Fact]
+    public async Task ObtenerAsync_NotificadosNull_MantieneCompatibilidadConFilasAntiguas()
+    {
+        _handlerMock.Setup(h => h.ObtenerAsync(10, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new DecisionHandler.DecisionRow
+            {
+                Id = 7, LicitacionId = 10, Decision = "go", Notificados = null, NotificadoAt = null,
+            });
+
+        var result = await _service.ObtenerAsync(10);
+
+        result.DecisionId.Should().Be(7);
+        result.Notificados.Should().BeNull();
+        result.NotificadoAt.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task ObtenerAsync_NotificadosJsonValido_DeserializaDestinatariosYFecha()
+    {
+        var notifiedAt = new DateTime(2026, 8, 16, 18, 0, 0, DateTimeKind.Utc);
+        _handlerMock.Setup(h => h.ObtenerAsync(10, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new DecisionHandler.DecisionRow
+            {
+                Id = 7, LicitacionId = 10, Decision = "no_go",
+                Notificados = "[\"persona-a@ejemplo.test\",\"persona-b@ejemplo.test\"]",
+                NotificadoAt = notifiedAt,
+            });
+
+        var result = await _service.ObtenerAsync(10);
+
+        result.Notificados.Should().Equal("persona-a@ejemplo.test", "persona-b@ejemplo.test");
+        result.NotificadoAt.Should().Be(notifiedAt);
+    }
 }

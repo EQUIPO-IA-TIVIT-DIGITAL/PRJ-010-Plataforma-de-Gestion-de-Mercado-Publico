@@ -20,5 +20,6 @@
     <ProjectReference Include="..\MPM.Core\MPM.Core.csproj" />
     <ProjectReference Include="..\MPM.Modules.Censo\MPM.Modules.Censo.csproj" />
     <ProjectReference Include="..\MPM.Modules.Licitaciones\MPM.Modules.Licitaciones.csproj" />
+    <ProjectReference Include="..\MPM.Modules.Notificaciones\MPM.Modules.Notificaciones.csproj" />
   </ItemGroup>
 </Project>

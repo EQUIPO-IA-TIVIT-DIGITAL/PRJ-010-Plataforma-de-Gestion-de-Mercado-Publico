@@ -180,6 +180,21 @@ public sealed class PropuestaEstadoRequest
     public string Estado { get; set; } = string.Empty;
 }
 
+public sealed class AvisarRequest
+{
+    public List<string> Destinatarios { get; set; } = [];
+}
+
+public sealed class AvisarResponse
+{
+    public long DecisionId { get; init; }
+    public string CodigoExterno { get; init; } = string.Empty;
+    public string Decision { get; init; } = string.Empty;
+    public List<string> Notificados { get; init; } = [];
+    public DateTime NotificadoAt { get; init; }
+    public int Enviados { get; init; }
+}
+
 public sealed class PropuestaCatalogSnapshot
 {
     public IReadOnlyList<CapituloCatalogoDto> Capitulos { get; init; } = [];

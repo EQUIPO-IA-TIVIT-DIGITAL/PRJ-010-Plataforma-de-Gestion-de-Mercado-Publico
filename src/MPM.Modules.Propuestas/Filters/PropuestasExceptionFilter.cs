@@ -31,6 +31,8 @@ public sealed class PropuestasExceptionFilter : IExceptionFilter
         "LIC_001" or "PRO_001" => 404,
         "PRO_002" => 409,
         "PRO_003" or "PRO_006" or "PRO_008" => 422,
+        "PRO_007" or "PRO_012" => 422,
+        "PRO_011" => 404,
         "VAL_001" or "VAL_007" => 400,
         _ => 500,
     };
