@@ -160,4 +160,13 @@ public class PropuestasApiTests : IClassFixture<CustomWebApplicationFactory>
 
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
+
+    [Fact]
+    public async Task ExportarDrive_SinAuth_ReturnsUnauthorized()
+    {
+        _client.DefaultRequestHeaders.Authorization = null;
+
+        var response = await _client.PostAsync("/api/v1/licitaciones/LIC-TEST/propuestas/1/exportar-drive", null);
+        response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+    }
 }

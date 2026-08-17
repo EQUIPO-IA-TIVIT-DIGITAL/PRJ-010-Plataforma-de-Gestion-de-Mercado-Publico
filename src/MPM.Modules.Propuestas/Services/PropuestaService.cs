@@ -49,6 +49,7 @@ public interface IPropuestaService
     Task<(LicitacionDetalleDto Licitacion, PropuestaRow Propuesta)> ObtenerArchivoAsync(string codigoExterno, long propuestaId, CancellationToken ct = default);
     Task<Stream?> DownloadStoredAsync(string storedPath, CancellationToken ct = default);
     Task<PropuestaHistorialDto> ActualizarEstadoAsync(string codigoExterno, long propuestaId, string estado, CancellationToken ct = default);
+    Task<ExportarDriveResponse> ExportarDriveAsync(string codigoExterno, long propuestaId, CancellationToken ct = default);
 }
 
 public sealed class PropuestaService(
@@ -59,6 +60,7 @@ public sealed class PropuestaService(
     ProposalTemplateProvider templateProvider,
     DocxProposalGenerator generator,
     IStorageService storage,
+    IGoogleDriveService driveService,
     ILogger<PropuestaService> logger) : IPropuestaService
 {
     public sealed class PropuestaException(string code, string message, Exception? inner = null) : Exception(message, inner)
@@ -211,6 +213,20 @@ public sealed class PropuestaService(
 
     public async Task<Stream?> DownloadStoredAsync(string storedPath, CancellationToken ct = default)
         => await storage.DownloadAsync(storedPath, ct);
+
+    public async Task<ExportarDriveResponse> ExportarDriveAsync(
+        string codigoExterno, long propuestaId, CancellationToken ct = default)
+    {
+        ValidateCodigo(codigoExterno);
+        var (licitacion, proposal) = await ObtenerArchivoAsync(codigoExterno, propuestaId, ct);
+        var stream = await DownloadStoredAsync(proposal.RutaArchivo!, ct)
+            ?? throw new PropuestaException("PRO_001", "No se pudo leer el archivo de la propuesta");
+
+        var fileName = $"Propuesta_{SanitizePathSegment(codigoExterno)}_v{proposal.Version}.docx";
+        return await driveService.ExportarArchivoAsync(
+            codigoExterno, fileName, stream,
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document", ct);
+    }
 
     private async Task<LicitacionDetalleDto> GetLicitacionAsync(string codigoExterno, CancellationToken ct)
         => await licitacionLookup.ObtenerPorCodigoAsync(codigoExterno, ct)

@@ -58,7 +58,8 @@ test.describe('Propuestas API — Contratos y validaciones (Fase 3) @regression'
     expect(res.status()).toBeGreaterThanOrEqual(400);
     const body = await res.json();
     expect(body.success).toBe(false);
-    expect(['PRO_003', 'LIC_001']).toContain(body.error?.code);
+    const code = body.errors?.[0]?.code ?? body.error?.code;
+    expect(['PRO_003', 'LIC_001']).toContain(code);
 
     await ctx.dispose();
   });
@@ -75,7 +76,8 @@ test.describe('Propuestas API — Contratos y validaciones (Fase 3) @regression'
     expect(res.status()).toBe(422);
     const body = await res.json();
     expect(body.success).toBe(false);
-    expect(body.error?.code).toBe('PRO_007');
+    const code = body.errors?.[0]?.code ?? body.error?.code;
+    expect(code).toBe('PRO_007');
 
     await ctx.dispose();
   });
@@ -92,7 +94,8 @@ test.describe('Propuestas API — Contratos y validaciones (Fase 3) @regression'
     expect(res.status()).toBe(422);
     const body = await res.json();
     expect(body.success).toBe(false);
-    expect(body.error?.code).toBe('PRO_007');
+    const code = body.errors?.[0]?.code ?? body.error?.code;
+    expect(code).toBe('PRO_007');
 
     await ctx.dispose();
   });

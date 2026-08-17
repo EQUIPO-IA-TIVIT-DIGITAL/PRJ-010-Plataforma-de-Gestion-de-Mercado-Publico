@@ -1,12 +1,19 @@
 # API Spec — Módulo Propuestas (PRO)
 
 **Versión**: 1.0
-**Módulo**: Propuestas (PRO) — `MPM.Modules.Propuestas` (nuevo)
+**Módulo**: Propuestas (PRO) — `MPM.Modules.Propuestas`
 **Generado por**: api-first-spec
 **Fecha**: 2026-08-16
 **Rama**: `036-flujo-comercial-ofertas`
 **Diseño origen**: [docs/design/flujo-ofertas.md](../design/flujo-ofertas.md) (§7 Fase 3, §5, D9, D7.3, D7.5, D7.6, D7.11)
-**HUs de origen**: pendientes
+**HUs de origen**:
+- `HU-PRO-001`: Consulta y mantenimiento de catálogos corporativos (capítulos, experiencias, certificaciones).
+- `HU-PRO-002`: Sincronización de certificaciones con API Census y descarga de PDFs.
+- `HU-PRO-003`: Recomendación inteligente de certificaciones (determinística) y experiencias (IA).
+- `HU-PRO-004`: Generación de propuesta DOCX de 10 capítulos condicionada a decisión GO.
+- `HU-PRO-005`: Historial versionado, descarga DOCX y ciclo de vida (`generada` → `enviada` | `descartada`).
+- `HU-PRO-006`: Avisos in-app de decisiones GO/NO GO a personas seleccionadas a mano.
+- `HU-PRO-007`: Exportación de propuestas y pliegos a Google Drive corporativo.
 
 ---
 
@@ -30,10 +37,9 @@
 - Avisos GO/NO GO a personas elegidas a mano: completa `notificados` de `licitaciones_interes`
   (V144, spec decisiones.md) y reusa el servicio de notificaciones existente
   (MPM.Modules.Notificaciones, V064).
+- Exportación a Google Drive (Bundle D): almacenamiento y exportación de la propuesta DOCX y documentos asociados.
 
 ### Excluded
-- Exportación a Google Drive → **Fase 3.5 / backlog** (decisión abierta del diseño §8: carpeta
-  individual vs. compartida).
 - Carátula con razón social por país dinámica → **Census `companies` devuelve 401 con rol service
   (D7.3)**: la carátula usa texto fijo "TIVIT" (anexo manual para razón social por país — backlog).
 - Chat sobre la propuesta → backlog.

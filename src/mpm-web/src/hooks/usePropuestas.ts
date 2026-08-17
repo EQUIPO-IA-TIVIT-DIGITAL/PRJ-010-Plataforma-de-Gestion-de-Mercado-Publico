@@ -111,3 +111,13 @@ export function useAvisarDecision() {
 export function descargarPropuesta(codigoExterno: string, propuestaId: number): Promise<Blob> {
   return apiDownload(`${BASE(codigoExterno)}/propuestas/${propuestaId}/archivo`);
 }
+
+export function useExportarPropuestaDrive() {
+  return useMutation({
+    mutationFn: (params: { codigoExterno: string; propuestaId: number }) =>
+      apiPost<ApiResponse<ExportarDriveResponse>>(
+        `${BASE(params.codigoExterno)}/propuestas/${params.propuestaId}/exportar-drive`,
+        {},
+      ),
+  });
+}

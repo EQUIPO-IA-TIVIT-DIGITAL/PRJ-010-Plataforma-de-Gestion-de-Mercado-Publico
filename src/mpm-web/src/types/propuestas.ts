@@ -116,4 +116,11 @@ export interface AvisarResponse {
   enviados: number;
 }
 
+export interface ExportarDriveResponse {
+  driveFileId: string;
+  webUrl: string;
+  nombreArchivo: string;
+  exportadoAt: string;
+}
+
 export type PersonaAvisable = Pick<CensoPersona, 'email' | 'nombre' | 'cargo'>;

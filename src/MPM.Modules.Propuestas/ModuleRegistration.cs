@@ -20,6 +20,7 @@ public static class ModuleRegistration
         services.AddScoped<IProposalSummaryProvider, AnalisisProposalSummaryProvider>();
         services.AddScoped<DocxProposalGenerator>();
         services.AddScoped<IPropuestaService, PropuestaService>();
+        services.AddScoped<IGoogleDriveService, GoogleDriveService>();
         services.AddScoped<IDecisionAvisoNotifier, DecisionAvisoNotifier>();
         services.AddScoped<IDecisionAvisoService, DecisionAvisoService>();
         return services;

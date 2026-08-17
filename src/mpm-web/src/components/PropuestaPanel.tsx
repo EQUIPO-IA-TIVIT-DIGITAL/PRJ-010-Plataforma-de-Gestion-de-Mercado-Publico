@@ -15,6 +15,7 @@ import {
 } from 'antd';
 import {
   CheckOutlined,
+  CloudUploadOutlined,
   DownloadOutlined,
   FileTextOutlined,
   MailOutlined,
@@ -30,6 +31,7 @@ import {
   useCatalogoCapitulos,
   useCatalogoCertificaciones,
   useCatalogoExperiencias,
+  useExportarPropuestaDrive,
   useGenerarPropuesta,
   usePropuestasHistorial,
   useRecomendaciones,
@@ -75,6 +77,7 @@ export function PropuestaPanel({ codigoExterno }: Props) {
   const generate = useGenerarPropuesta();
   const updateState = useActualizarEstadoPropuesta();
   const notify = useAvisarDecision();
+  const exportDrive = useExportarPropuestaDrive();
 
   const chapters = chaptersQuery.data?.data?.items ?? [];
   const certifications = certificationsQuery.data?.data?.items ?? [];
@@ -171,6 +174,14 @@ export function PropuestaPanel({ codigoExterno }: Props) {
     updateState.mutate({ codigoExterno, propuestaId: item.propuestaId, estado }, {
       onSuccess: () => message.success(`Propuesta v${item.version}: estado ${estado}`),
       onError: (error) => message.error(error instanceof Error ? error.message : 'No se pudo cambiar el estado'),
+    });
+  };
+
+  const exportarDrive = (item: PropuestaHistorial) => {
+    if (!codigoExterno) return;
+    exportDrive.mutate({ codigoExterno, propuestaId: item.propuestaId }, {
+      onSuccess: (result) => message.success(`Propuesta v${item.version} exportada a Google Drive (${result.data.nombreArchivo})`),
+      onError: (error) => message.error(error instanceof Error ? error.message : 'No se pudo exportar a Drive'),
     });
   };
 
@@ -327,6 +338,7 @@ export function PropuestaPanel({ codigoExterno }: Props) {
                   render: (_, item) => (
                     <Space size={4} wrap>
                       {item.rutaDescarga && <Button type="link" size="small" icon={<DownloadOutlined />} onClick={() => void descargar(item)} data-testid={`btn-descargar-propuesta-${item.propuestaId}`}>DOCX</Button>}
+                      {item.rutaDescarga && <Button type="link" size="small" icon={<CloudUploadOutlined />} loading={exportDrive.isPending} onClick={() => exportarDrive(item)} data-testid={`btn-exportar-drive-${item.propuestaId}`}>Drive</Button>}
                       {item.estado === 'generada' && <Button type="link" size="small" onClick={() => cambiarEstado(item, 'enviada')}>Marcar enviada</Button>}
                       {(item.estado === 'generada' || item.estado === 'enviada') && <Button type="link" danger size="small" onClick={() => cambiarEstado(item, 'descartada')}>Descartar</Button>}
                     </Space>

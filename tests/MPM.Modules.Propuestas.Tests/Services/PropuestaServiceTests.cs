@@ -18,6 +18,7 @@ public class PropuestaServiceTests
     private readonly Mock<IProposalSummaryProvider> _summaryMock;
     private readonly Mock<ICertificationFileProvider> _certFileMock;
     private readonly Mock<IStorageService> _storageMock;
+    private readonly Mock<IGoogleDriveService> _driveMock;
     private readonly ProposalTemplateProvider _templateProvider;
     private readonly DocxProposalGenerator _generator;
 
@@ -28,6 +29,7 @@ public class PropuestaServiceTests
         _summaryMock = new Mock<IProposalSummaryProvider>();
         _certFileMock = new Mock<ICertificationFileProvider>();
         _storageMock = new Mock<IStorageService>();
+        _driveMock = new Mock<IGoogleDriveService>();
 
         _templateProvider = new ProposalTemplateProvider(AppContext.BaseDirectory);
         _generator = new DocxProposalGenerator(_templateProvider);
@@ -43,6 +45,7 @@ public class PropuestaServiceTests
             _templateProvider,
             _generator,
             _storageMock.Object,
+            _driveMock.Object,
             NullLogger<PropuestaService>.Instance);
     }
 
@@ -209,5 +212,42 @@ public class PropuestaServiceTests
 
         var ex = await act.Should().ThrowAsync<PropuestaService.PropuestaException>();
         ex.Which.Code.Should().Be("PRO_001");
+    }
+
+    [Fact]
+    public async Task ExportarDriveAsync_PropuestaValida_ExportaCorrectamente()
+    {
+        var service = CreateService();
+        _lookupMock.Setup(l => l.ObtenerPorCodigoAsync("LIC-100", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new LicitacionDetalleDto { Id = 10, CodigoExterno = "LIC-100" });
+
+        _handlerMock.Setup(h => h.ObtenerPropuestaAsync(5, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new PropuestaRow
+            {
+                Id = 5,
+                LicitacionId = 10,
+                Version = 1,
+                RutaArchivo = "licitaciones/LIC-100/propuestas/file.docx",
+            });
+
+        using var testStream = new MemoryStream([1, 2, 3]);
+        _storageMock.Setup(s => s.DownloadAsync("licitaciones/LIC-100/propuestas/file.docx", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(testStream);
+
+        _driveMock.Setup(d => d.ExportarArchivoAsync(
+                "LIC-100", "Propuesta_LIC-100_v1.docx", It.IsAny<Stream>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ExportarDriveResponse
+            {
+                DriveFileId = "drv-123",
+                WebUrl = "https://drive.google.com/file/d/drv-123/view",
+                NombreArchivo = "Propuesta_LIC-100_v1.docx",
+                ExportadoAt = DateTime.UtcNow,
+            });
+
+        var result = await service.ExportarDriveAsync("LIC-100", 5);
+
+        result.DriveFileId.Should().Be("drv-123");
+        result.WebUrl.Should().Contain("drv-123");
+        _driveMock.Verify(d => d.ExportarArchivoAsync("LIC-100", "Propuesta_LIC-100_v1.docx", It.IsAny<Stream>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 }

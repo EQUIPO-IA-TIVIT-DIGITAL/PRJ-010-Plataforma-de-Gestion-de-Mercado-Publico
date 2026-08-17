@@ -182,6 +182,7 @@ public sealed class DocxProposalGeneratorTests
         return new PropuestaService(
             handler.Object, lookup.Object, summary.Object, files,
             new ProposalTemplateProvider(TemplatePath), CreateGenerator(), storage.Object,
+            new Mock<IGoogleDriveService>().Object,
             NullLogger<PropuestaService>.Instance);
     }
 

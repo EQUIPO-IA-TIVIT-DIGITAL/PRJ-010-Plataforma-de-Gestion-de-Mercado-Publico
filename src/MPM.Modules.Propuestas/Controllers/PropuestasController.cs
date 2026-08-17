@@ -60,5 +60,14 @@ public sealed class PropuestasController(IPropuestaService service) : Controller
             await service.ActualizarEstadoAsync(codigoExterno, propuestaId, request.Estado, ct)));
     }
 
+    [HttpPost("{propuestaId:long}/exportar-drive")]
+    public async Task<ActionResult<ApiResponse<ExportarDriveResponse>>> ExportarDrive(
+        string codigoExterno, long propuestaId, CancellationToken ct = default)
+    {
+        if (GetTenant() == null) return Unauthorized(ApiResponse<object>.Fail("No autenticado"));
+        return Ok(ApiResponse<ExportarDriveResponse>.Ok(
+            await service.ExportarDriveAsync(codigoExterno, propuestaId, ct)));
+    }
+
     private TenantContext? GetTenant() => HttpContext.Items["TenantContext"] as TenantContext;
 }

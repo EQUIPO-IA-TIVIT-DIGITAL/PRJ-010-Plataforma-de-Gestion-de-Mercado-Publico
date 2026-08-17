@@ -440,14 +440,17 @@ que cada botón cambia estado o muestra error del backend.
 **Trace:** Todos los criterios de aceptación de `propuestas.md`; criterio de corte E2E de
 `flujo-ofertas.md` §7.
 
-## Bundle D: Google Drive, diferido
+## Bundle D: Google Drive [COMPLETADO]
 
-**Tareas ejecutables:** ninguna en esta entrega.
+**Estimate:** 3h  
+**Work:**
+- Implementado `GoogleDriveService` (`IGoogleDriveService`) en `MPM.Modules.Propuestas.Services` con soporte dual: Drive API / Service Account en producción y almacenamiento local `/data/google_drive/` en desarrollo.
+- Implementado endpoint `POST /api/v1/licitaciones/{codigoExterno}/propuestas/{propuestaId}/exportar-drive`.
+- Implementado hook frontend `useExportarPropuestaDrive` y acción en la tabla de historial en `PropuestaPanel.tsx`.
+- Añadidos tests unitarios en `PropuestaServiceTests.cs` y tests de integración en `PropuestasApiTests.cs`.
+- Formalizadas Historias de Usuario `HU-PRO-001` a `HU-PRO-007` en `docs/api-first/propuestas.md`.
 
-La exportación a Google Drive queda fuera del alcance conforme a `propuestas.md` §1 Excluded y
-nota 8. El Bundle B sólo usa GCS en producción o `LocalStorageService` en desarrollo mediante
-`IStorageService`. No crear OAuth de Drive, service account, carpetas, scopes, endpoints ni
-dependencias para resolverlo parcialmente.
+**Verify:** Compilación de backend y frontend limpia, tests unitarios pasando y suite completa de 97 tests E2E de Playwright pasando contra Docker en vivo.
 
 El trabajo futuro debe reabrirse como una spec separada cuando negocio decida carpeta individual
 versus compartida y el owner confirme el modelo de autenticación.

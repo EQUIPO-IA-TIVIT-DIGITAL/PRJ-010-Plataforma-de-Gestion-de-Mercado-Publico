@@ -201,3 +201,11 @@ public sealed class PropuestaCatalogSnapshot
     public IReadOnlyList<CertificacionCatalogoDto> Certificaciones { get; init; } = [];
     public IReadOnlyList<ExperienciaCatalogoDto> Experiencias { get; init; } = [];
 }
+
+public sealed class ExportarDriveResponse
+{
+    public string DriveFileId { get; init; } = string.Empty;
+    public string WebUrl { get; init; } = string.Empty;
+    public string NombreArchivo { get; init; } = string.Empty;
+    public DateTime ExportadoAt { get; init; }
+}
