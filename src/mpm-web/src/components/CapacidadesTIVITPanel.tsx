@@ -286,7 +286,7 @@ export function CapacidadesTIVITPanel({ codigoExterno }: Props) {
         {match.tecnologiasExpandidas.length > 0 && (
           <div style={{ marginBottom: 8 }}>
             <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-              Tecnologías consultadas ({match.consultas} consultas, {match.cacheUsadas} de cache):
+              Tecnologías y habilidades evaluadas:
             </Typography.Text>
             <div style={{ marginTop: 4 }}>
               <TagsConTooltip items={match.tecnologiasExpandidas} max={6} />
