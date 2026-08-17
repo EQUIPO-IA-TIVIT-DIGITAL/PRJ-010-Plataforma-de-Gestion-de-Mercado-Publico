@@ -1,9 +1,27 @@
 import { useState } from 'react';
-import { Alert, App as AntdApp, Button, Input, Modal, Space, Spin, Tag, Typography } from 'antd';
-import { CheckCircleOutlined, CloseCircleOutlined, ReloadOutlined, RobotOutlined } from '@ant-design/icons';
+import {
+  Alert,
+  App as AntdApp,
+  Button,
+  Card,
+  Divider,
+  Input,
+  Modal,
+  Space,
+  Spin,
+  Tag,
+  Typography,
+} from 'antd';
+import {
+  CheckCircleOutlined,
+  CloseCircleOutlined,
+  ReloadOutlined,
+  RobotOutlined,
+  AuditOutlined,
+  EditOutlined,
+} from '@ant-design/icons';
 import { useAnalisisComercialEstado } from '../hooks/useAnalisisComercial';
 import { useDecision, useRegistrarDecision } from '../hooks/useCenso';
-import { StatusBadge } from './StatusBadge';
 import type { DecisionEstado } from '../types/licitacion';
 
 const MOTIVO_MIN = 10;
@@ -28,19 +46,15 @@ function formatFecha(iso: string | null): string {
 function recomendacionTag(go: string | null) {
   if (!go) return null;
   const map: Record<string, { color: string; label: string }> = {
-    strong_go: { color: 'success', label: 'GO fuerte' },
-    go: { color: 'green', label: 'GO' },
-    no_go: { color: 'orange', label: 'NO GO' },
-    strong_no_go: { color: 'error', label: 'NO GO fuerte' },
+    strong_go: { color: 'green', label: 'OFERTAR (RECOMENDADO)' },
+    go: { color: 'green', label: 'OFERTAR (GO)' },
+    no_go: { color: 'orange', label: 'NO OFERTAR (NO GO)' },
+    strong_no_go: { color: 'error', label: 'NO OFERTAR (CRÍTICO)' },
   };
-  const m = map[go] ?? { color: 'default', label: go };
-  return <Tag color={m.color}>{m.label}</Tag>;
+  const m = map[go] ?? { color: 'default', label: go.toUpperCase() };
+  return <Tag color={m.color} style={{ fontWeight: 600 }}>{m.label}</Tag>;
 }
 
-/**
- * 036-flujo-comercial-ofertas (Fase 2): decisión formal GO/NO GO del gerente.
- * La IA solo recomienda (vive en el análisis comercial); la decisión es siempre humana.
- */
 export function DecisionGoNoGoPanel({ codigoExterno }: Props) {
   const { message, modal } = AntdApp.useApp();
   const { data, isLoading, error, refetch } = useDecision(codigoExterno);
@@ -52,7 +66,6 @@ export function DecisionGoNoGoPanel({ codigoExterno }: Props) {
 
   const decision: DecisionEstado | null = data?.data ?? null;
   const analisis = analisisData?.data;
-  // Recomendación IA en vivo (del análisis comercial); si no existe, la decisión queda sin respaldo IA.
   const recomendacion = analisis?.estado === 'completado' ? analisis.goNoGo : null;
   const confianza = analisis?.estado === 'completado' ? analisis.scoreConfianza : null;
 
@@ -62,7 +75,11 @@ export function DecisionGoNoGoPanel({ codigoExterno }: Props) {
       { codigoExterno, decision: valor, motivo: mot ?? undefined },
       {
         onSuccess: () => {
-          message.success(valor === 'go' ? 'Decisión GO registrada: TIVIT ofertará esta licitación' : 'Decisión NO GO registrada: TIVIT no ofertará esta licitación');
+          message.success(
+            valor === 'go'
+              ? 'Decisión registrada: TIVIT ofertará en esta licitación'
+              : 'Decisión registrada: Licitación descartada para oferta',
+          );
           setModalNoGo(false);
           setMotivo('');
           setRedecidiendo(false);
@@ -74,10 +91,11 @@ export function DecisionGoNoGoPanel({ codigoExterno }: Props) {
 
   const confirmarGo = () => {
     modal.confirm({
-      title: 'Registrar decisión GO',
+      title: 'Confirmar Decisión: OFERTAR (GO)',
       icon: <CheckCircleOutlined style={{ color: '#52c41a' }} />,
-      content: 'TIVIT ofertará esta licitación y habilita la generación de la propuesta (Fase 3). ¿Confirmas la decisión GO?',
-      okText: 'Sí, registrar GO',
+      content:
+        'Se registrará formalmente la decisión de participar y ofertar en esta licitación, habilitando la elaboración de la propuesta técnica/económica (.docx) y la exportación a Google Drive.',
+      okText: 'Sí, confirmar y ofertar',
       okButtonProps: { type: 'primary' },
       cancelText: 'Cancelar',
       onOk: () => enviarDecision('go', null),
@@ -99,96 +117,131 @@ export function DecisionGoNoGoPanel({ codigoExterno }: Props) {
   };
 
   const renderAcciones = () => (
-    <Space wrap>
+    <Space size={12} wrap style={{ marginTop: 12 }}>
       <Button
         type="primary"
+        size="large"
         icon={<CheckCircleOutlined />}
         loading={registrar.isPending}
         disabled={!codigoExterno}
         onClick={confirmarGo}
         data-testid="btn-decision-go"
+        style={{ background: '#389e0d', borderColor: '#389e0d' }}
       >
-        GO — ofertar
+        OFERTAR (GO)
       </Button>
       <Button
         danger
+        size="large"
         icon={<CloseCircleOutlined />}
         loading={registrar.isPending}
         disabled={!codigoExterno}
         onClick={abrirModalNoGo}
         data-testid="btn-decision-no-go"
       >
-        NO GO — no ofertar
+        NO OFERTAR (NO GO)
       </Button>
       {redecidiendo && (
-        <Button size="small" onClick={() => setRedecidiendo(false)}>
-          Cancelar
+        <Button size="large" onClick={() => setRedecidiendo(false)}>
+          Mantener decisión actual
         </Button>
       )}
     </Space>
   );
 
   const renderDecisionRegistrada = (d: DecisionEstado) => (
-    <Space direction="vertical" size={8} style={{ width: '100%' }} data-testid="badge-decision">
-      <Space wrap>
-        <span data-testid="badge-decision-estado">
-          <StatusBadge
-            variant={d.decision === 'go' ? 'success' : 'error'}
-            label={d.decision === 'go' ? 'GO — TIVIT oferta' : 'NO GO — TIVIT no oferta'}
-          />
-        </span>
-        {d.recomendacionIa && (
-          <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-            Respaldo IA al decidir: {recomendacionTag(d.recomendacionIa)}
-            {d.scoreConfianza != null ? ` (${(d.scoreConfianza * 100).toFixed(0)}%)` : ''}
+    <Card
+      size="small"
+      style={{
+        borderLeft: `5px solid ${d.decision === 'go' ? '#52c41a' : '#ff4d4f'}`,
+        marginBottom: 16,
+      }}
+      data-testid="badge-decision"
+    >
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12 }}>
+        <div>
+          <Space align="center" size={8} style={{ marginBottom: 6 }}>
+            <Tag
+              color={d.decision === 'go' ? 'success' : 'error'}
+              style={{ fontSize: 13, padding: '4px 10px', fontWeight: 700 }}
+            >
+              {d.decision === 'go' ? 'DECISIÓN: OFERTAR (GO)' : 'DECISIÓN: NO OFERTAR (NO GO)'}
+            </Tag>
+            {d.recomendacionIa && (
+              <Typography.Text type="secondary" style={{ fontSize: 13 }}>
+                Sugerencia IA al momento de decidir: {recomendacionTag(d.recomendacionIa)}
+              </Typography.Text>
+            )}
+          </Space>
+
+          {d.motivo && (
+            <Typography.Paragraph style={{ margin: '8px 0 4px 0', fontSize: 13 }}>
+              <Typography.Text strong>Motivo registrado: </Typography.Text>
+              {d.motivo}
+            </Typography.Paragraph>
+          )}
+
+          <Typography.Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 4 }}>
+            <AuditOutlined style={{ marginRight: 4 }} />
+            Registrado por <strong>{d.decididoPor ?? 'Usuario Comercial'}</strong> el {formatFecha(d.decididoAt)}
           </Typography.Text>
-        )}
-      </Space>
-      {d.motivo && (
-        <Typography.Paragraph style={{ marginBottom: 0 }}>
-          <Typography.Text strong>Motivo: </Typography.Text>
-          {d.motivo}
-        </Typography.Paragraph>
-      )}
-      <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-        Decidido por {d.decididoPor ?? '-'} el {formatFecha(d.decididoAt)}
-      </Typography.Text>
-      <Button size="small" onClick={() => setRedecidiendo(true)} data-testid="btn-cambiar-decision">
-        Cambiar decisión
-      </Button>
-    </Space>
+        </div>
+
+        <Button
+          icon={<EditOutlined />}
+          onClick={() => setRedecidiendo(true)}
+          data-testid="btn-cambiar-decision"
+        >
+          Modificar decisión
+        </Button>
+      </div>
+    </Card>
   );
 
   return (
-    <>
-      <Typography.Title level={5} style={{ marginTop: 24 }}>
-        Decisión GO/NO GO
-      </Typography.Title>
-
-      <Space wrap style={{ marginBottom: 12 }}>
-        <Typography.Text type="secondary">
-          <RobotOutlined style={{ marginRight: 6 }} />
-          Recomendación IA:
+    <div style={{ padding: '8px 0' }}>
+      <div style={{ marginBottom: 16 }}>
+        <Typography.Title level={5} style={{ margin: 0 }}>
+          4. Decisión Comercial (GO / NO GO)
+        </Typography.Title>
+        <Typography.Text type="secondary" style={{ fontSize: 13 }}>
+          Postura oficial del equipo comercial respecto a la participación de TIVIT en esta licitación.
         </Typography.Text>
-        {recomendacion ? (
-          <Space size={6}>
-            {recomendacionTag(recomendacion)}
-            {confianza != null && (
-              <Typography.Text type="secondary">Confianza: {(confianza * 100).toFixed(0)}%</Typography.Text>
-            )}
-          </Space>
-        ) : (
-          <Typography.Text type="secondary">sin recomendación IA (analiza los documentos primero)</Typography.Text>
-        )}
-      </Space>
+      </div>
+
+      {/* Banner Orientativo de la IA */}
+      <Card size="small" style={{ marginBottom: 20, background: '#fafafa' }}>
+        <Space wrap align="center">
+          <Typography.Text strong>
+            <RobotOutlined style={{ marginRight: 6, color: '#1677ff' }} />
+            Evaluación orientativa de la IA:
+          </Typography.Text>
+          {recomendacion ? (
+            <Space size={8}>
+              {recomendacionTag(recomendacion)}
+              {confianza != null && (
+                <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                  Nivel de confianza: {(confianza * 100).toFixed(0)}%
+                </Typography.Text>
+              )}
+            </Space>
+          ) : (
+            <Typography.Text type="secondary">
+              Aún no se ha ejecutado el análisis de pliegos con IA.
+            </Typography.Text>
+          )}
+        </Space>
+      </Card>
 
       {isLoading && !decision ? (
-        <Spin />
+        <div style={{ textAlign: 'center', padding: 40 }}>
+          <Spin tip="Consultando decisión comercial..." />
+        </div>
       ) : error && !decision ? (
         <Alert
           type="error"
           showIcon
-          message="No se pudo consultar la decisión"
+          message="No se pudo consultar la decisión comercial"
           description={error instanceof Error ? error.message : 'Intente nuevamente'}
           action={
             <Button size="small" icon={<ReloadOutlined />} onClick={() => refetch()}>
@@ -197,40 +250,40 @@ export function DecisionGoNoGoPanel({ codigoExterno }: Props) {
           }
         />
       ) : !decision || !decision.decidida || redecidiendo ? (
-        <Alert
-          type="info"
-          showIcon
-          message={redecidiendo ? 'Cambiar la decisión registrada' : 'Aún no hay decisión formal'}
-          description={
-            redecidiendo
-              ? 'La nueva decisión reemplaza la anterior (la IA solo recomienda; la decisión es humana).'
-              : 'El gerente decide si TIVIT oferta esta licitación. La decisión queda registrada con quién y cuándo.'
-          }
-          action={renderAcciones()}
-        />
+        <Card style={{ borderColor: '#d9d9d9' }}>
+          <Typography.Title level={5} style={{ marginTop: 0, marginBottom: 8 }}>
+            {redecidiendo ? 'Modificar Decisión Comercial' : 'Registro de Decisión Comercial'}
+          </Typography.Title>
+          <Typography.Paragraph type="secondary" style={{ marginBottom: 16, fontSize: 13 }}>
+            {redecidiendo
+              ? 'Puedes cambiar la postura de participación. La nueva decisión actualizará el expediente comercial y quedará registrada en la auditoría del proceso.'
+              : 'Selecciona formalmente si TIVIT participará y presentará oferta en este proceso licitatorio. El registro almacenará la persona responsable y la fecha exacta.'}
+          </Typography.Paragraph>
+          {renderAcciones()}
+        </Card>
       ) : (
         renderDecisionRegistrada(decision)
       )}
 
+      {/* Modal para justificar NO GO */}
       <Modal
         open={modalNoGo}
-        title="Registrar decisión NO GO"
-        okText="Registrar NO GO"
+        title="Registrar Decisión: NO OFERTAR (NO GO)"
+        okText="Confirmar descarte"
         okButtonProps={{ danger: true, disabled: motivo.trim().length < MOTIVO_MIN }}
         cancelText="Cancelar"
         onOk={confirmarNoGo}
         onCancel={() => setModalNoGo(false)}
         data-testid="modal-motivo-no-go"
       >
-        <Typography.Paragraph>
-          TIVIT no ofertará esta licitación. El motivo es obligatorio (mínimo {MOTIVO_MIN} caracteres) y
-          queda registrado para el expediente comercial.
+        <Typography.Paragraph type="secondary" style={{ fontSize: 13, marginTop: 8 }}>
+          Indica el motivo técnico, comercial o logístico por el cual TIVIT no participará en este proceso (mínimo {MOTIVO_MIN} caracteres). Quedará guardado en el expediente.
         </Typography.Paragraph>
         <Input.TextArea
           rows={4}
           value={motivo}
           onChange={(e) => setMotivo(e.target.value)}
-          placeholder="Ej.: Requisitos técnicos exceden las capacidades actuales y el plazo de entrega es inviable."
+          placeholder="Ej.: Requisitos técnicos incompatibles con el alcance, plazo de entrega inviable o márgenes fuera de política."
           maxLength={4000}
           showCount
           data-testid="input-motivo-no-go"
@@ -244,6 +297,6 @@ export function DecisionGoNoGoPanel({ codigoExterno }: Props) {
           />
         )}
       </Modal>
-    </>
+    </div>
   );
 }
