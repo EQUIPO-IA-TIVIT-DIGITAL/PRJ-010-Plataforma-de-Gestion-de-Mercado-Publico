@@ -15,7 +15,6 @@ import {
   Table,
   Tabs,
   Tag,
-  Tooltip,
   Typography,
 } from 'antd';
 import {
@@ -24,14 +23,12 @@ import {
   SafetyCertificateOutlined,
   TrophyOutlined,
   FileTextOutlined,
-  SyncOutlined,
   PlusOutlined,
   SearchOutlined,
   EditOutlined,
   DeleteOutlined,
   FilePdfOutlined,
   BankOutlined,
-  UserOutlined,
 } from '@ant-design/icons';
 import { useSearchParams } from 'react-router-dom';
 import dayjs from 'dayjs';
@@ -48,7 +45,6 @@ import {
   useCrearExperiencia,
   useEliminarCertificacion,
   useEliminarExperiencia,
-  useSincronizarCertificacionesCensus,
 } from '../hooks/usePropuestas';
 import type { CatalogoCapitulo, CatalogoCertificacion, CatalogoExperiencia } from '../types/propuestas';
 import type { EstadoItem, MonedaItem, TipoLicitacionItem } from '../types/catalogo';
@@ -74,10 +70,8 @@ export function CatalogoPage() {
   const { data: mpData, isLoading: mpLoading } = useCatalogos();
   const experienciasQuery = useCatalogoExperiencias();
   const certsCorporativasQuery = useCatalogoCertificaciones('corporativa');
-  const certsColaboradoresQuery = useCatalogoCertificaciones('colaborador');
   const capitulosQuery = useCatalogoCapitulos();
 
-  const syncCensusMutation = useSincronizarCertificacionesCensus();
   const crearExpMutation = useCrearExperiencia();
   const actualizarExpMutation = useActualizarExperiencia();
   const eliminarExpMutation = useEliminarExperiencia();
@@ -87,7 +81,6 @@ export function CatalogoPage() {
   // Estados locales para filtros y modales
   const [filtroExp, setFiltroExp] = useState('');
   const [filtroCertCorp, setFiltroCertCorp] = useState('');
-  const [filtroCertColab, setFiltroCertColab] = useState('');
 
   const [modalExpVisible, setModalExpVisible] = useState(false);
   const [editingExp, setEditingExp] = useState<CatalogoExperiencia | null>(null);
@@ -204,38 +197,11 @@ export function CatalogoPage() {
     }
   };
 
-  // ── Certificaciones de Colaboradores (Census) ─────────────────────────────
-  const certsColaboradores = certsColaboradoresQuery.data?.data?.items ?? [];
-  const certsColaboradoresFiltradas = useMemo(() => {
-    if (!filtroCertColab.trim()) return certsColaboradores;
-    const q = filtroCertColab.toLowerCase();
-    return certsColaboradores.filter(
-      (c) =>
-        c.nombre.toLowerCase().includes(q) ||
-        (c.institucion && c.institucion.toLowerCase().includes(q)) ||
-        (c.titular && c.titular.toLowerCase().includes(q)),
-    );
-  }, [certsColaboradores, filtroCertColab]);
-
-  const handleSincronizarCensus = () => {
-    syncCensusMutation.mutate(undefined, {
-      onSuccess: (res) => {
-        const d = res.data;
-        message.success(
-          `Sincronización Census completada: ${d?.insertadas ?? 0} nuevas, ${d?.actualizadas ?? 0} actualizadas en ${d?.durationMs ?? 0}ms`,
-        );
-        void certsColaboradoresQuery.refetch();
-      },
-      onError: (err) => message.error(err instanceof Error ? err.message : 'Error al sincronizar con Census'),
-    });
-  };
-
   const handleEliminarCert = async (id: number) => {
     try {
       await eliminarCertMutation.mutateAsync(id);
       message.success('Certificación eliminada');
       void certsCorporativasQuery.refetch();
-      void certsColaboradoresQuery.refetch();
     } catch (e) {
       message.error(e instanceof Error ? e.message : 'Error al eliminar');
     }
@@ -247,7 +213,7 @@ export function CatalogoPage() {
       const url = URL.createObjectURL(blob);
       window.open(url, '_blank');
     } catch (e) {
-      message.error(e instanceof Error ? e.message : 'Error al abrir certificación');
+      message.error(e instanceof Error ? e.message : 'Error al abrir certificación PDF');
     }
   };
 
@@ -258,7 +224,7 @@ export function CatalogoPage() {
     <div>
       <PageHeader
         title="Catálogos Corporativos y del Sistema"
-        subtitle="Administración de casos de éxito, certificaciones de empresa, acreditaciones de especialistas (Census) y parámetros Mercado Público."
+        subtitle="Administración de casos de éxito, certificaciones oficiales de empresa (con visualización PDF), capítulos de propuesta y parámetros Mercado Público."
       />
 
       <Card size="small">
@@ -392,7 +358,7 @@ export function CatalogoPage() {
                     type="info"
                     showIcon
                     message="Acreditaciones Oficiales de TIVIT como Organización"
-                    description="Estas certificaciones son a nombre de TIVIT SpA / TIVIT Latam (ISO 27001, ISO 9001, Tier III, PCI-DSS, Partner Tiers) y se adjuntan en los anexos institucionales de las propuestas comerciales."
+                    description="Certificaciones oficiales a nombre de TIVIT SpA / TIVIT Latam (ISO 27001, ISO 9001, Tier III, PCI-DSS, Partner Tiers oficiales). Puedes abrir y visualizar el PDF oficial de cada certificado haciendo clic en el botón 'Ver Certificado PDF'."
                     style={{ marginBottom: 16 }}
                   />
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 12 }}>
@@ -414,25 +380,23 @@ export function CatalogoPage() {
                     rowKey="id"
                     loading={certsCorporativasQuery.isLoading}
                     dataSource={certsCorporativasFiltradas}
-                    pagination={{ pageSize: 10, showSizeChanger: true }}
+                    pagination={{ pageSize: 12, showSizeChanger: true }}
                     columns={[
                       {
                         title: 'Certificación / Acreditación',
                         dataIndex: 'nombre',
                         key: 'nombre',
                         render: (n: string) => (
-                          <Space align="center">
-                            <Tag color="blue" style={{ fontWeight: 700, fontSize: 12, padding: '2px 8px' }}>
-                              {n}
-                            </Tag>
-                          </Space>
+                          <Tag color="blue" style={{ fontWeight: 700, fontSize: 12, padding: '2px 8px' }}>
+                            {n}
+                          </Tag>
                         ),
                       },
                       {
-                        title: 'Titular / Entidad Certificada',
+                        title: 'Titular Certificado',
                         dataIndex: 'titular',
                         key: 'titular',
-                        width: 220,
+                        width: 200,
                         render: (t: string | null) => (
                           <Tag color="cyan" style={{ fontWeight: 500 }}>
                             <BankOutlined style={{ marginRight: 4 }} />
@@ -444,7 +408,7 @@ export function CatalogoPage() {
                         title: 'Casa Certificadora / Emisora',
                         dataIndex: 'institucion',
                         key: 'institucion',
-                        width: 220,
+                        width: 200,
                         render: (i: string | null) => i || <Typography.Text type="secondary">-</Typography.Text>,
                       },
                       {
@@ -455,9 +419,29 @@ export function CatalogoPage() {
                         render: (v: string | null) => v || <Typography.Text type="secondary">Permanente</Typography.Text>,
                       },
                       {
+                        title: 'Documento Oficial',
+                        key: 'pdf',
+                        width: 180,
+                        render: (_, row) => (
+                          row.fileIdCensus ? (
+                            <Button
+                              type="primary"
+                              size="small"
+                              ghost
+                              icon={<FilePdfOutlined style={{ color: '#ff4d4f' }} />}
+                              onClick={() => void handleVerArchivoCert(row.fileIdCensus!)}
+                            >
+                              Ver Certificado PDF
+                            </Button>
+                          ) : (
+                            <Tag color="default">Sin PDF adjunto</Tag>
+                          )
+                        ),
+                      },
+                      {
                         title: 'Acciones',
                         key: 'acciones',
-                        width: 80,
+                        width: 70,
                         render: (_, row) => (
                           <Popconfirm
                             title="¿Eliminar certificación del catálogo?"
@@ -475,92 +459,7 @@ export function CatalogoPage() {
               ),
             },
 
-            // TAB 3: ACREDITACIONES DE ESPECIALISTAS (CENSUS)
-            {
-              key: 'certificaciones-census',
-              label: (
-                <span style={{ fontWeight: 600 }}>
-                  <SafetyCertificateOutlined style={{ color: '#722ed1' }} /> Especialistas & Census ({certsColaboradores.length})
-                </span>
-              ),
-              children: (
-                <div style={{ padding: '8px 0' }}>
-                  <Alert
-                    type="warning"
-                    showIcon
-                    message="Certificaciones de Capital Humano (Especialistas y Colaboradores)"
-                    description="Diplomas y certificaciones profesionales otorgadas a colaboradores individuales de TIVIT (AWS, Cisco, Scrum, Red Hat, etc.) sincronizadas desde Census. Se utilizan para acreditar perfiles en el capítulo de Equipo de Trabajo."
-                    style={{ marginBottom: 16 }}
-                  />
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 12 }}>
-                    <Input
-                      placeholder="Buscar certificación o institución..."
-                      prefix={<SearchOutlined style={{ color: '#bfbfbf' }} />}
-                      value={filtroCertColab}
-                      onChange={(e) => setFiltroCertColab(e.target.value)}
-                      style={{ maxWidth: 360 }}
-                      allowClear
-                    />
-                    <Button
-                      type="primary"
-                      icon={<SyncOutlined spin={syncCensusMutation.isPending} />}
-                      loading={syncCensusMutation.isPending}
-                      onClick={handleSincronizarCensus}
-                    >
-                      Sincronizar con Census
-                    </Button>
-                  </div>
-
-                  <Table<CatalogoCertificacion>
-                    size="small"
-                    rowKey="id"
-                    loading={certsColaboradoresQuery.isLoading}
-                    dataSource={certsColaboradoresFiltradas}
-                    pagination={{ pageSize: 15, showSizeChanger: true }}
-                    columns={[
-                      {
-                        title: 'Certificación Profesional',
-                        dataIndex: 'nombre',
-                        key: 'nombre',
-                        render: (n: string, row) => (
-                          <Space align="center">
-                            <Tag color="purple" style={{ fontWeight: 600 }}>{n}</Tag>
-                            {row.fileIdCensus && (
-                              <Tooltip title="Ver diploma PDF del especialista acreditado en Census">
-                                <Button
-                                  type="link"
-                                  size="small"
-                                  icon={<FilePdfOutlined style={{ color: '#ff4d4f' }} />}
-                                  onClick={() => void handleVerArchivoCert(row.fileIdCensus!)}
-                                >
-                                  Diploma PDF
-                                </Button>
-                              </Tooltip>
-                            )}
-                          </Space>
-                        ),
-                      },
-                      {
-                        title: 'Entidad Emisora',
-                        dataIndex: 'institucion',
-                        key: 'institucion',
-                        width: 220,
-                        render: (i: string | null) => i || <Typography.Text type="secondary">-</Typography.Text>,
-                      },
-                      {
-                        title: 'Vigencia',
-                        dataIndex: 'vigencia',
-                        key: 'vigencia',
-                        width: 140,
-                        render: (v: string | null) => v || <Typography.Text type="secondary">Permanente</Typography.Text>,
-                      },
-                    ]}
-                  />
-                </div>
-              ),
-            },
-
-            // TAB 4: CAPÍTULOS DE LA PROPUESTA DOCX
+            // TAB 3: CAPÍTULOS DE LA PROPUESTA DOCX
             {
               key: 'capitulos',
               label: (
@@ -599,7 +498,7 @@ export function CatalogoPage() {
               ),
             },
 
-            // TAB 5: PARÁMETROS MERCADO PÚBLICO
+            // TAB 4: PARÁMETROS MERCADO PÚBLICO
             {
               key: 'portal',
               label: (

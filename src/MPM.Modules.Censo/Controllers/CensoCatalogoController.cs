@@ -53,8 +53,8 @@ public class CensoCatalogoController(CensoCatalogoService catalogoService) : Con
         }
     }
 
-    /// <summary>Descarga o visualiza el archivo PDF de la certificación desde Census.</summary>
-    [HttpGet("certificaciones/archivo/{fileId}")]
+    /// <summary>Descarga o visualiza el archivo PDF de la certificación (corporativa o desde Census).</summary>
+    [HttpGet("certificaciones/archivo/{*fileId}")]
     [ProducesResponseType(typeof(FileContentResult), 200)]
     [ProducesResponseType(typeof(ApiResponse<object>), 404)]
     [ProducesResponseType(typeof(ApiResponse<object>), 502)]
@@ -63,11 +63,31 @@ public class CensoCatalogoController(CensoCatalogoService catalogoService) : Con
     {
         try
         {
-            var bytes = await censusClient.DownloadCertificationFileAsync(fileId, ct);
-            if (bytes == null || bytes.Length == 0)
-                return NotFound(ApiResponse<object>.Fail("Archivo de certificación no encontrado en Census"));
+            var cleanFileId = Uri.UnescapeDataString(fileId ?? "").Trim().Replace('\\', '/');
 
-            Response.Headers["Content-Disposition"] = $"inline; filename=\"Certificacion_{fileId}.pdf\"";
+            // 1. Archivo local / corporativo
+            var localPath = Path.Combine("/app/uploads", cleanFileId);
+            if (System.IO.File.Exists(localPath))
+            {
+                var localBytes = await System.IO.File.ReadAllBytesAsync(localPath, ct);
+                Response.Headers["Content-Disposition"] = $"inline; filename=\"{Path.GetFileName(localPath)}\"";
+                return File(localBytes, "application/pdf");
+            }
+
+            var localFallback = Path.Combine(Directory.GetCurrentDirectory(), "uploads", cleanFileId);
+            if (System.IO.File.Exists(localFallback))
+            {
+                var localBytes = await System.IO.File.ReadAllBytesAsync(localFallback, ct);
+                Response.Headers["Content-Disposition"] = $"inline; filename=\"{Path.GetFileName(localFallback)}\"";
+                return File(localBytes, "application/pdf");
+            }
+
+            // 2. Consulta a Census
+            var bytes = await censusClient.DownloadCertificationFileAsync(cleanFileId, ct);
+            if (bytes == null || bytes.Length == 0)
+                return NotFound(ApiResponse<object>.Fail("Archivo de certificación no encontrado"));
+
+            Response.Headers["Content-Disposition"] = $"inline; filename=\"Certificacion_{cleanFileId}.pdf\"";
             return File(bytes, "application/pdf");
         }
         catch (HttpRequestException ex)
