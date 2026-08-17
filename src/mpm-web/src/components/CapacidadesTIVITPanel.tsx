@@ -20,6 +20,9 @@ import {
   TeamOutlined,
   InfoCircleOutlined,
   PlusOutlined,
+  FilePdfOutlined,
+  ThunderboltOutlined,
+  SafetyCertificateOutlined,
 } from '@ant-design/icons';
 import {
   useActualizarPreferenciasCenso,
@@ -59,28 +62,65 @@ function coberturaColor(p: CensoPersona): string {
   return 'red';
 }
 
-/** Skills como tags compactos. */
-function TagsConTooltip({ items, max, color }: { items: string[]; max: number; color?: string }) {
-  if (items.length === 0) return null;
-  const visibles = items.slice(0, max);
-  const restantes = items.length - visibles.length;
+function getSkillLevelTag(nivel?: number | null, texto?: string | null) {
+  if (!nivel && !texto) return null;
+  const label = texto || (nivel === 1 ? 'Básico' : nivel === 2 ? 'Intermedio' : nivel === 3 ? 'Avanzado' : nivel === 4 ? 'Experto' : `Nivel ${nivel}`);
+  const color = nivel === 4 ? '#cf1322' : nivel === 3 ? '#0958d9' : nivel === 2 ? '#08979c' : '#595959';
+  const bg = nivel === 4 ? '#fff1f0' : nivel === 3 ? '#e6f4ff' : nivel === 2 ? '#e6fffb' : '#f5f5f5';
   return (
-    <Space size={[4, 0]} wrap>
-      {visibles.map((it) => (
-        <Tag key={it} color={color} style={{ marginInlineEnd: 0, fontSize: 11 }}>
-          {it}
-        </Tag>
-      ))}
-      {restantes > 0 && (
-        <Tooltip title={items.slice(max).join(', ')}>
-          <Tag style={{ marginInlineEnd: 0, fontSize: 11 }}>+{restantes}</Tag>
-        </Tooltip>
-      )}
-    </Space>
+    <span
+      style={{
+        fontSize: 10,
+        marginLeft: 6,
+        padding: '1px 5px',
+        borderRadius: 4,
+        fontWeight: 600,
+        color,
+        background: bg,
+        border: `1px solid ${color}33`,
+      }}
+    >
+      {label}
+    </span>
   );
 }
 
-/** Certificaciones interactivas: al hacer clic en una con archivo adjunto se previsualiza el PDF. */
+/** Componente diferenciador para Skills y Tecnologías con su nivel de dominio. */
+function SkillsTags({ persona }: { persona: CensoPersona }) {
+  const skills = persona.skillsDetalle && persona.skillsDetalle.length > 0
+    ? persona.skillsDetalle
+    : (persona.skills || []).map((s) => ({ nombre: s, nivel: null, nivelTexto: null }));
+
+  if (skills.length === 0) return null;
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginTop: 4 }}>
+      <span style={{ fontSize: 11, fontWeight: 600, color: '#0958d9', minWidth: 90, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+        <ThunderboltOutlined style={{ color: '#1677ff' }} /> Skills:
+      </span>
+      <Space size={[6, 4]} wrap>
+        {skills.map((s) => (
+          <Tag
+            key={s.nombre}
+            color="blue"
+            style={{
+              marginInlineEnd: 0,
+              fontSize: 11,
+              padding: '2px 8px',
+              display: 'inline-flex',
+              alignItems: 'center',
+            }}
+          >
+            <span>{s.nombre}</span>
+            {getSkillLevelTag(s.nivel, s.nivelTexto)}
+          </Tag>
+        ))}
+      </Space>
+    </div>
+  );
+}
+
+/** Componente diferenciador para Certificaciones Acreditadas con visualización de archivo PDF. */
 function CertificacionesTags({ persona }: { persona: CensoPersona }) {
   const { message } = AntdApp.useApp();
   const certs = persona.certificacionesDetalle && persona.certificacionesDetalle.length > 0
@@ -105,23 +145,54 @@ function CertificacionesTags({ persona }: { persona: CensoPersona }) {
   };
 
   return (
-    <Space size={[4, 2]} wrap>
-      {certs.map((c) => (
-        <Tooltip key={c.nombre} title={c.fileId ? 'Ver documento de certificación (PDF)' : 'Certificación registrada en Census'}>
-          <Tag
-            color="purple"
-            style={{
-              marginInlineEnd: 0,
-              fontSize: 11,
-              cursor: c.fileId ? 'pointer' : 'default',
-              userSelect: 'none',
-            }}
-            onClick={c.fileId ? () => void handleDescargar(c.fileId!, c.nombre) : undefined}
-          >
-            {c.nombre} {c.fileId ? '📄' : ''}
-          </Tag>
-        </Tooltip>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginTop: 4 }}>
+      <span style={{ fontSize: 11, fontWeight: 600, color: '#531dab', minWidth: 90, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+        <SafetyCertificateOutlined style={{ color: '#722ed1' }} /> Certificaciones:
+      </span>
+      <Space size={[6, 4]} wrap>
+        {certs.map((c) => (
+          <Tooltip key={c.nombre} title={c.fileId ? 'Hacer clic para ver documento PDF oficial' : 'Certificación registrada en Census'}>
+            <Tag
+              color="purple"
+              style={{
+                marginInlineEnd: 0,
+                fontSize: 11,
+                padding: '2px 8px',
+                cursor: c.fileId ? 'pointer' : 'default',
+                userSelect: 'none',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+              }}
+              onClick={c.fileId ? () => void handleDescargar(c.fileId!, c.nombre) : undefined}
+            >
+              <span>{c.nombre}</span>
+              {c.fileId && <FilePdfOutlined style={{ color: '#ff4d4f', fontSize: 12 }} />}
+            </Tag>
+          </Tooltip>
+        ))}
+      </Space>
+    </div>
+  );
+}
+
+/** Tags genéricos simples para resúmenes */
+function TagsConTooltip({ items, max, color }: { items: string[]; max: number; color?: string }) {
+  if (items.length === 0) return null;
+  const visibles = items.slice(0, max);
+  const restantes = items.length - visibles.length;
+  return (
+    <Space size={[4, 0]} wrap>
+      {visibles.map((it) => (
+        <Tag key={it} color={color} style={{ marginInlineEnd: 0, fontSize: 11 }}>
+          {it}
+        </Tag>
       ))}
+      {restantes > 0 && (
+        <Tooltip title={items.slice(max).join(', ')}>
+          <Tag style={{ marginInlineEnd: 0, fontSize: 11 }}>+{restantes}</Tag>
+        </Tooltip>
+      )}
     </Space>
   );
 }
@@ -154,45 +225,38 @@ export function CapacidadesTIVITPanel({ codigoExterno }: Props) {
     actualizarPrefs.mutate(
       { filtrarPais: on, pais: pref.pais },
       {
-        onSuccess: () =>
-          message.success(on ? 'Filtro por país activado' : 'Filtro por país desactivado'),
-        onError: (e) => message.error(e instanceof Error ? e.message : 'No se pudo guardar la preferencia'),
+        onSuccess: () => message.success(`Filtro por país ${on ? 'activado' : 'desactivado'}`),
+        onError: () => message.error('No se pudo guardar la preferencia'),
       },
     );
   };
 
   const cambiarPais = (pais: string) => {
     actualizarPrefs.mutate(
-      { pais },
+      { filtrarPais: pref.filtrarPais, pais },
       {
-        onSuccess: () => message.success(`Filtro por país: ${pais}`),
-        onError: (e) => message.error(e instanceof Error ? e.message : 'No se pudo guardar la preferencia'),
+        onSuccess: () => message.success(`País cambiado a ${pais}`),
+        onError: () => message.error('No se pudo guardar la preferencia'),
       },
     );
   };
 
-  const buscar = (overrideTechs?: string[]) => {
+  const lanzarMatch = (tecnologiasOverride?: string[]) => {
     if (!codigoExterno) return;
     setSinRequisitosInfo(null);
-
-    const techs = overrideTechs ?? tecnologiasManuales;
-    const body: { filtrarPais?: boolean; pais?: string; tecnologias?: string[] } = {
-      filtrarPais: pref.filtrarPais,
-      pais: pref.pais,
-    };
-    if (techs.length > 0) {
-      body.tecnologias = techs;
-    }
+    const body = tecnologiasOverride && tecnologiasOverride.length > 0
+      ? { tecnologias: tecnologiasOverride, filtrarPais: pref.filtrarPais, pais: pref.pais }
+      : undefined;
 
     ejecutar.mutate(
       { codigoExterno, body },
       {
-        onSuccess: (r) => {
-          const n = r.data.resumen.totalPersonas;
-          message.success(`Match completado: ${n} ${n === 1 ? 'persona encontrada' : 'personas encontradas'}`);
+        onSuccess: (res) => {
+          const total = res.data?.resumen?.totalPersonas ?? 0;
+          message.success(`Match completado: ${total} personas encontradas`);
         },
-        onError: (e) => {
-          const msg = e instanceof Error ? e.message : 'No se pudo ejecutar el match';
+        onError: (err) => {
+          const msg = err instanceof Error ? err.message : 'Error al ejecutar match';
           if (msg.includes('CEN_001') || msg.toLowerCase().includes('sin requisitos') || msg.toLowerCase().includes('certificaciones')) {
             setSinRequisitosInfo(
               'Esta licitación no contiene certificaciones ni requisitos tecnológicos TI en sus bases. Puedes ingresar habilidades o perfiles manualmente abajo para consultar en Census.',
@@ -248,7 +312,7 @@ export function CapacidadesTIVITPanel({ codigoExterno }: Props) {
           size="small"
           dataSource={visibles}
           renderItem={(p) => (
-            <List.Item style={{ padding: '8px 0', alignItems: 'flex-start' }} data-testid="item-persona-censo">
+            <List.Item style={{ padding: '12px 0', alignItems: 'flex-start', borderBottom: '1px solid #f0f0f0' }} data-testid="item-persona-censo">
               <List.Item.Meta
                 title={
                   <Space size={6} wrap>
@@ -260,11 +324,11 @@ export function CapacidadesTIVITPanel({ codigoExterno }: Props) {
                   </Space>
                 }
                 description={
-                  <Space direction="vertical" size={2} style={{ width: '100%' }}>
+                  <Space direction="vertical" size={4} style={{ width: '100%', marginTop: 2 }}>
                     <Typography.Text type="secondary" style={{ fontSize: 12 }}>
                       {p.cargo} · {p.email}
                     </Typography.Text>
-                    <TagsConTooltip items={p.skills} max={4} color="geekblue" />
+                    <SkillsTags persona={p} />
                     <CertificacionesTags persona={p} />
                   </Space>
                 }
@@ -321,89 +385,71 @@ export function CapacidadesTIVITPanel({ codigoExterno }: Props) {
           type="primary"
           icon={<SearchOutlined />}
           loading={ejecutar.isPending}
-          disabled={!codigoExterno || prefsLoading}
-          onClick={() => buscar()}
-          data-testid="btn-buscar-capacidades"
+          onClick={() => lanzarMatch()}
+          data-testid="btn-ejecutar-match"
         >
-          {match ? 'Actualizar match' : 'Buscar capacidades para esta licitación'}
+          {match ? 'Recalcular match' : 'Buscar capacidades para esta licitación'}
         </Button>
+        {match && (
+          <Button icon={<ReloadOutlined />} onClick={() => refetch()} loading={isLoading}>
+            Refrescar
+          </Button>
+        )}
       </Space>
 
       {sinRequisitosInfo && (
         <Alert
-          type="warning"
+          type="info"
           showIcon
           icon={<InfoCircleOutlined />}
-          style={{ marginBottom: 16 }}
-          message="Sin requisitos tecnológicos automáticos"
+          message="Licitación sin requerimientos de habilidades TI detectados"
           description={
             <div>
               <p style={{ margin: '0 0 8px 0' }}>{sinRequisitosInfo}</p>
-              <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+              <Typography.Text strong style={{ fontSize: 12 }}>
+                Ingresa tecnologías o perfiles a consultar (ej: Linux, Redes, Cloud, Hardware):
+              </Typography.Text>
+              <Space style={{ width: '100%', marginTop: 6 }} wrap>
                 <Select
                   mode="tags"
-                  style={{ minWidth: 320, flex: 1 }}
-                  placeholder="Ej: PostgreSQL, Docker, Gestión de Proyectos, Linux..."
+                  style={{ minWidth: 280 }}
+                  placeholder="Escribe tecnologías y presiona Enter"
                   value={tecnologiasManuales}
                   onChange={setTecnologiasManuales}
                 />
                 <Button
                   type="primary"
-                  icon={<SearchOutlined />}
+                  icon={<PlusOutlined />}
                   loading={ejecutar.isPending}
                   disabled={tecnologiasManuales.length === 0}
-                  onClick={() => buscar(tecnologiasManuales)}
+                  onClick={() => lanzarMatch(tecnologiasManuales)}
                 >
                   Buscar con estas tecnologías
                 </Button>
-              </div>
+              </Space>
             </div>
           }
+          style={{ marginBottom: 16 }}
         />
       )}
 
-      {isLoading && !estado ? (
-        <div style={{ textAlign: 'center', padding: 30 }}>
-          <Spin tip="Consultando estado de capacidades..." />
+      {isLoading ? (
+        <div style={{ textAlign: 'center', padding: 40 }}>
+          <Spin tip="Cargando capacidades..." />
         </div>
-      ) : error && !estado ? (
+      ) : error ? (
         <Alert
           type="error"
           showIcon
-          message="No se pudo consultar el match"
-          description={error instanceof Error ? error.message : 'Intente nuevamente'}
-          action={
-            <Button size="small" icon={<ReloadOutlined />} onClick={() => refetch()}>
-              Reintentar
-            </Button>
-          }
-        />
-      ) : !estado || estado.estado === 'no_ejecutado' ? (
-        !sinRequisitosInfo && (
-          <Alert
-            type="info"
-            showIcon
-            message="Aún no se ha buscado capacidades TIVIT"
-            description="El match cruza los requisitos de la licitación con el catálogo de colaboradores de Census (skills y certificaciones) para evaluar la cobertura de TIVIT."
-          />
-        )
-      ) : estado.estado === 'error' ? (
-        <Alert
-          type="error"
-          showIcon
-          message="El match de capacidades falló"
-          description="Census no respondió o no hay requisitos extraíbles del análisis. Intente nuevamente."
-          action={
-            <Button size="small" icon={<ReloadOutlined />} onClick={() => buscar()}>
-              Reintentar
-            </Button>
-          }
+          message="Error al cargar match de capacidades"
+          description={error instanceof Error ? error.message : 'Error desconocido'}
+          action={<Button size="small" onClick={() => refetch()}>Reintentar</Button>}
         />
       ) : (
-        <>
+        <Card size="small">
           {renderResumen()}
           {renderPersonas()}
-        </>
+        </Card>
       )}
     </div>
   );

@@ -244,9 +244,24 @@ public class CensoMatchService(
                 }
                 else
                 {
-                    var nombreReal = TecnologiaCoincidente(persona, resultado.Concepto.Termino);
-                    if (nombreReal != null && !dto.Skills.Contains(nombreReal))
-                        dto.Skills.Add(nombreReal);
+                    var techInfo = TecnologiaCoincidente(persona, resultado.Concepto.Termino);
+                    if (techInfo != null)
+                    {
+                        var nombreReal = techInfo.Value.Nombre;
+                        var nivel = techInfo.Value.Nivel;
+                        if (!dto.Skills.Contains(nombreReal))
+                            dto.Skills.Add(nombreReal);
+
+                        if (!dto.SkillsDetalle.Any(sd => sd.Nombre.Equals(nombreReal, StringComparison.OrdinalIgnoreCase)))
+                        {
+                            dto.SkillsDetalle.Add(new CensoPersonaSkillDto
+                            {
+                                Nombre = nombreReal,
+                                Nivel = nivel,
+                                NivelTexto = ObtenerTextoNivel(nivel),
+                            });
+                        }
+                    }
                 }
             }
         }
@@ -268,6 +283,15 @@ public class CensoMatchService(
             .ToList();
     }
 
+    public static string? ObtenerTextoNivel(int? nivel) => nivel switch
+    {
+        1 => "Básico",
+        2 => "Intermedio",
+        3 => "Avanzado",
+        4 => "Experto",
+        _ => null,
+    };
+
     /// <summary>¿La persona tiene la certificación consultada? Devuelve nombre y fileId.</summary>
     private static (string Nombre, string? FileId)? CertificacionCoincidente(JsonElement persona, string termino)
     {
@@ -287,8 +311,8 @@ public class CensoMatchService(
         return null;
     }
 
-    /// <summary>¿La persona tiene la tecnología consultada? Devuelve el nombre canónico (case-insensitive).</summary>
-    private static string? TecnologiaCoincidente(JsonElement persona, string termino)
+    /// <summary>¿La persona tiene la tecnología consultada? Devuelve el nombre canónico y nivel (1..4).</summary>
+    private static (string Nombre, int? Nivel)? TecnologiaCoincidente(JsonElement persona, string termino)
     {
         if (!persona.TryGetProperty("technologies", out var tecnologias) ||
             tecnologias.ValueKind != JsonValueKind.Array)
@@ -300,7 +324,15 @@ public class CensoMatchService(
             if (string.IsNullOrWhiteSpace(nombre)) continue;
             if (nombre.Contains(termino, StringComparison.OrdinalIgnoreCase) ||
                 termino.Contains(nombre, StringComparison.OrdinalIgnoreCase))
-                return nombre;
+            {
+                int? nivel = null;
+                if (t.TryGetProperty("levelSkill", out var lvl) && lvl.ValueKind == JsonValueKind.Number)
+                    nivel = lvl.GetInt32();
+                else if (t.TryGetProperty("level", out var lvl2) && lvl2.ValueKind == JsonValueKind.Number)
+                    nivel = lvl2.GetInt32();
+
+                return (nombre, nivel);
+            }
         }
         return null;
     }

@@ -106,6 +106,12 @@ export interface IniciarAnalisisComercialResult {
 }
 
 // 036-flujo-comercial-ofertas (Fase 2): match de capacidades TIVIT contra Census (spec censo.md).
+export interface CensoPersonaSkill {
+  nombre: string;
+  nivel?: number | null;
+  nivelTexto?: string | null;
+}
+
 export interface CensoPersonaCertificacion {
   nombre: string;
   fileId?: string | null;
@@ -122,6 +128,7 @@ export interface CensoPersona {
   /** Total de skills/certificaciones buscados (denominador de la cobertura). */
   totalRequeridos: number;
   skills: string[];
+  skillsDetalle?: CensoPersonaSkill[];
   certificaciones: string[];
   certificacionesDetalle?: CensoPersonaCertificacion[];
 }

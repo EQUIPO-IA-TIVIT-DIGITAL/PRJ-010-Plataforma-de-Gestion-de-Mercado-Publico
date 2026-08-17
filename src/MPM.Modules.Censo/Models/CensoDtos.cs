@@ -29,8 +29,16 @@ public class CensoPersonaDto
     public int Cobertura { get; set; }           // skills matcheados
     public int TotalRequeridos { get; set; }      // total de skills buscados
     public List<string> Skills { get; set; } = new();
+    public List<CensoPersonaSkillDto> SkillsDetalle { get; set; } = new();
     public List<string> Certificaciones { get; set; } = new();
     public List<CensoPersonaCertificacionDto> CertificacionesDetalle { get; set; } = new();
+}
+
+public class CensoPersonaSkillDto
+{
+    public string Nombre { get; set; } = string.Empty;
+    public int? Nivel { get; set; }
+    public string? NivelTexto { get; set; }
 }
 
 public class CensoPersonaCertificacionDto
