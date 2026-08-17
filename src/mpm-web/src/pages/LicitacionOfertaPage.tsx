@@ -139,7 +139,7 @@ export function LicitacionOfertaPage() {
           <FileWordOutlined /> 5. Propuesta Comercial & Drive
         </span>
       ),
-      children: <PropuestaPanel codigoExterno={codigo} />,
+      children: <PropuestaPanel codigoExterno={codigo} onIrADecision={() => setActiveTab('4')} />,
     },
   ];
 

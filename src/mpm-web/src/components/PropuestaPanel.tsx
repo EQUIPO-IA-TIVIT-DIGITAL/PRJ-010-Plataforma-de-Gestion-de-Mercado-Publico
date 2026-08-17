@@ -3,6 +3,7 @@ import {
   Alert,
   App as AntdApp,
   Button,
+  Card,
   Checkbox,
   Divider,
   Empty,
@@ -12,12 +13,16 @@ import {
   Table,
   Tag,
   Typography,
+  theme,
 } from 'antd';
 import {
+  CheckCircleOutlined,
   CheckOutlined,
   CloudUploadOutlined,
   DownloadOutlined,
+  ExclamationCircleOutlined,
   FileTextOutlined,
+  FileWordOutlined,
   MailOutlined,
   ReloadOutlined,
   RobotOutlined,
@@ -41,6 +46,7 @@ import type { PropuestaHistorial, RecomendacionResponse } from '../types/propues
 
 interface Props {
   codigoExterno: string | null;
+  onIrADecision?: () => void;
 }
 
 function formatFecha(iso: string | null): string {
@@ -61,8 +67,9 @@ function downloadBlob(blob: Blob, fileName: string): void {
   URL.revokeObjectURL(url);
 }
 
-export function PropuestaPanel({ codigoExterno }: Props) {
+export function PropuestaPanel({ codigoExterno, onIrADecision }: Props) {
   const { message } = AntdApp.useApp();
+  const { token } = theme.useToken();
   const { data: decisionData, isLoading: decisionLoading } = useDecision(codigoExterno);
   const { data: matchData } = useMatchCapacidades(codigoExterno);
   const decision: DecisionEstado | null = decisionData?.data ?? null;
@@ -109,7 +116,42 @@ export function PropuestaPanel({ codigoExterno }: Props) {
     [match],
   );
 
-  if (decisionLoading || !decision?.decidida || !decision.decision) return null;
+  if (decisionLoading) {
+    return (
+      <div style={{ textAlign: 'center', padding: 40 }}>
+        <Spin tip="Cargando estado de la propuesta comercial..." />
+      </div>
+    );
+  }
+
+  // Si la decisión aún no ha sido registrada formalmente
+  if (!decision?.decidida || !decision.decision) {
+    return (
+      <Card
+        style={{
+          textAlign: 'center',
+          padding: '36px 16px',
+          background: token.colorFillAlter,
+          borderColor: token.colorBorderSecondary,
+          marginTop: 12,
+        }}
+      >
+        <FileWordOutlined style={{ fontSize: 52, color: token.colorPrimary, marginBottom: 16 }} />
+        <Typography.Title level={4} style={{ marginBottom: 8 }}>
+          Propuesta Comercial & Exportación a Google Drive
+        </Typography.Title>
+        <Typography.Paragraph type="secondary" style={{ maxWidth: 640, margin: '0 auto 24px', fontSize: 14 }}>
+          Para armar la propuesta técnica/económica editable en formato DOCX, seleccionar certificaciones, experiencias
+          y exportar la carpeta a Google Drive, primero se debe registrar la <strong>Decisión Humana (GO / NO GO)</strong>.
+        </Typography.Paragraph>
+        {onIrADecision && (
+          <Button type="primary" size="large" icon={<CheckCircleOutlined />} onClick={onIrADecision}>
+            Ir a 4. Decisión GO/NO GO
+          </Button>
+        )}
+      </Card>
+    );
+  }
 
   const catalogoLoading = chaptersQuery.isLoading || certificationsQuery.isLoading || experiencesQuery.isLoading;
   const catalogoError = chaptersQuery.error || certificationsQuery.error || experiencesQuery.error;
@@ -146,7 +188,7 @@ export function PropuestaPanel({ codigoExterno }: Props) {
         experienciasIds: selectedExperienceIds,
       },
     }, {
-      onSuccess: (result) => message.success(`Propuesta v${result.data.version} generada`),
+      onSuccess: (result) => message.success(`Propuesta v${result.data.version} generada exitosamente`),
       onError: (error) => message.error(error instanceof Error ? error.message : 'No se pudo generar la propuesta'),
     });
   };
@@ -186,59 +228,78 @@ export function PropuestaPanel({ codigoExterno }: Props) {
   };
 
   return (
-    <>
-      <Typography.Title level={5} style={{ marginTop: 24 }}>
-        Avisos de decisión {decision.decision === 'go' ? 'GO' : 'NO GO'}
-      </Typography.Title>
-      <Typography.Paragraph type="secondary" style={{ marginBottom: 8 }}>
-        La decisión es humana; la recomendación IA no dispara avisos. Selecciona personas visibles en el match o agrega emails válidos.
-        El aviso oficial es in-app y nunca se envía como broadcast.
-      </Typography.Paragraph>
-      <Select
-        mode="tags"
-        value={destinatarios}
-        options={matchOptions}
-        tokenSeparators={[',', ';']}
-        onChange={setDestinatarios}
-        placeholder="Seleccionar personas o escribir emails"
-        style={{ width: '100%' }}
-        maxTagCount="responsive"
-        disabled={!decision.decisionId || notify.isPending}
-        data-testid="select-destinatarios-decision"
-      />
-      {decision.notificados && decision.notificados.length > 0 && (
+    <div style={{ padding: '8px 0' }}>
+      {/* Banner de Decisión Vigente */}
+      {decision.decision === 'no_go' ? (
+        <Alert
+          type="warning"
+          showIcon
+          icon={<ExclamationCircleOutlined />}
+          style={{ marginBottom: 20 }}
+          message="Decisión registrada: NO OFERTAR (NO GO)"
+          description="La decisión registrada para esta licitación es NO OFERTAR. La generación de propuesta comercial está inhabilitada. Puedes notificar al equipo responsable sobre esta decisión a continuación."
+        />
+      ) : (
         <Alert
           type="success"
           showIcon
-          icon={<CheckOutlined />}
-          style={{ marginTop: 8 }}
-          message={`Ya notificados (${decision.notificados.length}) · ${formatFecha(decision.notificadoAt)}`}
-          description={<Space wrap>{decision.notificados.map((email) => <Tag key={email}>{email}</Tag>)}</Space>}
+          icon={<CheckCircleOutlined />}
+          style={{ marginBottom: 20 }}
+          message="Decisión registrada: OFERTAR (GO)"
+          description="La decisión para esta licitación es GO. Puedes configurar y generar el borrador de propuesta comercial (.docx), exportarlo a Google Drive y notificar a los participantes."
         />
       )}
-      {!decision.decisionId && (
-        <Alert type="warning" showIcon style={{ marginTop: 8 }} message="La decisión aún no tiene identificador para avisar; actualiza la ficha." />
-      )}
-      <Button
-        type="primary"
-        icon={<MailOutlined />}
-        loading={notify.isPending}
-        disabled={!decision.decisionId || destinatarios.length === 0}
-        onClick={avisar}
-        style={{ marginTop: 8 }}
-        data-testid="btn-avisar-decision"
-      >
-        Avisar seleccionados
-      </Button>
+
+      {/* Sección Avisos a Participantes */}
+      <Card size="small" style={{ marginBottom: 20 }}>
+        <Typography.Title level={5} style={{ margin: '0 0 4px 0' }}>
+          Avisos de decisión {decision.decision === 'go' ? 'GO' : 'NO GO'}
+        </Typography.Title>
+        <Typography.Paragraph type="secondary" style={{ marginBottom: 12, fontSize: 13 }}>
+          La decisión es humana. Selecciona colaboradores visibles en el match o agrega correos institucionales para notificarles.
+        </Typography.Paragraph>
+        <Select
+          mode="tags"
+          value={destinatarios}
+          options={matchOptions}
+          tokenSeparators={[',', ';']}
+          onChange={setDestinatarios}
+          placeholder="Seleccionar personas o escribir correos electrónicos"
+          style={{ width: '100%' }}
+          maxTagCount="responsive"
+          disabled={!decision.decisionId || notify.isPending}
+          data-testid="select-destinatarios-decision"
+        />
+        {decision.notificados && decision.notificados.length > 0 && (
+          <Alert
+            type="success"
+            showIcon
+            icon={<CheckOutlined />}
+            style={{ marginTop: 12 }}
+            message={`Ya notificados (${decision.notificados.length}) · ${formatFecha(decision.notificadoAt)}`}
+            description={<Space wrap>{decision.notificados.map((email) => <Tag key={email}>{email}</Tag>)}</Space>}
+          />
+        )}
+        <Button
+          type="primary"
+          icon={<MailOutlined />}
+          loading={notify.isPending}
+          disabled={!decision.decisionId || destinatarios.length === 0}
+          onClick={avisar}
+          style={{ marginTop: 12 }}
+          data-testid="btn-avisar-decision"
+        >
+          Avisar a seleccionados
+        </Button>
+      </Card>
 
       {decision.decision === 'go' && (
         <>
-          <Divider />
-          <Typography.Title level={5}>
-            Propuesta comercial
+          <Typography.Title level={5} style={{ marginTop: 8 }}>
+            Generador de Propuesta Comercial (DOCX)
           </Typography.Title>
-          <Typography.Paragraph type="secondary">
-            La decisión humana es GO. Revisa las sugerencias y selecciona el contenido antes de generar cada versión.
+          <Typography.Paragraph type="secondary" style={{ fontSize: 13, marginBottom: 16 }}>
+            Selecciona los capítulos, certificaciones y casos de éxito de TIVIT que se integrarán en el documento final.
           </Typography.Paragraph>
 
           {catalogoLoading ? <Spin /> : catalogoError ? (
@@ -250,10 +311,10 @@ export function PropuestaPanel({ codigoExterno }: Props) {
               action={<Button size="small" icon={<ReloadOutlined />} onClick={() => { void chaptersQuery.refetch(); void certificationsQuery.refetch(); void experiencesQuery.refetch(); }}>Reintentar</Button>}
             />
           ) : (
-            <>
-              <Space wrap style={{ marginBottom: 12 }}>
+            <Card size="small" style={{ marginBottom: 20 }}>
+              <Space wrap style={{ marginBottom: 16 }}>
                 <Button icon={<RobotOutlined />} loading={recommendations.isPending} onClick={pedirRecomendaciones} data-testid="btn-obtener-recomendaciones">
-                  Obtener recomendaciones
+                  Obtener recomendaciones con IA
                 </Button>
                 {rec && (
                   <Button onClick={seleccionarRecomendados} disabled={recommendedCertificationIds.length + recommendedExperienceIds.length === 0}>
@@ -265,82 +326,124 @@ export function PropuestaPanel({ codigoExterno }: Props) {
                 <Alert
                   type="info"
                   showIcon
-                  style={{ marginBottom: 12 }}
-                  message={`Recomendaciones: ${rec.resumen.recomendados} recomendadas, ${rec.resumen.posibles} posibles`}
-                  description="Las recomendaciones son sugerencias; no cambian la selección automáticamente."
+                  style={{ marginBottom: 16 }}
+                  message={`Recomendaciones IA: ${rec.resumen.recomendados} recomendadas, ${rec.resumen.posibles} posibles`}
+                  description="Las recomendaciones son orientativas y no reemplazan la decisión del líder de propuesta."
                 />
               )}
 
-              <Typography.Text strong>Capítulos ({selectedChapterIds.length}/{chapters.length})</Typography.Text>
-              <Checkbox.Group
-                value={selectedChapterIds}
-                onChange={(values) => setSelectedChapterIds(values.map(Number))}
-                options={chapters.map((chapter) => ({ label: `${chapter.orden}. ${chapter.titulo}`, value: chapter.id }))}
-                style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', margin: '8px 0 16px' }}
-              />
+              <div style={{ marginBottom: 16 }}>
+                <Typography.Text strong style={{ display: 'block', marginBottom: 6 }}>
+                  Capítulos del Documento ({selectedChapterIds.length}/{chapters.length})
+                </Typography.Text>
+                <Checkbox.Group
+                  value={selectedChapterIds}
+                  onChange={(values) => setSelectedChapterIds(values.map(Number))}
+                  options={chapters.map((chapter) => ({ label: `${chapter.orden}. ${chapter.titulo}`, value: chapter.id }))}
+                  style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}
+                />
+              </div>
 
-              <Typography.Text strong>Certificaciones</Typography.Text>
-              <Select
-                mode="multiple"
-                value={selectedCertificationIds}
-                onChange={setSelectedCertificationIds}
-                options={certifications.map((certification) => ({
-                  label: `${certification.nombre}${certification.fileIdCensus ? '' : ' · sin PDF'}`,
-                  value: certification.id,
-                }))}
-                placeholder="Seleccionar certificaciones"
-                style={{ width: '100%', margin: '8px 0 16px' }}
-                data-testid="select-certificaciones-propuesta"
-              />
-              {certifications.some((certification) => !certification.fileIdCensus) && (
-                <Alert type="warning" showIcon style={{ marginBottom: 12 }} message="Algunas certificaciones no tienen PDF; se incorporarán como texto." />
-              )}
+              <div style={{ marginBottom: 16 }}>
+                <Typography.Text strong style={{ display: 'block', marginBottom: 6 }}>
+                  Certificaciones Corporativas TIVIT
+                </Typography.Text>
+                <Select
+                  mode="multiple"
+                  value={selectedCertificationIds}
+                  onChange={setSelectedCertificationIds}
+                  options={certifications.map((certification) => ({
+                    label: `${certification.nombre}${certification.fileIdCensus ? '' : ' · sin PDF'}`,
+                    value: certification.id,
+                  }))}
+                  placeholder="Seleccionar certificaciones a incluir"
+                  style={{ width: '100%' }}
+                  data-testid="select-certificaciones-propuesta"
+                />
+                {certifications.some((certification) => !certification.fileIdCensus) && (
+                  <Typography.Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 4 }}>
+                    Nota: Las certificaciones sin PDF asociado se incorporarán como texto en los anexos.
+                  </Typography.Text>
+                )}
+              </div>
 
-              <Typography.Text strong>Experiencias</Typography.Text>
-              <Select
-                mode="multiple"
-                value={selectedExperienceIds}
-                onChange={setSelectedExperienceIds}
-                options={experiences.map((experience) => ({ label: `${experience.titulo} · ${experience.cliente}`, value: experience.id }))}
-                placeholder="Seleccionar experiencias"
-                style={{ width: '100%', margin: '8px 0 16px' }}
-                data-testid="select-experiencias-propuesta"
-              />
+              <div style={{ marginBottom: 20 }}>
+                <Typography.Text strong style={{ display: 'block', marginBottom: 6 }}>
+                  Experiencias y Casos de Éxito
+                </Typography.Text>
+                <Select
+                  mode="multiple"
+                  value={selectedExperienceIds}
+                  onChange={setSelectedExperienceIds}
+                  options={experiences.map((experience) => ({ label: `${experience.titulo} · ${experience.cliente}`, value: experience.id }))}
+                  placeholder="Seleccionar experiencias relevantes"
+                  style={{ width: '100%' }}
+                  data-testid="select-experiencias-propuesta"
+                />
+              </div>
 
               <Button
                 type="primary"
+                size="large"
                 icon={<FileTextOutlined />}
                 loading={generate.isPending}
                 disabled={selectedChapterIds.length === 0}
                 onClick={generarPropuesta}
                 data-testid="btn-generar-propuesta"
               >
-                Generar propuesta DOCX
+                Generar Propuesta DOCX
               </Button>
-            </>
+            </Card>
           )}
 
           <Divider />
-          <Typography.Title level={5}>Historial de versiones</Typography.Title>
-          {historyQuery.isLoading ? <Spin /> : history.length === 0 ? <Empty description="Aún no hay propuestas generadas" /> : (
+
+          <Typography.Title level={5}>
+            Historial de Versiones y Google Drive
+          </Typography.Title>
+          {historyQuery.isLoading ? <Spin /> : history.length === 0 ? <Empty description="Aún no hay propuestas generadas para esta licitación" /> : (
             <Table<PropuestaHistorial>
               size="small"
               rowKey="propuestaId"
               pagination={false}
               dataSource={history}
               columns={[
-                { title: 'Versión', dataIndex: 'version', width: 70, render: (version: number) => `v${version}` },
-                { title: 'Estado', dataIndex: 'estado', width: 100 },
+                { title: 'Versión', dataIndex: 'version', width: 80, render: (version: number) => <Tag color="blue">v{version}</Tag> },
+                {
+                  title: 'Estado',
+                  dataIndex: 'estado',
+                  width: 110,
+                  render: (estado: string) => {
+                    const color = estado === 'enviada' ? 'success' : estado === 'descartada' ? 'default' : 'processing';
+                    return <Tag color={color}>{estado.toUpperCase()}</Tag>;
+                  },
+                },
                 { title: 'Contenido', render: (_, item) => `${item.capitulos} cap. · ${item.certificaciones} cert. · ${item.experiencias} exp.` },
                 { title: 'Generada', dataIndex: 'generadoAt', render: (value: string | null) => formatFecha(value) },
                 {
                   title: 'Acciones',
                   render: (_, item) => (
-                    <Space size={4} wrap>
-                      {item.rutaDescarga && <Button type="link" size="small" icon={<DownloadOutlined />} onClick={() => void descargar(item)} data-testid={`btn-descargar-propuesta-${item.propuestaId}`}>DOCX</Button>}
-                      {item.rutaDescarga && <Button type="link" size="small" icon={<CloudUploadOutlined />} loading={exportDrive.isPending} onClick={() => exportarDrive(item)} data-testid={`btn-exportar-drive-${item.propuestaId}`}>Drive</Button>}
-                      {item.estado === 'generada' && <Button type="link" size="small" onClick={() => cambiarEstado(item, 'enviada')}>Marcar enviada</Button>}
-                      {(item.estado === 'generada' || item.estado === 'enviada') && <Button type="link" danger size="small" onClick={() => cambiarEstado(item, 'descartada')}>Descartar</Button>}
+                    <Space size={6} wrap>
+                      {item.rutaDescarga && (
+                        <Button type="primary" ghost size="small" icon={<DownloadOutlined />} onClick={() => void descargar(item)} data-testid={`btn-descargar-propuesta-${item.propuestaId}`}>
+                          Descargar DOCX
+                        </Button>
+                      )}
+                      {item.rutaDescarga && (
+                        <Button size="small" icon={<CloudUploadOutlined />} loading={exportDrive.isPending} onClick={() => exportarDrive(item)} data-testid={`btn-exportar-drive-${item.propuestaId}`}>
+                          Exportar a Drive
+                        </Button>
+                      )}
+                      {item.estado === 'generada' && (
+                        <Button size="small" onClick={() => cambiarEstado(item, 'enviada')}>
+                          Marcar enviada
+                        </Button>
+                      )}
+                      {(item.estado === 'generada' || item.estado === 'enviada') && (
+                        <Button size="small" danger onClick={() => cambiarEstado(item, 'descartada')}>
+                          Descartar
+                        </Button>
+                      )}
                     </Space>
                   ),
                 },
@@ -349,6 +452,6 @@ export function PropuestaPanel({ codigoExterno }: Props) {
           )}
         </>
       )}
-    </>
+    </div>
   );
 }
