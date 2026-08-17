@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using MPM.Modules.Propuestas.Data;
 using MPM.Modules.Propuestas.Models;
@@ -61,6 +62,57 @@ public class PropuestasCatalogosController(
     {
         await catalogoService.EliminarCertificacionAsync(id, ct);
         return Ok(ApiResponse<object>.Ok(new { certificacionId = id }));
+    }
+
+    [HttpPost("certificaciones/{id:long}/archivo")]
+    [Authorize(Roles = "Admin,SuperAdmin")]
+    public async Task<ActionResult<ApiResponse<CertificacionCatalogoDto>>> SubirArchivoCertificacion(
+        long id, IFormFile file, CancellationToken ct = default)
+    {
+        if (file == null || file.Length == 0)
+            return BadRequest(ApiResponse<object>.Fail("No se proporcionó ningún archivo"));
+
+        if (!file.FileName.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase) && file.ContentType != "application/pdf")
+            return BadRequest(ApiResponse<object>.Fail("Solo se permiten archivos en formato PDF"));
+
+        var cert = await catalogoService.ObtenerCertificacionAsync(id, ct);
+        if (cert == null)
+            return NotFound(ApiResponse<object>.Fail("Certificación no encontrada"));
+
+        var uploadDir = "/app/uploads/certificaciones-empresa";
+        if (!Directory.Exists(uploadDir))
+        {
+            uploadDir = Path.Combine(Directory.GetCurrentDirectory(), "uploads", "certificaciones-empresa");
+            Directory.CreateDirectory(uploadDir);
+        }
+        else
+        {
+            Directory.CreateDirectory(uploadDir);
+        }
+
+        var cleanFileName = Path.GetFileName(file.FileName).Replace(" ", "_");
+        var savedFileName = $"{id}_{cleanFileName}";
+        var fullPath = Path.Combine(uploadDir, savedFileName);
+
+        await using (var stream = new FileStream(fullPath, FileMode.Create))
+        {
+            await file.CopyToAsync(stream, ct);
+        }
+
+        var relativePath = $"certificaciones-empresa/{savedFileName}";
+        var updateRequest = new CertificacionCatalogoRequest
+        {
+            Nombre = cert.Nombre,
+            Institucion = cert.Institucion,
+            Vigencia = cert.Vigencia,
+            Titular = cert.Titular,
+            Tipo = cert.Tipo,
+            FileIdCensus = relativePath,
+            Activo = cert.Activo,
+        };
+
+        var updated = await catalogoService.ActualizarCertificacionAsync(id, updateRequest, ct);
+        return Ok(ApiResponse<CertificacionCatalogoDto>.Ok(updated));
     }
 
     [HttpPost("certificaciones/sincronizar-census")]

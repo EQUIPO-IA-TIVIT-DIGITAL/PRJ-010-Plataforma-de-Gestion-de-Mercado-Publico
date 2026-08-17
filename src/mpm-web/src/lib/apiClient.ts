@@ -122,3 +122,10 @@ export async function apiDownload(url: string): Promise<Blob> {
 
   return response.blob();
 }
+
+export function apiPostForm<T>(url: string, formData: FormData): Promise<T> {
+  return apiFetch<T>(url, {
+    method: 'POST',
+    body: formData,
+  });
+}

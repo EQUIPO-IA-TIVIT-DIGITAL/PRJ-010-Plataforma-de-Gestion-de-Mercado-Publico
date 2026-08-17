@@ -209,7 +209,7 @@ public class PropuestasHandler(DbConnectionFactory dbFactory)
         return row == null ? null : ToDto(row);
     }
 
-    private async Task<CertificacionCatalogoDto?> ObtenerCertificacionAsync(long id, CancellationToken ct)
+    public virtual async Task<CertificacionCatalogoDto?> ObtenerCertificacionAsync(long id, CancellationToken ct = default)
     {
         await using var conn = _dbFactory.Create();
         var row = await conn.QuerySingleOrDefaultAsync<CertificacionRow>(PropuestasStoredProcedures.CertificacionesObtener, new { p_id = id }, commandType: CommandType.Text);

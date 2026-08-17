@@ -51,6 +51,8 @@ public class PropuestasCatalogoService(PropuestasHandler handler)
         return handler.ActualizarCertificacionAsync(id, normalized, CertificationNameNormalizer.NormalizeKey(normalized.Nombre), ct);
     }
 
+    public Task<CertificacionCatalogoDto?> ObtenerCertificacionAsync(long id, CancellationToken ct = default) { ValidateId(id); return handler.ObtenerCertificacionAsync(id, ct); }
+
     public Task EliminarCertificacionAsync(long id, CancellationToken ct = default) { ValidateId(id); return handler.EliminarCertificacionAsync(id, ct); }
 
     public Task<CatalogoPage<CapituloCatalogoDto>> ListarCapitulosAsync(string? q, bool activo, int page, int size, CancellationToken ct = default)

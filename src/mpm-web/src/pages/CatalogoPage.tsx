@@ -15,12 +15,13 @@ import {
   Table,
   Tabs,
   Tag,
+  Tooltip,
   Typography,
+  Upload,
 } from 'antd';
 import {
   CheckCircleOutlined,
   DollarOutlined,
-  SafetyCertificateOutlined,
   TrophyOutlined,
   FileTextOutlined,
   PlusOutlined,
@@ -29,13 +30,14 @@ import {
   DeleteOutlined,
   FilePdfOutlined,
   BankOutlined,
+  UploadOutlined,
 } from '@ant-design/icons';
 import { useSearchParams } from 'react-router-dom';
 import dayjs from 'dayjs';
 import { PageHeader } from '../components/PageHeader';
 import { StatusBadge } from '../components/StatusBadge';
 import { useCatalogos } from '../hooks/useCatalogos';
-import { apiDownload } from '../lib/apiClient';
+import { apiDownload, apiPostForm } from '../lib/apiClient';
 import {
   useActualizarExperiencia,
   useCatalogoCapitulos,
@@ -81,6 +83,7 @@ export function CatalogoPage() {
   // Estados locales para filtros y modales
   const [filtroExp, setFiltroExp] = useState('');
   const [filtroCertCorp, setFiltroCertCorp] = useState('');
+  const [subiendoCertId, setSubiendoCertId] = useState<number | null>(null);
 
   const [modalExpVisible, setModalExpVisible] = useState(false);
   const [editingExp, setEditingExp] = useState<CatalogoExperiencia | null>(null);
@@ -217,6 +220,21 @@ export function CatalogoPage() {
     }
   };
 
+  const handleSubirPdfOficial = async (certId: number, file: File) => {
+    try {
+      setSubiendoCertId(certId);
+      const formData = new FormData();
+      formData.append('file', file);
+      await apiPostForm(`/api/v1/propuestas/catalogos/certificaciones/${certId}/archivo`, formData);
+      message.success(`PDF oficial adjuntado correctamente: ${file.name}`);
+      void certsCorporativasQuery.refetch();
+    } catch (e) {
+      message.error(e instanceof Error ? e.message : 'Error al subir el archivo PDF');
+    } finally {
+      setSubiendoCertId(null);
+    }
+  };
+
   // ── Capítulos DOCX ─────────────────────────────────────────────────────────
   const capitulos = capitulosQuery.data?.data?.items ?? [];
 
@@ -224,7 +242,7 @@ export function CatalogoPage() {
     <div>
       <PageHeader
         title="Catálogos Corporativos y del Sistema"
-        subtitle="Administración de casos de éxito, certificaciones oficiales de empresa (con visualización PDF), capítulos de propuesta y parámetros Mercado Público."
+        subtitle="Administración de casos de éxito, acreditaciones oficiales de empresa, plantilla de propuestas y parámetros Mercado Público."
       />
 
       <Card size="small">
@@ -358,7 +376,7 @@ export function CatalogoPage() {
                     type="info"
                     showIcon
                     message="Acreditaciones Oficiales de TIVIT como Organización"
-                    description="Certificaciones oficiales a nombre de TIVIT SpA / TIVIT Latam (ISO 27001, ISO 9001, Tier III, PCI-DSS, Partner Tiers oficiales). Puedes abrir y visualizar el PDF oficial de cada certificado haciendo clic en el botón 'Ver Certificado PDF'."
+                    description="Catálogo de acreditaciones institucionales (ISO 27001, ISO 9001, Tier III, PCI-DSS, Partner Tiers). El equipo comercial puede adjuntar el documento PDF original escaneado/firmado de cada certificación para incluirlo en las ofertas."
                     style={{ marginBottom: 16 }}
                   />
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 12 }}>
@@ -396,7 +414,7 @@ export function CatalogoPage() {
                         title: 'Titular Certificado',
                         dataIndex: 'titular',
                         key: 'titular',
-                        width: 200,
+                        width: 180,
                         render: (t: string | null) => (
                           <Tag color="cyan" style={{ fontWeight: 500 }}>
                             <BankOutlined style={{ marginRight: 4 }} />
@@ -408,40 +426,79 @@ export function CatalogoPage() {
                         title: 'Casa Certificadora / Emisora',
                         dataIndex: 'institucion',
                         key: 'institucion',
-                        width: 200,
+                        width: 180,
                         render: (i: string | null) => i || <Typography.Text type="secondary">-</Typography.Text>,
                       },
                       {
                         title: 'Vigencia',
                         dataIndex: 'vigencia',
                         key: 'vigencia',
-                        width: 140,
+                        width: 130,
                         render: (v: string | null) => v || <Typography.Text type="secondary">Permanente</Typography.Text>,
                       },
                       {
-                        title: 'Documento Oficial',
+                        title: 'Documento PDF Oficial',
                         key: 'pdf',
-                        width: 180,
-                        render: (_, row) => (
-                          row.fileIdCensus ? (
-                            <Button
-                              type="primary"
-                              size="small"
-                              ghost
-                              icon={<FilePdfOutlined style={{ color: '#ff4d4f' }} />}
-                              onClick={() => void handleVerArchivoCert(row.fileIdCensus!)}
-                            >
-                              Ver Certificado PDF
-                            </Button>
-                          ) : (
-                            <Tag color="default">Sin PDF adjunto</Tag>
-                          )
-                        ),
+                        width: 240,
+                        render: (_, row) => {
+                          const estaSubiendo = subiendoCertId === row.id;
+                          return (
+                            <Space size={6} wrap>
+                              {row.fileIdCensus ? (
+                                <>
+                                  <Button
+                                    type="primary"
+                                    size="small"
+                                    icon={<FilePdfOutlined />}
+                                    style={{ background: '#1677ff', color: '#ffffff', fontWeight: 500 }}
+                                    onClick={() => void handleVerArchivoCert(row.fileIdCensus!)}
+                                  >
+                                    Ver Certificado PDF
+                                  </Button>
+                                  <Upload
+                                    accept=".pdf,application/pdf"
+                                    showUploadList={false}
+                                    beforeUpload={(file) => {
+                                      void handleSubirPdfOficial(row.id, file);
+                                      return false;
+                                    }}
+                                  >
+                                    <Tooltip title="Reemplazar archivo PDF oficial">
+                                      <Button size="small" icon={<UploadOutlined />} loading={estaSubiendo} />
+                                    </Tooltip>
+                                  </Upload>
+                                </>
+                              ) : (
+                                <>
+                                  <Tag color="default" style={{ fontSize: 11 }}>Sin PDF adjunto</Tag>
+                                  <Upload
+                                    accept=".pdf,application/pdf"
+                                    showUploadList={false}
+                                    beforeUpload={(file) => {
+                                      void handleSubirPdfOficial(row.id, file);
+                                      return false;
+                                    }}
+                                  >
+                                    <Button
+                                      size="small"
+                                      type="dashed"
+                                      icon={<UploadOutlined />}
+                                      loading={estaSubiendo}
+                                      style={{ fontSize: 11 }}
+                                    >
+                                      Adjuntar PDF
+                                    </Button>
+                                  </Upload>
+                                </>
+                              )}
+                            </Space>
+                          );
+                        },
                       },
                       {
                         title: 'Acciones',
                         key: 'acciones',
-                        width: 70,
+                        width: 60,
                         render: (_, row) => (
                           <Popconfirm
                             title="¿Eliminar certificación del catálogo?"
