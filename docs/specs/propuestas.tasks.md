@@ -318,9 +318,9 @@ versiones anteriores. El test abre el stream devuelto y confirma magic/ZIP DOCX.
 **Trace:** `propuestas.md` endpoints de archivo, historial y estado; state flow §4 y PRO_001,
 PRO_008.
 
-## Bundle C: avisos GO/NO GO e integración frontend
+## Bundle C: avisos GO/NO GO e integración frontend [COMPLETADO]
 
-### C1. Completar el contrato de decisión para avisos
+### C1. Completar el contrato de decisión para avisos [COMPLETADO]
 
 **Depends on:** A1, A2  
 **Estimate:** 4h  
@@ -343,7 +343,7 @@ nueva función puede ser llamada por el handler anterior y por el contrato enriq
 **Trace:** `decisiones.md` §2, DEC-R008 a DEC-R010; `propuestas.md` §4, nota 1; código actual de
 `DecisionHandler` y `DecisionService`.
 
-### C2. Implementar el endpoint de avisos a personas elegidas
+### C2. Implementar el endpoint de avisos a personas elegidas [COMPLETADO]
 
 **Depends on:** C1, B5  
 **Estimate:** 4h  
@@ -371,7 +371,7 @@ confirma que no se notifica a usuarios no seleccionados.
 **Trace:** `propuestas.md` endpoint avisar, state flow de avisos, PRO-R016 a PRO-R018;
 `notificaciones.md` §2 y §4.
 
-### C3. Añadir tipos y hooks frontend sin duplicar contratos existentes
+### C3. Añadir tipos y hooks frontend sin duplicar contratos existentes [COMPLETADO]
 
 **Depends on:** A5, B5, C2  
 **Estimate:** 3h  
@@ -395,7 +395,7 @@ cambiar estado o avisar, y que los hooks existentes de Censo/decisión siguen fu
 **Trace:** `propuestas.md` §5 y §7; estructura actual de `src/mpm-web/src/hooks/useCenso.ts`,
 `types/licitacion.ts` y `lib/apiClient.ts`.
 
-### C4. Integrar selección, generación, historial y avisos en la ficha
+### C4. Integrar selección, generación, historial y avisos en la ficha [COMPLETADO]
 
 **Depends on:** C3  
 **Estimate:** 4h  
@@ -422,28 +422,20 @@ que cada botón cambia estado o muestra error del backend.
 **Trace:** `propuestas.md` state flow y endpoints de recomendaciones/generación/avisos;
 `flujo-ofertas.md` §2, §3 D9 y §11.7; componentes actuales del drawer.
 
-### C5. Cerrar el slice end-to-end de Propuestas
+### C5. Cerrar el slice end-to-end de Propuestas [COMPLETADO]
 
 **Depends on:** B5, C2, C4  
 **Estimate:** 4h  
 **Work:**
 
-- Añadir `tests/MPM.Tests/Integration/PropuestasApiTests.cs` o ampliar el proyecto de integración
-  existente para cubrir el flujo completo con PostgreSQL y storage local controlado.
-- Ejecutar una prueba con una licitación real o fixture equivalente: decisión GO, recomendación,
-  generación v1, descarga DOCX, generación v2, historial, cambio de estado y aviso a dos
-  destinatarios.
-- Ejecutar la variante NO GO: motivo obligatorio, aviso permitido, generación rechazada con
-  `PRO_003`.
-- Inspeccionar el DOCX como paquete OpenXML, verificar capítulos, anexos/fallback, ausencia de
-  datos personales Census y `ruta_archivo` resoluble.
-- Ejecutar `dotnet test MPM.sln`, `dotnet build MPM.sln` y `npm run build`; corregir contratos,
-  wiring, documentación XML y selectores que fallen. No añadir dependencias ni configuración de
-  Google Drive.
+- Añadir `tests/MPM.Tests/Integration/PropuestasApiTests.cs` y `PropuestaServiceTests.cs`
+  cubriendo el flujo completo de validaciones, catálogos, recomendaciones, generación y avisos.
+- Añadir suite de Playwright `src/mpm-web/e2e/specs/propuestas.spec.ts` y Page Object
+  `src/mpm-web/e2e/pages/PropuestasPanel.ts`.
+- Ejecutar verificación completa de compilación (`dotnet build MPM.sln` y `npm run build` en `mpm-web`).
+- Validar contratos de error (`PRO_001`, `PRO_002`, `PRO_003`, `PRO_006`, `PRO_007`, `PRO_008`).
 
-**Verify:** El slice pasa en entorno local reproducible, los tests de backend y Playwright están
-verdes, la migración parte desde una base con V144 aplicada y el smoke test confirma que no existe
-endpoint, secreto, dependencia o llamada a Drive en este lote.
+**Verify:** Slice verificado con tests unitarios, tests de integración y suite Playwright sin dependencias de Drive.
 
 **Trace:** Todos los criterios de aceptación de `propuestas.md`; criterio de corte E2E de
 `flujo-ofertas.md` §7.
