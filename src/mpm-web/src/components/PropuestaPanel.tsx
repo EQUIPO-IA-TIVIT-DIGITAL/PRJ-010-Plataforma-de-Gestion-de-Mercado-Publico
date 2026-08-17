@@ -26,6 +26,7 @@ import {
   MailOutlined,
   ReloadOutlined,
   RobotOutlined,
+  SyncOutlined,
 } from '@ant-design/icons';
 import { useDecision } from '../hooks/useCenso';
 import { useMatchCapacidades } from '../hooks/useCenso';
@@ -40,6 +41,7 @@ import {
   useGenerarPropuesta,
   usePropuestasHistorial,
   useRecomendaciones,
+  useSincronizarCertificacionesCensus,
 } from '../hooks/usePropuestas';
 import type { DecisionEstado } from '../types/licitacion';
 import type { PropuestaHistorial, RecomendacionResponse } from '../types/propuestas';
@@ -80,6 +82,7 @@ export function PropuestaPanel({ codigoExterno, onIrADecision }: Props) {
   const certificationsQuery = useCatalogoCertificaciones(proposalEnabled);
   const experiencesQuery = useCatalogoExperiencias(proposalEnabled);
   const historyQuery = usePropuestasHistorial(codigoExterno, proposalEnabled);
+  const syncCensusMutation = useSincronizarCertificacionesCensus();
   const recommendations = useRecomendaciones();
   const generate = useGenerarPropuesta();
   const updateState = useActualizarEstadoPropuesta();
@@ -345,20 +348,44 @@ export function PropuestaPanel({ codigoExterno, onIrADecision }: Props) {
               </div>
 
               <div style={{ marginBottom: 16 }}>
-                <Typography.Text strong style={{ display: 'block', marginBottom: 6 }}>
-                  Certificaciones Corporativas TIVIT
-                </Typography.Text>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                  <Typography.Text strong>
+                    Certificaciones Corporativas TIVIT ({certifications.length})
+                  </Typography.Text>
+                  <Space size={8}>
+                    <Button
+                      type="link"
+                      size="small"
+                      icon={<SyncOutlined spin={syncCensusMutation.isPending} />}
+                      loading={syncCensusMutation.isPending}
+                      onClick={() =>
+                        syncCensusMutation.mutate(undefined, {
+                          onSuccess: (res) => {
+                            message.success(`Sincronización Census completada: ${res.data?.insertadas ?? 0} nuevas`);
+                            void certificationsQuery.refetch();
+                          },
+                        })
+                      }
+                    >
+                      Sincronizar Census
+                    </Button>
+                    <a href="/catalogos?tab=certificaciones" target="_blank" rel="noopener noreferrer" style={{ fontSize: 12 }}>
+                      Ver Catálogo ↗
+                    </a>
+                  </Space>
+                </div>
                 <Select
                   mode="multiple"
                   value={selectedCertificationIds}
                   onChange={setSelectedCertificationIds}
                   options={certifications.map((certification) => ({
-                    label: `${certification.nombre}${certification.fileIdCensus ? '' : ' · sin PDF'}`,
+                    label: `${certification.nombre}${certification.fileIdCensus ? ' 📄' : ''}`,
                     value: certification.id,
                   }))}
                   placeholder="Seleccionar certificaciones a incluir"
                   style={{ width: '100%' }}
                   data-testid="select-certificaciones-propuesta"
+                  maxTagCount="responsive"
                 />
                 {certifications.some((certification) => !certification.fileIdCensus) && (
                   <Typography.Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 4 }}>
@@ -368,17 +395,26 @@ export function PropuestaPanel({ codigoExterno, onIrADecision }: Props) {
               </div>
 
               <div style={{ marginBottom: 20 }}>
-                <Typography.Text strong style={{ display: 'block', marginBottom: 6 }}>
-                  Experiencias y Casos de Éxito
-                </Typography.Text>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                  <Typography.Text strong>
+                    Experiencias y Casos de Éxito ({experiences.length})
+                  </Typography.Text>
+                  <a href="/catalogos?tab=experiencias" target="_blank" rel="noopener noreferrer" style={{ fontSize: 12 }}>
+                    + Nuevo Caso / Catálogo ↗
+                  </a>
+                </div>
                 <Select
                   mode="multiple"
                   value={selectedExperienceIds}
                   onChange={setSelectedExperienceIds}
-                  options={experiences.map((experience) => ({ label: `${experience.titulo} · ${experience.cliente}`, value: experience.id }))}
+                  options={experiences.map((experience) => ({
+                    label: `${experience.titulo} · ${experience.cliente}`,
+                    value: experience.id,
+                  }))}
                   placeholder="Seleccionar experiencias relevantes"
                   style={{ width: '100%' }}
                   data-testid="select-experiencias-propuesta"
+                  maxTagCount="responsive"
                 />
               </div>
 

@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { apiDownload, apiGet, apiPatch, apiPost } from '../lib/apiClient';
+import { apiDelete, apiDownload, apiGet, apiPatch, apiPost, apiPut } from '../lib/apiClient';
 import type {
   ApiResponse,
   AvisarResponse,
@@ -18,7 +18,7 @@ const BASE = (codigoExterno: string) =>
   `/api/v1/licitaciones/${encodeURIComponent(codigoExterno)}`;
 
 function catalogoUrl(path: string, activo = true): string {
-  const params = new URLSearchParams({ page: '1', size: '100', activo: String(activo) });
+  const params = new URLSearchParams({ page: '1', size: '200', activo: String(activo) });
   return `/api/v1/propuestas/catalogos/${path}?${params.toString()}`;
 }
 
@@ -51,6 +51,84 @@ export function useCatalogoExperiencias(enabled = true) {
     retry: 1,
   });
 }
+
+// ── Sincronización Census & CRUD de Catálogos ─────────────────────────────
+
+export interface CensusSyncResult {
+  procesadas: number;
+  insertadas: number;
+  actualizadas: number;
+  sinArchivo: number;
+  durationMs: number;
+}
+
+export function useSincronizarCertificacionesCensus() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () =>
+      apiPost<ApiResponse<CensusSyncResult>>('/api/v1/propuestas/catalogos/certificaciones/sincronizar-census', {}),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['propuestas-catalogo', 'certificaciones'] });
+    },
+  });
+}
+
+export function useCrearExperiencia() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: Partial<CatalogoExperiencia>) =>
+      apiPost<ApiResponse<CatalogoExperiencia>>('/api/v1/propuestas/catalogos/experiencias', data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['propuestas-catalogo', 'experiencias'] });
+    },
+  });
+}
+
+export function useActualizarExperiencia() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (params: { id: number; data: Partial<CatalogoExperiencia> }) =>
+      apiPut<ApiResponse<CatalogoExperiencia>>(`/api/v1/propuestas/catalogos/experiencias/${params.id}`, params.data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['propuestas-catalogo', 'experiencias'] });
+    },
+  });
+}
+
+export function useEliminarExperiencia() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) =>
+      apiDelete<ApiResponse<{ experienciaId: number }>>(`/api/v1/propuestas/catalogos/experiencias/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['propuestas-catalogo', 'experiencias'] });
+    },
+  });
+}
+
+export function useCrearCertificacion() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: Partial<CatalogoCertificacion>) =>
+      apiPost<ApiResponse<CatalogoCertificacion>>('/api/v1/propuestas/catalogos/certificaciones', data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['propuestas-catalogo', 'certificaciones'] });
+    },
+  });
+}
+
+export function useEliminarCertificacion() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) =>
+      apiDelete<ApiResponse<{ certificacionId: number }>>(`/api/v1/propuestas/catalogos/certificaciones/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['propuestas-catalogo', 'certificaciones'] });
+    },
+  });
+}
+
+// ── Generación de Propuestas y Avisos ─────────────────────────────────────
 
 export function useRecomendaciones() {
   return useMutation({
@@ -110,6 +188,12 @@ export function useAvisarDecision() {
 
 export function descargarPropuesta(codigoExterno: string, propuestaId: number): Promise<Blob> {
   return apiDownload(`${BASE(codigoExterno)}/propuestas/${propuestaId}/archivo`);
+}
+
+export interface ExportarDriveResponse {
+  propuestaId: number;
+  nombreArchivo: string;
+  driveFileId: string;
 }
 
 export function useExportarPropuestaDrive() {
