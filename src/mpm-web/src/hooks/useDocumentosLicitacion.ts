@@ -4,16 +4,20 @@ import type { DescargarDocumentosResult, EstadoDocumentos } from '../types/licit
 
 const BASE = (codigoExterno: string) => `/api/v1/licitaciones/${encodeURIComponent(codigoExterno)}/documentos`;
 
-/** Estado de los documentos guardados; hace polling mientras la descarga está en curso. */
+/** Estado de los documentos guardados; hace polling activo mientras la descarga está en curso. */
 export function useEstadoDocumentos(codigoExterno: string | null) {
   return useQuery({
     queryKey: ['licitacion-documentos', codigoExterno],
-    queryFn: () => apiGet<{ data: EstadoDocumentos }>(BASE(codigoExterno!)),
+    queryFn: async () => {
+      const res = await apiGet<{ data: EstadoDocumentos }>(BASE(codigoExterno!));
+      return res;
+    },
     enabled: !!codigoExterno,
-    staleTime: 15_000,
-    retry: 1,
-    refetchInterval: (query) =>
-      (query.state.data?.data.estadoConjunto === 'descargando' ? 3000 : false) as false | 3000,
+    staleTime: 0,
+    refetchInterval: (query) => {
+      const estado = query.state.data?.data?.estadoConjunto;
+      return estado === 'descargando' ? 1500 : false;
+    },
   });
 }
 
@@ -25,7 +29,16 @@ export function useDescargarDocumentos() {
       apiPost<{ data: DescargarDocumentosResult }>(BASE(params.codigoExterno) + '/descargar', {
         forzar: params.forzar ?? false,
       }),
-    onSuccess: (_data, params) => {
+    onSuccess: (data, params) => {
+      // Inmediatamente actualizamos la caché local a 'descargando' para activar el polling instantáneo
+      queryClient.setQueryData(['licitacion-documentos', params.codigoExterno], {
+        data: {
+          estadoConjunto: 'descargando',
+          documentos: [],
+          conjuntoHash: data.data?.conjuntoHash ?? null,
+          descargaError: null,
+        },
+      });
       queryClient.invalidateQueries({ queryKey: ['licitacion-documentos', params.codigoExterno] });
     },
   });

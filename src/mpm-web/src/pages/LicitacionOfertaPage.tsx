@@ -24,6 +24,7 @@ import {
 } from '@ant-design/icons';
 import { useLicitacionDetalle } from '../hooks/useLicitacionDetalle';
 import { useDecision } from '../hooks/useCenso';
+import { useEstadoDocumentos } from '../hooks/useDocumentosLicitacion';
 import { StatusBadge } from '../components/StatusBadge';
 import type { StatusBadgeVariant } from '../components/StatusBadge';
 import { DocumentosLicitacionPanel } from '../components/DocumentosLicitacionPanel';
@@ -69,6 +70,8 @@ export function LicitacionOfertaPage() {
   const licitacion = response?.data;
   const { data: decisionData } = useDecision(codigo ?? null);
   const decision = decisionData?.data;
+  const { data: estadoDocs } = useEstadoDocumentos(codigo ?? null);
+  const numDocs = estadoDocs?.data?.documentos?.length ?? 0;
 
   if (isLoading) {
     return (
@@ -95,9 +98,10 @@ export function LicitacionOfertaPage() {
       label: (
         <span>
           <FilePdfOutlined /> 1. Bases y Pliegos
+          {numDocs > 0 && <Tag color="blue" style={{ marginLeft: 6 }}>{numDocs}</Tag>}
         </span>
       ),
-      children: <DocumentosLicitacionPanel codigoExterno={codigo} />,
+      children: <DocumentosLicitacionPanel codigoExterno={codigo} onIrAAnalisis={() => setActiveTab('2')} />,
     },
     {
       key: '2',
