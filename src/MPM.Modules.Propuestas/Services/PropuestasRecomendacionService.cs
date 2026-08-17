@@ -18,7 +18,7 @@ public class PropuestasRecomendacionService(
         if (requisitos.Certificaciones.Count == 0)
             throw new RecomendacionException("PRO_004", "No hay certificaciones requeridas para recomendar");
 
-        var catalogo = await handler.ListarCertificacionesAsync(null, true, null, 1, 100, ct);
+        var catalogo = await handler.ListarCertificacionesAsync(null, true, null, null, 1, 100, ct);
         if (catalogo.Items.Count == 0)
             throw new RecomendacionException("PRO_006", "El catálogo de certificaciones está vacío; sincronice Census primero");
 

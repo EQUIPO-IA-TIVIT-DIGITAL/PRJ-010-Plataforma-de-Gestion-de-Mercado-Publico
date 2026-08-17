@@ -42,8 +42,8 @@ public class PropuestasCatalogosController(
     [HttpGet("certificaciones")]
     public async Task<ActionResult<ApiResponse<CatalogoPage<CertificacionCatalogoDto>>>> ListarCertificaciones(
         [FromQuery] string? q, [FromQuery] bool activo = true, [FromQuery] bool? conArchivo = null,
-        [FromQuery] int page = 1, [FromQuery] int size = 20, CancellationToken ct = default)
-        => Ok(ApiResponse<CatalogoPage<CertificacionCatalogoDto>>.Ok(await catalogoService.ListarCertificacionesAsync(q, activo, conArchivo, page, size, ct)));
+        [FromQuery] string? tipo = null, [FromQuery] int page = 1, [FromQuery] int size = 20, CancellationToken ct = default)
+        => Ok(ApiResponse<CatalogoPage<CertificacionCatalogoDto>>.Ok(await catalogoService.ListarCertificacionesAsync(q, activo, conArchivo, tipo, page, size, ct)));
 
     [HttpPost("certificaciones")]
     [Authorize(Roles = "Admin,SuperAdmin")]

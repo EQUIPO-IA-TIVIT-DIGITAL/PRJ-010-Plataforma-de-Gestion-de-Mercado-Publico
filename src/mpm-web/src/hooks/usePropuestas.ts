@@ -32,10 +32,14 @@ export function useCatalogoCapitulos(enabled = true) {
   });
 }
 
-export function useCatalogoCertificaciones(enabled = true) {
+export function useCatalogoCertificaciones(tipo?: string, enabled = true) {
   return useQuery({
-    queryKey: ['propuestas-catalogo', 'certificaciones'],
-    queryFn: () => apiGet<ApiResponse<CatalogoPage<CatalogoCertificacion>>>(catalogoUrl('certificaciones')),
+    queryKey: ['propuestas-catalogo', 'certificaciones', tipo ?? 'todas'],
+    queryFn: () => {
+      const params = new URLSearchParams({ page: '1', size: '500', activo: 'true' });
+      if (tipo) params.set('tipo', tipo);
+      return apiGet<ApiResponse<CatalogoPage<CatalogoCertificacion>>>(`/api/v1/propuestas/catalogos/certificaciones?${params.toString()}`);
+    },
     enabled,
     staleTime: 60_000,
     retry: 1,

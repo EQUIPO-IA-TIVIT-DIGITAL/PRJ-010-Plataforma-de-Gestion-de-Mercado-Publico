@@ -43,6 +43,8 @@ public sealed class CertificacionCatalogoDto
     public string? FileIdCensus { get; set; }
     public string? Institucion { get; set; }
     public string? Vigencia { get; set; }
+    public string? Titular { get; set; }
+    public string Tipo { get; set; } = "corporativa";
     public bool Activo { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
@@ -54,6 +56,8 @@ public sealed class CertificacionCatalogoRequest
     public string? FileIdCensus { get; set; }
     public string? Institucion { get; set; }
     public string? Vigencia { get; set; }
+    public string? Titular { get; set; }
+    public string? Tipo { get; set; }
     public bool? Activo { get; set; }
 }
 

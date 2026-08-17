@@ -79,7 +79,7 @@ export function PropuestaPanel({ codigoExterno, onIrADecision }: Props) {
 
   const proposalEnabled = decision?.decision === 'go';
   const chaptersQuery = useCatalogoCapitulos(proposalEnabled);
-  const certificationsQuery = useCatalogoCertificaciones(proposalEnabled);
+  const certificationsQuery = useCatalogoCertificaciones('corporativa', proposalEnabled);
   const experiencesQuery = useCatalogoExperiencias(proposalEnabled);
   const historyQuery = usePropuestasHistorial(codigoExterno, proposalEnabled);
   const syncCensusMutation = useSincronizarCertificacionesCensus();
@@ -350,27 +350,11 @@ export function PropuestaPanel({ codigoExterno, onIrADecision }: Props) {
               <div style={{ marginBottom: 16 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
                   <Typography.Text strong>
-                    Certificaciones Corporativas TIVIT ({certifications.length})
+                    Certificaciones Institucionales de la Empresa ({certifications.length})
                   </Typography.Text>
                   <Space size={8}>
-                    <Button
-                      type="link"
-                      size="small"
-                      icon={<SyncOutlined spin={syncCensusMutation.isPending} />}
-                      loading={syncCensusMutation.isPending}
-                      onClick={() =>
-                        syncCensusMutation.mutate(undefined, {
-                          onSuccess: (res) => {
-                            message.success(`Sincronización Census completada: ${res.data?.insertadas ?? 0} nuevas`);
-                            void certificationsQuery.refetch();
-                          },
-                        })
-                      }
-                    >
-                      Sincronizar Census
-                    </Button>
-                    <a href="/catalogos?tab=certificaciones" target="_blank" rel="noopener noreferrer" style={{ fontSize: 12 }}>
-                      Ver Catálogo ↗
+                    <a href="/catalogos?tab=certificaciones-empresa" target="_blank" rel="noopener noreferrer" style={{ fontSize: 12 }}>
+                      Catálogo Empresa ↗
                     </a>
                   </Space>
                 </div>

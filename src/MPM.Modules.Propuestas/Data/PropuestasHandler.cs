@@ -48,11 +48,11 @@ public class PropuestasHandler(DbConnectionFactory dbFactory)
     public virtual async Task EliminarExperienciaAsync(long id, CancellationToken ct = default)
         => await ExecuteMutationAsync<MutationResult>(PropuestasStoredProcedures.ExperienciasEliminar, new { p_id = id, p_error_msg = "" });
 
-    public virtual async Task<CatalogoPage<CertificacionCatalogoDto>> ListarCertificacionesAsync(string? q, bool? activo, bool? conArchivo, int page, int size, CancellationToken ct = default)
+    public virtual async Task<CatalogoPage<CertificacionCatalogoDto>> ListarCertificacionesAsync(string? q, bool? activo, bool? conArchivo, string? tipo, int page, int size, CancellationToken ct = default)
     {
         await using var conn = _dbFactory.Create();
         var rows = (await conn.QueryAsync<CertificacionRow>(PropuestasStoredProcedures.CertificacionesListar,
-            new { p_q = q, p_activo = activo, p_con_archivo = conArchivo, p_offset = (page - 1) * size, p_limit = size }, commandType: CommandType.Text)).ToList();
+            new { p_q = q, p_activo = activo, p_con_archivo = conArchivo, p_tipo = tipo, p_offset = (page - 1) * size, p_limit = size }, commandType: CommandType.Text)).ToList();
         return new CatalogoPage<CertificacionCatalogoDto> { Items = rows.Select(ToDto).ToList(), Page = page, Size = size, TotalRecords = rows.FirstOrDefault()?.TotalCount ?? 0, TotalPages = Pages(rows.FirstOrDefault()?.TotalCount ?? 0, size) };
     }
 
@@ -122,7 +122,7 @@ public class PropuestasHandler(DbConnectionFactory dbFactory)
         => ListarCapitulosAsync(null, true, 1, 1000, ct);
 
     public virtual Task<CatalogoPage<CertificacionCatalogoDto>> ListarCertificacionesActivasAsync(CancellationToken ct = default)
-        => ListarCertificacionesAsync(null, true, null, 1, 1000, ct);
+        => ListarCertificacionesAsync(null, true, null, null, 1, 1000, ct);
 
     public virtual Task<CatalogoPage<ExperienciaCatalogoDto>> ListarExperienciasActivasAsync(CancellationToken ct = default)
         => ListarExperienciasAsync(null, true, 1, 1000, ct);
@@ -253,7 +253,7 @@ public class PropuestasHandler(DbConnectionFactory dbFactory)
         CreatedAt = row.CreatedAt,
         UpdatedAt = row.UpdatedAt
     };
-    private static CertificacionCatalogoDto ToDto(CertificacionRow row) => new() { Id = row.Id, Nombre = row.Nombre, FileIdCensus = row.FileIdCensus, Institucion = row.Institucion, Vigencia = row.Vigencia, Activo = row.Activo, CreatedAt = row.CreatedAt, UpdatedAt = row.UpdatedAt };
+    private static CertificacionCatalogoDto ToDto(CertificacionRow row) => new() { Id = row.Id, Nombre = row.Nombre, FileIdCensus = row.FileIdCensus, Institucion = row.Institucion, Vigencia = row.Vigencia, Titular = row.Titular, Tipo = row.Tipo, Activo = row.Activo, CreatedAt = row.CreatedAt, UpdatedAt = row.UpdatedAt };
     private static CapituloCatalogoDto ToDto(CapituloRow row) => new() { Id = row.Id, Titulo = row.Titulo, ContenidoMarkdown = row.ContenidoMarkdown, Orden = row.Orden, Activo = row.Activo, CreatedAt = row.CreatedAt, UpdatedAt = row.UpdatedAt };
     private static PropuestaHistorialDto ToHistorialDto(PropuestaRow row) => new()
     {
@@ -279,7 +279,7 @@ public class PropuestasHandler(DbConnectionFactory dbFactory)
     }
 
     private sealed class ExperienciaRow { public long Id { get; set; } public string Titulo { get; set; } = ""; public string Cliente { get; set; } = ""; public string? Descripcion { get; set; } public DateTime? FechaInicio { get; set; } public DateTime? FechaFin { get; set; } public decimal? MontoUsd { get; set; } public string? Pais { get; set; } public bool Activo { get; set; } public DateTime CreatedAt { get; set; } public DateTime UpdatedAt { get; set; } public long TotalCount { get; set; } }
-    private sealed class CertificacionRow { public long Id { get; set; } public string Nombre { get; set; } = ""; public string NombreNormalizado { get; set; } = ""; public string? FileIdCensus { get; set; } public string? Institucion { get; set; } public string? Vigencia { get; set; } public bool Activo { get; set; } public DateTime CreatedAt { get; set; } public DateTime UpdatedAt { get; set; } public long TotalCount { get; set; } }
+    private sealed class CertificacionRow { public long Id { get; set; } public string Nombre { get; set; } = ""; public string NombreNormalizado { get; set; } = ""; public string? FileIdCensus { get; set; } public string? Institucion { get; set; } public string? Vigencia { get; set; } public string? Titular { get; set; } public string Tipo { get; set; } = "corporativa"; public bool Activo { get; set; } public DateTime CreatedAt { get; set; } public DateTime UpdatedAt { get; set; } public long TotalCount { get; set; } }
     private sealed class CapituloRow { public long Id { get; set; } public string Titulo { get; set; } = ""; public string? ContenidoMarkdown { get; set; } public int Orden { get; set; } public bool Activo { get; set; } public DateTime CreatedAt { get; set; } public DateTime UpdatedAt { get; set; } public long TotalCount { get; set; } }
     private sealed class MutationResult { public long Id { get; set; } public string? ErrorMessage { get; set; } }
 }

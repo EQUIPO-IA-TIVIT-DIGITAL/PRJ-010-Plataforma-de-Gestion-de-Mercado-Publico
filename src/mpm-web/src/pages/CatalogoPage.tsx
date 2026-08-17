@@ -12,7 +12,6 @@ import {
   Popconfirm,
   Select,
   Space,
-  Spin,
   Table,
   Tabs,
   Tag,
@@ -31,6 +30,8 @@ import {
   EditOutlined,
   DeleteOutlined,
   FilePdfOutlined,
+  BankOutlined,
+  UserOutlined,
 } from '@ant-design/icons';
 import { useSearchParams } from 'react-router-dom';
 import dayjs from 'dayjs';
@@ -72,7 +73,8 @@ export function CatalogoPage() {
 
   const { data: mpData, isLoading: mpLoading } = useCatalogos();
   const experienciasQuery = useCatalogoExperiencias();
-  const certificacionesQuery = useCatalogoCertificaciones();
+  const certsCorporativasQuery = useCatalogoCertificaciones('corporativa');
+  const certsColaboradoresQuery = useCatalogoCertificaciones('colaborador');
   const capitulosQuery = useCatalogoCapitulos();
 
   const syncCensusMutation = useSincronizarCertificacionesCensus();
@@ -84,13 +86,15 @@ export function CatalogoPage() {
 
   // Estados locales para filtros y modales
   const [filtroExp, setFiltroExp] = useState('');
-  const [filtroCert, setFiltroCert] = useState('');
+  const [filtroCertCorp, setFiltroCertCorp] = useState('');
+  const [filtroCertColab, setFiltroCertColab] = useState('');
+
   const [modalExpVisible, setModalExpVisible] = useState(false);
   const [editingExp, setEditingExp] = useState<CatalogoExperiencia | null>(null);
   const [formExp] = Form.useForm();
 
-  const [modalCertVisible, setModalCertVisible] = useState(false);
-  const [formCert] = Form.useForm();
+  const [modalCertCorpVisible, setModalCertCorpVisible] = useState(false);
+  const [formCertCorp] = Form.useForm();
 
   const tiposAgrupados = useMemo(() => {
     const vistos = new Set<string>();
@@ -168,15 +172,50 @@ export function CatalogoPage() {
     }
   };
 
-  // ── Certificaciones ────────────────────────────────────────────────────────
-  const certificaciones = certificacionesQuery.data?.data?.items ?? [];
-  const certificacionesFiltradas = useMemo(() => {
-    if (!filtroCert.trim()) return certificaciones;
-    const q = filtroCert.toLowerCase();
-    return certificaciones.filter(
-      (c) => c.nombre.toLowerCase().includes(q) || (c.institucion && c.institucion.toLowerCase().includes(q)),
+  // ── Certificaciones Corporativas TIVIT (Empresa) ──────────────────────────
+  const certsCorporativas = certsCorporativasQuery.data?.data?.items ?? [];
+  const certsCorporativasFiltradas = useMemo(() => {
+    if (!filtroCertCorp.trim()) return certsCorporativas;
+    const q = filtroCertCorp.toLowerCase();
+    return certsCorporativas.filter(
+      (c) =>
+        c.nombre.toLowerCase().includes(q) ||
+        (c.institucion && c.institucion.toLowerCase().includes(q)) ||
+        (c.titular && c.titular.toLowerCase().includes(q)),
     );
-  }, [certificaciones, filtroCert]);
+  }, [certsCorporativas, filtroCertCorp]);
+
+  const handleGuardarCertCorp = async () => {
+    try {
+      const values = await formCertCorp.validateFields();
+      await crearCertMutation.mutateAsync({
+        nombre: values.nombre,
+        institucion: values.institucion,
+        vigencia: values.vigencia,
+        titular: values.titular || 'TIVIT SpA',
+        tipo: 'corporativa',
+      });
+      message.success('Certificación corporativa agregada al catálogo');
+      setModalCertCorpVisible(false);
+      formCertCorp.resetFields();
+      void certsCorporativasQuery.refetch();
+    } catch (e) {
+      if (e instanceof Error) message.error(e.message);
+    }
+  };
+
+  // ── Certificaciones de Colaboradores (Census) ─────────────────────────────
+  const certsColaboradores = certsColaboradoresQuery.data?.data?.items ?? [];
+  const certsColaboradoresFiltradas = useMemo(() => {
+    if (!filtroCertColab.trim()) return certsColaboradores;
+    const q = filtroCertColab.toLowerCase();
+    return certsColaboradores.filter(
+      (c) =>
+        c.nombre.toLowerCase().includes(q) ||
+        (c.institucion && c.institucion.toLowerCase().includes(q)) ||
+        (c.titular && c.titular.toLowerCase().includes(q)),
+    );
+  }, [certsColaboradores, filtroCertColab]);
 
   const handleSincronizarCensus = () => {
     syncCensusMutation.mutate(undefined, {
@@ -185,31 +224,18 @@ export function CatalogoPage() {
         message.success(
           `Sincronización Census completada: ${d?.insertadas ?? 0} nuevas, ${d?.actualizadas ?? 0} actualizadas en ${d?.durationMs ?? 0}ms`,
         );
+        void certsColaboradoresQuery.refetch();
       },
       onError: (err) => message.error(err instanceof Error ? err.message : 'Error al sincronizar con Census'),
     });
-  };
-
-  const handleGuardarCert = async () => {
-    try {
-      const values = await formCert.validateFields();
-      await crearCertMutation.mutateAsync({
-        nombre: values.nombre,
-        institucion: values.institucion,
-        vigencia: values.vigencia,
-      });
-      message.success('Certificación agregada al catálogo');
-      setModalCertVisible(false);
-      formCert.resetFields();
-    } catch (e) {
-      if (e instanceof Error) message.error(e.message);
-    }
   };
 
   const handleEliminarCert = async (id: number) => {
     try {
       await eliminarCertMutation.mutateAsync(id);
       message.success('Certificación eliminada');
+      void certsCorporativasQuery.refetch();
+      void certsColaboradoresQuery.refetch();
     } catch (e) {
       message.error(e instanceof Error ? e.message : 'Error al eliminar');
     }
@@ -232,7 +258,7 @@ export function CatalogoPage() {
     <div>
       <PageHeader
         title="Catálogos Corporativos y del Sistema"
-        subtitle="Administración de casos de éxito, certificaciones corporativas TIVIT y parámetros del portal Mercado Público."
+        subtitle="Administración de casos de éxito, certificaciones de empresa, acreditaciones de especialistas (Census) y parámetros Mercado Público."
       />
 
       <Card size="small">
@@ -352,71 +378,70 @@ export function CatalogoPage() {
               ),
             },
 
-            // TAB 2: CERTIFICACIONES CORPORATIVAS
+            // TAB 2: CERTIFICACIONES CORPORATIVAS TIVIT (EMPRESA)
             {
-              key: 'certificaciones',
+              key: 'certificaciones-empresa',
               label: (
                 <span style={{ fontWeight: 600 }}>
-                  <SafetyCertificateOutlined style={{ color: '#722ed1' }} /> Certificaciones TIVIT ({certificaciones.length})
+                  <BankOutlined style={{ color: '#1677ff' }} /> Certificaciones Empresa ({certsCorporativas.length})
                 </span>
               ),
               children: (
                 <div style={{ padding: '8px 0' }}>
+                  <Alert
+                    type="info"
+                    showIcon
+                    message="Acreditaciones Oficiales de TIVIT como Organización"
+                    description="Estas certificaciones son a nombre de TIVIT SpA / TIVIT Latam (ISO 27001, ISO 9001, Tier III, PCI-DSS, Partner Tiers) y se adjuntan en los anexos institucionales de las propuestas comerciales."
+                    style={{ marginBottom: 16 }}
+                  />
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 12 }}>
                     <Input
-                      placeholder="Buscar certificación o institución..."
+                      placeholder="Buscar certificación institucional o entidad..."
                       prefix={<SearchOutlined style={{ color: '#bfbfbf' }} />}
-                      value={filtroCert}
-                      onChange={(e) => setFiltroCert(e.target.value)}
+                      value={filtroCertCorp}
+                      onChange={(e) => setFiltroCertCorp(e.target.value)}
                       style={{ maxWidth: 360 }}
                       allowClear
                     />
-                    <Space>
-                      <Button
-                        type="primary"
-                        icon={<SyncOutlined spin={syncCensusMutation.isPending} />}
-                        loading={syncCensusMutation.isPending}
-                        onClick={handleSincronizarCensus}
-                      >
-                        Sincronizar con Census
-                      </Button>
-                      <Button icon={<PlusOutlined />} onClick={() => setModalCertVisible(true)}>
-                        Registrar Certificación
-                      </Button>
-                    </Space>
+                    <Button type="primary" icon={<PlusOutlined />} onClick={() => setModalCertCorpVisible(true)}>
+                      Nueva Certificación Empresa
+                    </Button>
                   </div>
 
                   <Table<CatalogoCertificacion>
                     size="small"
                     rowKey="id"
-                    loading={certificacionesQuery.isLoading}
-                    dataSource={certificacionesFiltradas}
-                    pagination={{ pageSize: 15, showSizeChanger: true }}
+                    loading={certsCorporativasQuery.isLoading}
+                    dataSource={certsCorporativasFiltradas}
+                    pagination={{ pageSize: 10, showSizeChanger: true }}
                     columns={[
                       {
-                        title: 'Nombre de la Certificación',
+                        title: 'Certificación / Acreditación',
                         dataIndex: 'nombre',
                         key: 'nombre',
-                        render: (n: string, row) => (
+                        render: (n: string) => (
                           <Space align="center">
-                            <Tag color="purple" style={{ fontWeight: 600 }}>{n}</Tag>
-                            {row.fileIdCensus && (
-                              <Tooltip title="Ver documento PDF acreditado en Census">
-                                <Button
-                                  type="link"
-                                  size="small"
-                                  icon={<FilePdfOutlined style={{ color: '#ff4d4f' }} />}
-                                  onClick={() => void handleVerArchivoCert(row.fileIdCensus!)}
-                                >
-                                  PDF
-                                </Button>
-                              </Tooltip>
-                            )}
+                            <Tag color="blue" style={{ fontWeight: 700, fontSize: 12, padding: '2px 8px' }}>
+                              {n}
+                            </Tag>
                           </Space>
                         ),
                       },
                       {
-                        title: 'Institución Emisora',
+                        title: 'Titular / Entidad Certificada',
+                        dataIndex: 'titular',
+                        key: 'titular',
+                        width: 220,
+                        render: (t: string | null) => (
+                          <Tag color="cyan" style={{ fontWeight: 500 }}>
+                            <BankOutlined style={{ marginRight: 4 }} />
+                            {t || 'TIVIT SpA'}
+                          </Tag>
+                        ),
+                      },
+                      {
+                        title: 'Casa Certificadora / Emisora',
                         dataIndex: 'institucion',
                         key: 'institucion',
                         width: 220,
@@ -450,7 +475,92 @@ export function CatalogoPage() {
               ),
             },
 
-            // TAB 3: CAPÍTULOS DE LA PROPUESTA DOCX
+            // TAB 3: ACREDITACIONES DE ESPECIALISTAS (CENSUS)
+            {
+              key: 'certificaciones-census',
+              label: (
+                <span style={{ fontWeight: 600 }}>
+                  <SafetyCertificateOutlined style={{ color: '#722ed1' }} /> Especialistas & Census ({certsColaboradores.length})
+                </span>
+              ),
+              children: (
+                <div style={{ padding: '8px 0' }}>
+                  <Alert
+                    type="warning"
+                    showIcon
+                    message="Certificaciones de Capital Humano (Especialistas y Colaboradores)"
+                    description="Diplomas y certificaciones profesionales otorgadas a colaboradores individuales de TIVIT (AWS, Cisco, Scrum, Red Hat, etc.) sincronizadas desde Census. Se utilizan para acreditar perfiles en el capítulo de Equipo de Trabajo."
+                    style={{ marginBottom: 16 }}
+                  />
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 12 }}>
+                    <Input
+                      placeholder="Buscar certificación o institución..."
+                      prefix={<SearchOutlined style={{ color: '#bfbfbf' }} />}
+                      value={filtroCertColab}
+                      onChange={(e) => setFiltroCertColab(e.target.value)}
+                      style={{ maxWidth: 360 }}
+                      allowClear
+                    />
+                    <Button
+                      type="primary"
+                      icon={<SyncOutlined spin={syncCensusMutation.isPending} />}
+                      loading={syncCensusMutation.isPending}
+                      onClick={handleSincronizarCensus}
+                    >
+                      Sincronizar con Census
+                    </Button>
+                  </div>
+
+                  <Table<CatalogoCertificacion>
+                    size="small"
+                    rowKey="id"
+                    loading={certsColaboradoresQuery.isLoading}
+                    dataSource={certsColaboradoresFiltradas}
+                    pagination={{ pageSize: 15, showSizeChanger: true }}
+                    columns={[
+                      {
+                        title: 'Certificación Profesional',
+                        dataIndex: 'nombre',
+                        key: 'nombre',
+                        render: (n: string, row) => (
+                          <Space align="center">
+                            <Tag color="purple" style={{ fontWeight: 600 }}>{n}</Tag>
+                            {row.fileIdCensus && (
+                              <Tooltip title="Ver diploma PDF del especialista acreditado en Census">
+                                <Button
+                                  type="link"
+                                  size="small"
+                                  icon={<FilePdfOutlined style={{ color: '#ff4d4f' }} />}
+                                  onClick={() => void handleVerArchivoCert(row.fileIdCensus!)}
+                                >
+                                  Diploma PDF
+                                </Button>
+                              </Tooltip>
+                            )}
+                          </Space>
+                        ),
+                      },
+                      {
+                        title: 'Entidad Emisora',
+                        dataIndex: 'institucion',
+                        key: 'institucion',
+                        width: 220,
+                        render: (i: string | null) => i || <Typography.Text type="secondary">-</Typography.Text>,
+                      },
+                      {
+                        title: 'Vigencia',
+                        dataIndex: 'vigencia',
+                        key: 'vigencia',
+                        width: 140,
+                        render: (v: string | null) => v || <Typography.Text type="secondary">Permanente</Typography.Text>,
+                      },
+                    ]}
+                  />
+                </div>
+              ),
+            },
+
+            // TAB 4: CAPÍTULOS DE LA PROPUESTA DOCX
             {
               key: 'capitulos',
               label: (
@@ -489,7 +599,7 @@ export function CatalogoPage() {
               ),
             },
 
-            // TAB 4: PARÁMETROS MERCADO PÚBLICO
+            // TAB 5: PARÁMETROS MERCADO PÚBLICO
             {
               key: 'portal',
               label: (
@@ -613,26 +723,34 @@ export function CatalogoPage() {
         </Form>
       </Modal>
 
-      {/* Modal Registrar Certificación Manual */}
+      {/* Modal Registrar Certificación Corporativa (Empresa) */}
       <Modal
-        open={modalCertVisible}
-        title="Registrar Certificación Corporativa"
+        open={modalCertCorpVisible}
+        title="Registrar Certificación Oficial de la Empresa"
         okText="Registrar"
         cancelText="Cancelar"
-        onOk={handleGuardarCert}
-        onCancel={() => setModalCertVisible(false)}
+        onOk={handleGuardarCertCorp}
+        onCancel={() => setModalCertCorpVisible(false)}
         confirmLoading={crearCertMutation.isPending}
       >
-        <Form form={formCert} layout="vertical" style={{ marginTop: 16 }}>
+        <Form form={formCertCorp} layout="vertical" style={{ marginTop: 16 }}>
           <Form.Item
-            label="Nombre de la Certificación"
+            label="Nombre de la Certificación / Acreditación"
             name="nombre"
             rules={[{ required: true, message: 'Ingresa el nombre oficial de la certificación' }]}
           >
-            <Input placeholder="Ej.: ISO/IEC 27001 Seguridad de la Información, AWS Partner Advanced Tier" />
+            <Input placeholder="Ej.: ISO/IEC 27001:2022 Seguridad de la Información" />
           </Form.Item>
-          <Form.Item label="Institución Emisora" name="institucion">
-            <Input placeholder="Ej.: Bureau Veritas, Amazon Web Services, Microsoft" />
+          <Form.Item
+            label="Titular / Razón Social Certificada"
+            name="titular"
+            initialValue="TIVIT SpA"
+            rules={[{ required: true, message: 'Ingresa la razón social certificada' }]}
+          >
+            <Input placeholder="Ej.: TIVIT SpA / TIVIT Latam" />
+          </Form.Item>
+          <Form.Item label="Casa Certificadora / Entidad Emisora" name="institucion">
+            <Input placeholder="Ej.: Bureau Veritas, AENOR, Uptime Institute, AWS" />
           </Form.Item>
           <Form.Item label="Vigencia / Período" name="vigencia">
             <Input placeholder="Ej.: 2024 - 2027 o Permanente" />

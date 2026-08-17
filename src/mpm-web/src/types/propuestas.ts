@@ -18,6 +18,8 @@ export interface CatalogoCertificacion {
   fileIdCensus: string | null;
   institucion: string | null;
   vigencia: string | null;
+  titular?: string | null;
+  tipo?: 'corporativa' | 'colaborador';
   activo: boolean;
   tieneArchivo?: boolean;
 }

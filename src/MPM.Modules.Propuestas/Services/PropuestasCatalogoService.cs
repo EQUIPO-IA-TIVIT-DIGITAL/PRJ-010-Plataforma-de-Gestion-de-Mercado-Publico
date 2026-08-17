@@ -31,10 +31,10 @@ public class PropuestasCatalogoService(PropuestasHandler handler)
 
     public Task EliminarExperienciaAsync(long id, CancellationToken ct = default) { ValidateId(id); return handler.EliminarExperienciaAsync(id, ct); }
 
-    public Task<CatalogoPage<CertificacionCatalogoDto>> ListarCertificacionesAsync(string? q, bool activo, bool? conArchivo, int page, int size, CancellationToken ct = default)
+    public Task<CatalogoPage<CertificacionCatalogoDto>> ListarCertificacionesAsync(string? q, bool activo, bool? conArchivo, string? tipo, int page, int size, CancellationToken ct = default)
     {
         ValidatePage(page, size);
-        return handler.ListarCertificacionesAsync(CleanQuery(q), activo, conArchivo, page, size, ct);
+        return handler.ListarCertificacionesAsync(CleanQuery(q), activo, conArchivo, CleanNullable(tipo), page, size, ct);
     }
 
     public Task<CertificacionCatalogoDto> CrearCertificacionAsync(CertificacionCatalogoRequest request, CancellationToken ct = default)
