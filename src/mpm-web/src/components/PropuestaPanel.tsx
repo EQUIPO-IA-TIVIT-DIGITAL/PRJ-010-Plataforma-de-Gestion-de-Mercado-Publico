@@ -182,11 +182,10 @@ export function PropuestaPanel({ codigoExterno, onIrADecision }: Props) {
   };
 
   const generarPropuesta = () => {
-    if (!codigoExterno || selectedChapterIds.length === 0) return;
+    if (!codigoExterno) return;
     generate.mutate({
       codigoExterno,
       request: {
-        capitulosIds: selectedChapterIds,
         certificacionesIds: selectedCertificationIds,
         experienciasIds: selectedExperienceIds,
       },
@@ -336,18 +335,6 @@ export function PropuestaPanel({ codigoExterno, onIrADecision }: Props) {
               )}
 
               <div style={{ marginBottom: 16 }}>
-                <Typography.Text strong style={{ display: 'block', marginBottom: 6 }}>
-                  Capítulos del Documento ({selectedChapterIds.length}/{chapters.length})
-                </Typography.Text>
-                <Checkbox.Group
-                  value={selectedChapterIds}
-                  onChange={(values) => setSelectedChapterIds(values.map(Number))}
-                  options={chapters.map((chapter) => ({ label: `${chapter.orden}. ${chapter.titulo}`, value: chapter.id }))}
-                  style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}
-                />
-              </div>
-
-              <div style={{ marginBottom: 16 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
                   <Typography.Text strong>
                     Certificaciones Institucionales de la Empresa ({certifications.length})
@@ -407,7 +394,6 @@ export function PropuestaPanel({ codigoExterno, onIrADecision }: Props) {
                 size="large"
                 icon={<FileTextOutlined />}
                 loading={generate.isPending}
-                disabled={selectedChapterIds.length === 0}
                 onClick={generarPropuesta}
                 data-testid="btn-generar-propuesta"
               >

@@ -225,6 +225,7 @@ public class AnalisisService(
         var competidores = new Dictionary<string, CompetidorRankingDto>(StringComparer.OrdinalIgnoreCase);
         var todosLosAnios = new HashSet<int>();
         var debilidades = new List<string>();
+        var licitacionesVistas = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         foreach (var r in resultados)
         {
@@ -249,6 +250,17 @@ public class AnalisisService(
             // fallback si el JSON no trae ninguna fecha real utilizable.
             var anioReal = ExtraerAnioRealLicitacion(root) ?? r.CreadoEn.Year;
             todosLosAnios.Add(anioReal);
+
+            if (anio.HasValue && anioReal != anio.Value)
+                continue;
+
+            // Deduplicación por licitación (o por workspace si no está asociada a una licitación)
+            var deduplicacionKey = r.LicitacionId.HasValue && r.LicitacionId.Value > 0
+                ? $"lic_{r.LicitacionId.Value}"
+                : $"ws_{r.WorkspaceId}";
+
+            if (!licitacionesVistas.Add(deduplicacionKey))
+                continue;
 
             var tivitGano = false;
             string resultadoTivit = "Desconocido";
@@ -300,8 +312,10 @@ public class AnalisisService(
 
                         if (string.IsNullOrWhiteSpace(nombre)) continue;
 
+                        var ganoOfertante = EsResultadoGanador(resultado, nombre, rut, adjudicatarioNombre, adjudicatarioRut);
+
                         // track puntaje ganador
-                        if (resultado.Contains("Adjudicado", StringComparison.OrdinalIgnoreCase))
+                        if (ganoOfertante)
                             puntajeGanador = puntaje;
 
                         // skip TIVIT from competitor ranking
@@ -316,10 +330,10 @@ public class AnalisisService(
                             competidores[key] = comp;
                         }
                         comp.VecesCompetidor++;
-                        if (resultado.Contains("Adjudicado", StringComparison.OrdinalIgnoreCase))
+                        if (ganoOfertante)
                         {
                             comp.VecesGanador++;
-                            comp.MontoTotalAdjudicado += monto;
+                            comp.MontoTotalAdjudicado += (monto > 0 ? monto : (montoAdj ?? 0));
                         }
                         comp.Licitaciones.Add(new LicitacionResumenEjecutivoDto
                         {
@@ -335,7 +349,10 @@ public class AnalisisService(
                             PuntajeGanador = puntajeGanador,
                             PuntajeMaximo = puntajeMaximo,
                             FechaAnalisis = r.CreadoEn,
-                            CompetidoresNombres = competidoresNombres
+                            CompetidoresNombres = competidoresNombres,
+                            CompetidorGano = ganoOfertante,
+                            ResultadoCompetidor = string.IsNullOrWhiteSpace(resultado) ? (ganoOfertante ? "Adjudicado" : "No adjudicado") : resultado,
+                            MontoCompetidor = monto > 0 ? monto : montoAdj
                         });
                     }
                 }
@@ -414,5 +431,42 @@ public class AnalisisService(
             return fechaPub.Year;
 
         return null;
+    }
+
+    private static bool EsResultadoGanador(string? resultado, string nombre, string? rut, string? adjNombre, string? adjRut)
+    {
+        if (!string.IsNullOrWhiteSpace(resultado))
+        {
+            var r = resultado.Trim();
+            if (r.StartsWith("no ", StringComparison.OrdinalIgnoreCase) ||
+                r.Contains("no adjudicad", StringComparison.OrdinalIgnoreCase) ||
+                r.Contains("inadmisible", StringComparison.OrdinalIgnoreCase) ||
+                r.Contains("rechazad", StringComparison.OrdinalIgnoreCase) ||
+                r.Contains("descartad", StringComparison.OrdinalIgnoreCase) ||
+                r.Contains("desiert", StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+            if (r.Contains("adjudicado", StringComparison.OrdinalIgnoreCase) ||
+                r.Contains("adjudicada", StringComparison.OrdinalIgnoreCase) ||
+                r.Contains("ganador", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(adjRut) && !string.IsNullOrWhiteSpace(rut) &&
+            string.Equals(adjRut.Trim(), rut.Trim(), StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (!string.IsNullOrWhiteSpace(adjNombre) && !string.IsNullOrWhiteSpace(nombre) &&
+            (adjNombre.Contains(nombre, StringComparison.OrdinalIgnoreCase) || nombre.Contains(adjNombre, StringComparison.OrdinalIgnoreCase)))
+        {
+            return true;
+        }
+
+        return false;
     }
 }

@@ -10,6 +10,11 @@ facilita alinear cada clip con su parte del video en la edición final.
 > para no forzar a la voz TTS a leer una sigla+número. Se dice directamente
 > "Plataforma de Gestión de Mercado Público".
 
+> **Alcance del demo:** el Módulo de Análisis con IA se muestra sobre un workspace
+> **ya cargado** (no se sube ni descarga una licitación nueva). La **Sala de Oferta**
+> queda fuera porque su primera etapa depende de la descarga bajo demanda de
+> documentos desde Mercado Público, actualmente bloqueada desde IPs de datacenter.
+
 ## Cómo usarlo
 
 **Opción A — TTS estándar (Speech Synthesis / API), la más simple:**
@@ -24,7 +29,7 @@ Studio sí soporta la etiqueta `<break time="Xs" />` para controlar pausas
 dentro de un mismo audio continuo. Al final de este documento hay una
 versión de todo el guion en un solo bloque con `<break>` insertados en los
 puntos donde el script cambia de pantalla — útil si preferís un único
-archivo de audio en vez de 17 clips sueltos.
+archivo de audio en vez de 15 clips sueltos.
 
 **Configuración de voz recomendada** (Voice Settings):
 - **Stability**: 40–50% (más bajo = más expresivo/natural; más alto = más
@@ -46,9 +51,10 @@ archivo de audio en vez de 17 clips sueltos.
 **01-intro**
 ```
 Esta es la Plataforma de Gestión de Mercado Público de TIVIT: sincroniza
-automáticamente las licitaciones publicadas, las analiza con inteligencia
-artificial, y avisa proactivamente sobre nuevas oportunidades y
-movimientos de la competencia. Vamos a recorrerla en vivo.
+automáticamente las licitaciones publicadas, clasifica las oportunidades
+según nuestras áreas de negocio, entiende búsquedas complejas con
+inteligencia artificial, y avisa proactivamente sobre nuevas oportunidades
+y movimientos de la competencia. Vamos a recorrerla en vivo.
 ```
 
 **02-login**
@@ -106,26 +112,21 @@ Y en esta otra pestaña está el listado completo de licitaciones
 analizadas, con su resultado y quién se la adjudicó.
 ```
 
-**10-analisis-listado**
+**10-analisis-workspace**
 ```
-Acá está el módulo de análisis: cada licitación adjudicada se convierte
-en un "workspace" donde se suben los documentos de evaluación en PDF.
-```
-
-**11-workspace**
-```
-Dentro de cada workspace vemos los documentos cargados, actas de
-adjudicación, informes técnicos, listos para ser analizados.
+Acá está el módulo de análisis. Abrimos un workspace previamente cargado
+con la validación documental de los documentos de evaluación, listos para
+ser consultados.
 ```
 
-**12-dashboard-resultados-ia**
+**11-dashboard-resultados-ia**
 ```
 Y este es el resultado del análisis con Gemini: puntaje de TIVIT versus
 el ganador, brecha de puntos, diferencia de monto ofertado, y el ranking
 final entre todos los oferentes.
 ```
 
-**13-chat-ia**
+**12-chat-ia**
 ```
 También se puede conversar directamente con los resultados. Le
 preguntamos cuál fue el factor más importante de la pérdida, y la
@@ -133,20 +134,20 @@ inteligencia artificial responde con el detalle exacto: en qué criterio
 se perdió puntaje y por qué.
 ```
 
-**14-mensajeria**
+**13-mensajeria**
 ```
 La plataforma incluye mensajería interna en tiempo real, para que el
 equipo comente licitaciones específicas sin salir de ella.
 ```
 
-**15-notificaciones**
+**14-notificaciones**
 ```
 El centro de notificaciones agrupa todo lo que el sistema detecta solo:
 nuevas licitaciones que calzan con las alertas configuradas, resultados
 de scraping y aclaraciones.
 ```
 
-**16-alertas**
+**15-alertas**
 ```
 Y esto es lo más particular del sistema: las alertas por palabra clave
 no son búsquedas literales. Creamos una alerta con la palabra
@@ -156,18 +157,18 @@ de datos, defensa digital. Así no se escapa ninguna licitación relevante
 aunque use otro término.
 ```
 
-**17-catalogos**
+**16-catalogos**
 ```
 Por último, el módulo de catálogos centraliza los datos de referencia
 del sistema: estados, tipos de licitación y monedas.
 ```
 
-**18-cierre**
+**17-cierre**
 ```
 Eso es la Plataforma de Gestión de Mercado Público: sincronización
-automática, análisis con inteligencia artificial, alertas inteligentes y
-mensajería, todo en un solo lugar para no perder ninguna oportunidad en
-Mercado Público.
+automática, búsqueda inteligente con inteligencia artificial, alertas
+inteligentes y mensajería, todo en un solo lugar para no perder ninguna
+oportunidad en Mercado Público.
 ```
 
 ---
@@ -176,9 +177,10 @@ Mercado Público.
 
 ```
 Esta es la Plataforma de Gestión de Mercado Público de TIVIT: sincroniza
-automáticamente las licitaciones publicadas, las analiza con inteligencia
-artificial, y avisa proactivamente sobre nuevas oportunidades y
-movimientos de la competencia. Vamos a recorrerla en vivo.
+automáticamente las licitaciones publicadas, clasifica las oportunidades
+según nuestras áreas de negocio, entiende búsquedas complejas con
+inteligencia artificial, y avisa proactivamente sobre nuevas oportunidades
+y movimientos de la competencia. Vamos a recorrerla en vivo.
 <break time="4.0s" />
 Empezamos iniciando sesión con una cuenta de administrador.
 <break time="4.0s" />
@@ -211,11 +213,9 @@ TIVIT, cuáles ganó y cuáles perdió, y por qué monto se adjudicó cada una.
 Y en esta otra pestaña está el listado completo de licitaciones
 analizadas, con su resultado y quién se la adjudicó.
 <break time="6.0s" />
-Acá está el módulo de análisis: cada licitación adjudicada se convierte
-en un "workspace" donde se suben los documentos de evaluación en PDF.
-<break time="5.0s" />
-Dentro de cada workspace vemos los documentos cargados, actas de
-adjudicación, informes técnicos, listos para ser analizados.
+Acá está el módulo de análisis. Abrimos un workspace previamente cargado
+con la validación documental de los documentos de evaluación, listos para
+ser consultados.
 <break time="5.0s" />
 Y este es el resultado del análisis con Gemini: puntaje de TIVIT versus
 el ganador, brecha de puntos, diferencia de monto ofertado, y el ranking
@@ -244,9 +244,9 @@ Por último, el módulo de catálogos centraliza los datos de referencia
 del sistema: estados, tipos de licitación y monedas.
 <break time="5.0s" />
 Eso es la Plataforma de Gestión de Mercado Público: sincronización
-automática, análisis con inteligencia artificial, alertas inteligentes y
-mensajería, todo en un solo lugar para no perder ninguna oportunidad en
-Mercado Público.
+automática, búsqueda inteligente con inteligencia artificial, alertas
+inteligentes y mensajería, todo en un solo lugar para no perder ninguna
+oportunidad en Mercado Público.
 ```
 
 > Nota: los tiempos de `<break>` de esta versión son aproximados y más

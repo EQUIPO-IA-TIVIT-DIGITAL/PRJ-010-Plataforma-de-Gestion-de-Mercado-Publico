@@ -21,14 +21,17 @@ import dotenv from 'dotenv';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const hasSystemDb = process.env.DB_HOST && process.env.DB_HOST !== 'localhost';
-dotenv.config({ path: path.join(__dirname, '.env'), override: !hasSystemDb });
-dotenv.config({ path: path.join(__dirname, '..', '..', '.env'), override: !hasSystemDb });
+dotenv.config({ path: path.join(__dirname, '..', '..', '.env') });
+dotenv.config({ path: path.join(__dirname, '.env'), override: true });
 
-import { launch, close, esperarConDelay, screenshotOnError } from './modulos/browser.js';
-import { initDB, closeDB } from './modulos/db.js';
+import { launch, close, esperarConDelay, screenshotOnError, clickHumano } from './modulos/browser.js';
+import { initDB, closeDB, obtenerEstadoSesion, guardarEstadoSesion } from './modulos/db.js';
+import { login } from './modulos/login.js';
 
-const FICHA_URL_TEMPLATE = 'https://www.mercadopublico.cl/Procurement/Modules/RFB/DetailsAcquisition.aspx?idlicitacion={codigo}';
+// Con sesión de proveedor (portal interno), la URL canónica es DetailsAcquisition.aspx.
+// La ficha pública fichaLicitacion.html queda solo como fallback sin sesión.
+const FICHA_URL_INTERNA = 'https://www.mercadopublico.cl/Procurement/Modules/RFB/DetailsAcquisition.aspx?idlicitacion={codigo}';
+const FICHA_URL_PUBLICA = 'https://www.mercadopublico.cl/fichaLicitacion.html?idlicitacion={codigo}';
 const HEADLESS = process.env.MP_HEADLESS === 'true';
 const MAX_REINTENTOS = parseInt(process.env.MP_MAX_REINTENTOS || '3', 10);
 const ADJUNTOS_DIR = process.env.ADJUNTOS_DIR || path.join(__dirname, 'descargas');
@@ -142,36 +145,69 @@ async function abrirGrillaAdjuntos(fichaPage, context, codigo) {
   for (let intento = 1; intento <= MAX_REINTENTOS; intento++) {
     let adjuntosPage = null;
     try {
-      const pagesBefore = context.pages().length;
       const imgAdjuntos = fichaPage.locator('#imgAdjuntos');
-      await imgAdjuntos.waitFor({ state: 'visible', timeout: 10000 }).catch(() => {});
-      await imgAdjuntos.click();
-      await esperarConDelay(3000);
+      await imgAdjuntos.waitFor({ state: 'visible', timeout: 15000 }).catch(() => {});
 
-      const pagesAfter = context.pages();
-      if (pagesAfter.length <= pagesBefore) {
+      // 1. PRIMERO: click real con emulación humana en "Ver Adjuntos" y capturar el popup
+      const popupPromise = context.waitForEvent('page', { timeout: 15000 }).catch(() => null);
+      await clickHumano(fichaPage, imgAdjuntos, 400);
+      adjuntosPage = await popupPromise;
+
+      if (!adjuntosPage) {
+        const pages = context.pages();
+        if (pages.length > 1) {
+          adjuntosPage = pages[pages.length - 1];
+        }
+      }
+
+      if (!adjuntosPage || adjuntosPage === fichaPage) {
+        // 2. FALLBACK: Disparar window.open desde el contexto de la ficha para preservar opener y referer
+        const urlRelativa = await fichaPage.evaluate(() => {
+          const el = document.getElementById('imgAdjuntos');
+          if (!el) return null;
+          const onclick = el.getAttribute('onclick') || '';
+          const match = onclick.match(/open\(['"]([^'"]+)['"]/);
+          return match && match[1] ? match[1] : null;
+        });
+
+        if (urlRelativa) {
+          console.log(`[DESCARGA] Fallback: disparando window.open en contexto de ficha previa...`);
+          const fallbackPopupPromise = context.waitForEvent('page', { timeout: 15000 }).catch(() => null);
+          await fichaPage.evaluate((u) => { window.open(u, 'MercadoPublicoPopup'); }, urlRelativa);
+          adjuntosPage = await fallbackPopupPromise;
+        }
+      }
+
+      if (!adjuntosPage || adjuntosPage === fichaPage) {
         if (intento < MAX_REINTENTOS) { await esperarConDelay(2000); continue; }
         return { ok: false, error: 'Sin ventana de adjuntos', filas: [] };
       }
 
-      adjuntosPage = pagesAfter[pagesAfter.length - 1];
-      await adjuntosPage.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => {});
-      let adjUrl = adjuntosPage.url();
+      await adjuntosPage.waitForURL(url => url.href.includes('Attachment') || url.href.includes('ViewAttachment'), { timeout: 20000 }).catch(() => {});
+      await adjuntosPage.waitForLoadState('domcontentloaded', { timeout: 20000 }).catch(() => {});
+      await esperarConDelay(2000);
 
-      if (adjUrl.includes('403')) {
-        await esperarConDelay(4000);
-        await adjuntosPage.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => {});
+      let adjUrl = adjuntosPage.url();
+      console.log(`[DESCARGA] Ventana adjuntos: ${adjUrl.substring(0, 150)}`);
+
+      // El popup de MP puede pasar por una redirección intermedia a 403.html antes de llegar a la
+      // URL real de ViewAttachment.aspx (documentado en modulos/adjuntos.js del daemon, que
+      // funciona en Cloud Run). No declarar error aún: esperar a que la navegación se asiente y
+      // re-chequear la URL antes de rendirse.
+      if (adjUrl.includes('403') || adjUrl.includes('.html') || adjUrl.includes('error')) {
+        console.log('[DESCARGA] URL intermedia 403/error detectada — esperando posible redirección final...');
+        await esperarConDelay(5000);
+        await adjuntosPage.waitForLoadState('networkidle', { timeout: 15000 }).catch(() => {});
         adjUrl = adjuntosPage.url();
+        console.log(`[DESCARGA] Ventana adjuntos (tras 403): ${adjUrl.substring(0, 150)}`);
       }
 
       if (adjUrl.includes('403') || adjUrl.includes('.html') || adjUrl.includes('error')) {
+        await screenshotOnError(adjuntosPage, ADJUNTOS_DIR, `adjuntos-403-${codigo}`);
         await adjuntosPage.close().catch(() => {});
         if (intento < MAX_REINTENTOS) { await esperarConDelay(5000); continue; }
         return { ok: false, error: 'Redirección a error/403 en ventana de adjuntos', filas: [] };
       }
-
-      await adjuntosPage.waitForLoadState('domcontentloaded', { timeout: 20000 }).catch(() => {});
-      await esperarConDelay(2000);
 
       const robotBlock = await adjuntosPage.evaluate(() => {
         const hasRobotImg = document.querySelector('img[src*="robot.png"]') !== null;
@@ -185,30 +221,126 @@ async function abrirGrillaAdjuntos(fichaPage, context, codigo) {
         return { ok: false, error: 'Bloqueo anti-bot de Mercado Público (cupo de "Ver Adjuntos" o acceso denegado)', filas: [] };
       }
 
+      // Esperar activamente a que la tabla de adjuntos esté presente en el DOM
+      await adjuntosPage.waitForSelector('table, #DWNL_grdId, body', { timeout: 15000 }).catch(() => {});
+      await esperarConDelay(1000);
+
       const evalResult = await adjuntosPage.evaluate(() => {
-        const table = document.getElementById('DWNL_grdId');
-        if (!table) return { filas: null };
+        // Diagnóstico: capturar contexto de la página ANTES de decidir (para detectar
+        // anti-bot/reCAPTCHA/estructura distinta en Cloud Run sin adivinar).
+        const diag = {
+          url: location.href.substring(0, 150),
+          title: document.title,
+          bodyPreview: (document.body?.innerText || '').replace(/\s+/g, ' ').trim().substring(0, 400),
+          tablas: Array.from(document.querySelectorAll('table')).map(t => t.id || t.className || 'sin-id').slice(0, 10),
+          inputImages: document.querySelectorAll('input[type="image"]').length,
+          iframes: document.querySelectorAll('iframe').length,
+        };
+
+        // 1. Localizar tabla de adjuntos por selectores prioritarios (mismo set ampliado
+        //    que modulos/adjuntos.js del daemon, que funciona en Cloud Run)
+        let table = document.getElementById('DWNL_grdId')
+          || document.querySelector('table[id*="DWNL_grdId"]')
+          || document.querySelector('table[id*="grdId"]')
+          || document.querySelector('table[id*="DWNL"]')
+          || document.querySelector('table[id*="Adjuntos"]');
+
+        // 2. Si no encontró por ID, buscar tablas con inputs tipo imagen o de descarga
+        if (!table) {
+          const allTables = Array.from(document.querySelectorAll('table'));
+          table = allTables.find(t =>
+            t.querySelector('input[type="image"]') ||
+            t.querySelector('input[name*="DWNL"]') ||
+            t.querySelector('input[id*="DWNL"]')
+          );
+        }
+
+        const bodyText = (document.body?.innerText || '').toLowerCase();
+        const noAdjuntosKeywords = [
+          'no se encontraron registros',
+          'no existen registros',
+          'no existen archivos adjuntos',
+          'sin archivos',
+          'sin adjuntos',
+          'no registra adjuntos',
+          '0 registros'
+        ];
+        const tieneMensajeVacio = noAdjuntosKeywords.some(kw => bodyText.includes(kw));
+
+        if (!table) {
+          if (tieneMensajeVacio || !document.querySelector('input[type="image"]')) {
+            return { filas: [], ok: true, diag };
+          }
+          return { filas: null, ok: false, error: 'Estructura de la página de adjuntos no reconocida', diag };
+        }
+
         const rows = table.querySelectorAll('tr');
+        if (rows.length <= 1) {
+          return { filas: [], ok: true, diag };
+        }
+
         const resultados = [];
         for (let i = 1; i < rows.length; i++) {
           const cells = rows[i].querySelectorAll('td');
-          if (cells.length < 7) continue;
-          const nombre = cells[1]?.textContent?.trim() || '';
-          const tipo = cells[2]?.textContent?.trim() || '';
-          const descripcion = cells[3]?.textContent?.trim() || '';
-          const tamanio = cells[4]?.textContent?.trim() || '';
-          const fecha = cells[5]?.textContent?.trim() || '';
-          const verBtn = cells[6]?.querySelector('input[type="image"]');
-          const btnId = verBtn?.id || '';
-          if (!nombre || !btnId) continue;
-          resultados.push({ nombre, tipo, descripcion, tamanio, fecha, btnId, esActa: tipo === 'Acta de Evaluación' });
+          if (cells.length < 2) continue;
+
+          const verBtn = rows[i].querySelector('input[type="image"]')
+            || rows[i].querySelector('input[type="submit"]')
+            || rows[i].querySelector('input[type="button"]')
+            || rows[i].querySelector('a');
+
+          const btnId = verBtn?.id || verBtn?.getAttribute('name') || '';
+
+          let nombre = '';
+          let tipo = '';
+          let descripcion = '';
+          let tamanio = '';
+          let fecha = '';
+
+          if (cells.length >= 7) {
+            nombre = cells[1]?.textContent?.trim() || '';
+            tipo = cells[2]?.textContent?.trim() || '';
+            descripcion = cells[3]?.textContent?.trim() || '';
+            tamanio = cells[4]?.textContent?.trim() || '';
+            fecha = cells[5]?.textContent?.trim() || '';
+          } else {
+            nombre = cells[0]?.textContent?.trim() || cells[1]?.textContent?.trim() || '';
+            tipo = cells[1]?.textContent?.trim() || '';
+          }
+
+          if (!nombre && !btnId) continue;
+          if (!nombre) nombre = `documento_${i}`;
+
+          const esActa = tipo.toLowerCase().includes('acta') && tipo.toLowerCase().includes('evaluaci')
+            || nombre.toLowerCase().includes('acta') && nombre.toLowerCase().includes('evaluaci');
+
+          resultados.push({
+            nombre,
+            tipo,
+            descripcion,
+            tamanio,
+            fecha,
+            btnId,
+            esActa
+          });
         }
-        return { filas: resultados };
+
+        return { filas: resultados, ok: true, diag };
       });
 
-      if (evalResult.filas === null) {
+      console.log(`[DESCARGA] Filas encontradas en grilla: ${evalResult.filas ? evalResult.filas.length : 0}`);
+      if (evalResult.diag && (!evalResult.filas || evalResult.filas.length === 0)) {
+        console.log(`[DESCARGA][DIAG] url=${evalResult.diag.url}`);
+        console.log(`[DESCARGA][DIAG] title=${evalResult.diag.title}`);
+        console.log(`[DESCARGA][DIAG] body=${evalResult.diag.bodyPreview}`);
+        console.log(`[DESCARGA][DIAG] tablas=${JSON.stringify(evalResult.diag.tablas)} inputImages=${evalResult.diag.inputImages} iframes=${evalResult.diag.iframes}`);
+      }
+
+      if (!evalResult.ok || evalResult.filas === null) {
+        await screenshotOnError(adjuntosPage, ADJUNTOS_DIR, `adjuntos-error-estructura-${codigo}`);
         await adjuntosPage.close().catch(() => {});
-        return { ok: false, error: 'Estructura de la página de adjuntos cambió (grid DWNL_grdId ausente)', filas: [] };
+        if (intento < MAX_REINTENTOS) { await esperarConDelay(3000); continue; }
+        return { ok: false, error: evalResult.error || 'Estructura de la página de adjuntos no reconocida', filas: [] };
       }
 
       return { ok: true, page: adjuntosPage, filas: evalResult.filas };
@@ -243,11 +375,20 @@ async function descargarTodos(licitacionId, codigo, fichaPage, context, carpetaB
     let descargados = 0;
     let errores = 0;
 
-    for (const fila of filas) {
+    for (let idx = 0; idx < filas.length; idx++) {
+      const fila = filas[idx];
       try {
         const downloadPromise = adjuntosPage.waitForEvent('download', { timeout: 30000 }).catch(e => null);
-        const verBtn = adjuntosPage.locator(`#${fila.btnId}`);
-        await verBtn.click();
+        
+        let verBtn = null;
+        if (fila.btnId) {
+          verBtn = adjuntosPage.locator(`[id="${fila.btnId}"], [name="${fila.btnId}"]`).first();
+        }
+        if (!verBtn || !(await verBtn.count().catch(() => 0))) {
+          verBtn = adjuntosPage.locator('#DWNL_grdId input[type="image"], input[type="image"]').nth(idx);
+        }
+
+        await verBtn.click({ noWaitAfter: true, force: true });
         const download = await downloadPromise;
 
         if (!download) {
@@ -256,17 +397,12 @@ async function descargarTodos(licitacionId, codigo, fichaPage, context, carpetaB
           continue;
         }
 
-        // Nombre: se prefiere el nombre de la grilla del portal (descriptivo); si el archivo
-        // descargado trae extensión y el nombre de la grilla no, se agrega la extensión
-        // (el portal a veces sugiere "download" sin extensión).
         const sug = download.suggestedFilename() || '';
         const extSug = path.extname(sug);
         const nombreArchivo = sanitizarNombre(fila.nombre) + (path.extname(fila.nombre) ? '' : extSug);
         const rutaLocal = path.join(carpeta, nombreArchivo);
         await download.saveAs(rutaLocal);
 
-        // Ruta relativa al storage del backend (LocalStorageService / GCS): misma forma
-        // que usa AdjuntosHttpExtractor (licitaciones/{codigo}/adjuntos).
         const rutaStorage = path.join('licitaciones', codigo, 'adjuntos', nombreArchivo).replace(/\\/g, '/');
 
         const res = await upsertConHash(licitacionId, fila, rutaLocal, rutaStorage);
@@ -305,30 +441,81 @@ async function main() {
 
   let browser, context, page;
   try {
-    // IMPORTANTE (verificado en vivo 2026-08-15): la ficha pública por idlicitacion= responde
-    // 200 SIN sesión, pero con sesión de proveedor logueada REDIRIGE al portal interno
-    // (Menu.aspx) y nunca carga. Además ViewAttachmentLC.aspx resuelve su reCAPTCHA Enterprise
-    // con el navegador Chromium channel (mismo fingerprint del daemon) sin necesidad de login.
-    // Por eso este script va SIN sesión: más simple, no gasta credenciales ni sesión.
-    const instancia = await launch(HEADLESS, null);
+    // Flujo con sesión de proveedor (patrón del daemon, agente-mp.js): cargar la sesión
+    // persistida desde BD, pasarla al navegador, y verificar/renovar con login() si expiró.
+    // Contexto: la ficha pública responde 200 SIN sesión pero el anti-bot de Mercado Público
+    // devuelve 403.html en "Ver Adjuntos" desde IPs de datacenter (Cloud Run) incluso con
+    // Chromium headed/Xvfb. Con sesión real + portal interno (DetailsAcquisition.aspx) el
+    // reCAPTCHA Enterprise de ViewAttachmentLC.aspx se resuelve con el fingerprint del daemon.
+    const sessionState = await obtenerEstadoSesion();
+    const instancia = await launch(HEADLESS, sessionState);
     browser = instancia.browser;
     context = instancia.context;
     page = instancia.page;
 
-    const fichaUrl = FICHA_URL_TEMPLATE.replace('{codigo}', encodeURIComponent(codigo));
-    console.log(`[DESCARGA] Abriendo ficha: ${fichaUrl}`);
-    // La ficha del portal tarda en completar domcontentloaded por scripts pesados (analytics,
-    // hotjar, recaptcha) — esperar solo el commit del documento y luego aguardar el elemento
-    // clave #imgAdjuntos con waitFor explícito (más robusto que depender del evento de carga).
+    // MP_PROXY (opcional): si se define, se crea un contexto con proxy para que el tráfico salga
+    // por una IP que Mercado Público no bloquee (403.html en "Ver Adjuntos" desde IPs de
+    // datacenter como Cloud Run). Formato: http://usuario:pass@host:puerto
+    if (process.env.MP_PROXY) {
+      console.log(`[DESCARGA] Usando proxy: ${process.env.MP_PROXY.split('@').pop()}`);
+      await context.close().catch(() => {});
+      const ctxProxy = await browser.newContext({
+        viewport: { width: 1920, height: 1080 },
+        acceptDownloads: true,
+        locale: 'es-CL',
+        timezoneId: 'America/Santiago',
+        proxy: { server: process.env.MP_PROXY },
+      });
+      ctxProxy.setDefaultTimeout(30000);
+      ctxProxy.setDefaultNavigationTimeout(45000);
+      context = ctxProxy;
+      page = await context.newPage();
+    }
+
+    if (sessionState) {
+      console.log('[DESCARGA] Sesión persistida encontrada — verificando con login()...');
+      try {
+        await login(page, context);
+        const nuevoEstado = await context.storageState();
+        await guardarEstadoSesion(nuevoEstado);
+        console.log('[DESCARGA] Sesión verificada/renovada correctamente');
+      } catch (loginErr) {
+        console.log(`[DESCARGA] ADVERTENCIA: login() falló (${loginErr.message}) — continuando sin sesión renovada`);
+        if (loginErr.isRobotBlock) {
+          console.log('[DESCARGA] Bloqueo anti-robot en login');
+        }
+      }
+    }
+
+    // Siempre entrar a través de fichaLicitacion.html para que el router de Mercado Público
+    // convierta el código en el token ?qs= autorizado antes de abrir la ficha oficial
+    const fichaUrl = FICHA_URL_PUBLICA.replace('{codigo}', encodeURIComponent(codigo));
+    console.log(`[DESCARGA] Abriendo ficha pública para resolución de token qs: ${fichaUrl}`);
     await page.goto(fichaUrl, { waitUntil: 'commit', timeout: 60000 }).catch(async (e) => {
       console.log(`[DESCARGA] Primer goto con timeout: ${e.message.split('\n')[0]} — reintentando...`);
       await page.goto(fichaUrl, { waitUntil: 'commit', timeout: 60000 }).catch(() => {});
     });
 
-    await page.locator('#imgAdjuntos').waitFor({ state: 'visible', timeout: 45000 }).catch(() => {});
-    const hayAdjuntos = await page.locator('#imgAdjuntos').count().catch(() => 0);
+    // Esperar la redirección automática hacia DetailsAcquisition.aspx?qs=
+    await page.waitForURL(url => url.href.toLowerCase().includes('detailsacquisition') || url.href.toLowerCase().includes('rfb') || url.href.toLowerCase().includes('procurement'), { timeout: 30000 }).catch(() => {});
+    console.log(`[DESCARGA] Ficha oficial resuelta con token: ${page.url().substring(0, 100)}...`);
+
+    // Esperar a que los elementos clave de la ficha oficial estén cargados
+    await page.locator('#imgAdjuntos, #lblFicha, #txtNumeroLicitacion, .cssFichaTabla').first().waitFor({ state: 'attached', timeout: 30000 }).catch(() => {});
+    await esperarConDelay(2000);
+
+    const imgAdjuntos = page.locator('#imgAdjuntos');
+    const hayAdjuntos = await imgAdjuntos.count().catch(() => 0);
     if (!hayAdjuntos) {
-      console.log('[DESCARGA] La ficha no tiene "Ver Adjuntos" (licitación sin documentos o página no cargada)');
+      const urlActual = page.url();
+      const esFichaValida = urlActual.toLowerCase().includes('detailsacquisition') || urlActual.toLowerCase().includes('rfb');
+      if (!esFichaValida) {
+        console.log(`[DESCARGA] Error: La ficha oficial no redirigió correctamente (URL=${urlActual})`);
+        await marcarFinalizada(licitacionId, 'error', 'No se pudo cargar la ficha oficial de la licitación en Mercado Público');
+        await registrarLogExtraccion(licitacionId, 'fallo', 0, 'Timeout en carga de ficha', Date.now() - inicioMs);
+        return;
+      }
+      console.log('[DESCARGA] La ficha no tiene "Ver Adjuntos" (licitación sin documentos)');
       await marcarFinalizada(licitacionId, 'completado', null);
       await registrarLogExtraccion(licitacionId, 'sin_adjuntos', 0, null, Date.now() - inicioMs);
       console.log('[DESCARGA] resultado=exito descargados=0 errores=0');

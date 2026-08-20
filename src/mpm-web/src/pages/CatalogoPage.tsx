@@ -372,13 +372,6 @@ export function CatalogoPage() {
               ),
               children: (
                 <div style={{ padding: '8px 0' }}>
-                  <Alert
-                    type="info"
-                    showIcon
-                    message="Acreditaciones Oficiales de TIVIT como Organización"
-                    description="Catálogo de acreditaciones institucionales (ISO 27001, ISO 9001, Tier III, PCI-DSS, Partner Tiers). El equipo comercial puede adjuntar el documento PDF original escaneado/firmado de cada certificación para incluirlo en las ofertas."
-                    style={{ marginBottom: 16 }}
-                  />
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 12 }}>
                     <Input
                       placeholder="Buscar certificación institucional o entidad..."
@@ -516,46 +509,7 @@ export function CatalogoPage() {
               ),
             },
 
-            // TAB 3: CAPÍTULOS DE LA PROPUESTA DOCX
-            {
-              key: 'capitulos',
-              label: (
-                <span style={{ fontWeight: 600 }}>
-                  <FileTextOutlined style={{ color: '#1677ff' }} /> Capítulos Propuesta DOCX ({capitulos.length})
-                </span>
-              ),
-              children: (
-                <div style={{ padding: '8px 0' }}>
-                  <Alert
-                    type="info"
-                    showIcon
-                    message="Estructura estándar de propuestas comerciales"
-                    description="Estos capítulos componen la plantilla base de Word (.docx) editable que el sistema genera para cada licitación adjudicable."
-                    style={{ marginBottom: 16 }}
-                  />
-                  <Table<CatalogoCapitulo>
-                    size="small"
-                    rowKey="id"
-                    loading={capitulosQuery.isLoading}
-                    dataSource={capitulos}
-                    pagination={false}
-                    columns={[
-                      { title: 'Orden', dataIndex: 'orden', key: 'orden', width: 80, render: (o: number) => <Tag color="blue">#{o}</Tag> },
-                      { title: 'Título del Capítulo', dataIndex: 'titulo', key: 'titulo', render: (t: string) => <Typography.Text strong>{t}</Typography.Text> },
-                      {
-                        title: 'Estado',
-                        dataIndex: 'activo',
-                        key: 'activo',
-                        width: 120,
-                        render: (a: boolean) => <Tag color={a ? 'success' : 'default'}>{a ? 'Activo' : 'Inactivo'}</Tag>,
-                      },
-                    ]}
-                  />
-                </div>
-              ),
-            },
-
-            // TAB 4: PARÁMETROS MERCADO PÚBLICO
+            // TAB 3: PARÁMETROS MERCADO PÚBLICO
             {
               key: 'portal',
               label: (

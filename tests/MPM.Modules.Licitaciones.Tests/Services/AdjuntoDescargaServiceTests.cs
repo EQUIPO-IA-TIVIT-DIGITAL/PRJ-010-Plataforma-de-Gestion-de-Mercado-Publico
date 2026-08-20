@@ -151,6 +151,50 @@ public class AdjuntoDescargaServiceTests
     }
 
     [Fact]
+    public async Task ObtenerEstadoAsync_SinFilasPeroExtraccionExitosaCon0Docs_Completado()
+    {
+        // Fix scraper prod (1191449-18-LE26): el script Node registra 'exito' con 0 documentos
+        // cuando la grilla viene vacía (falso "sin adjuntos" por anti-bot headless). Antes este
+        // caso quedaba "pendiente" para siempre sin error; ahora se reporta "completado" para
+        // que el frontend no quede colgado (la causa raíz del vacío se ataca con Xvfb).
+        _handlerMock.Setup(h => h.ListarAsync(10, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<AdjuntoDocumentosHandler.AdjuntoDocumentoFila>());
+        _handlerMock.Setup(h => h.ObtenerUltimaExtraccionAsync(10, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new AdjuntoDocumentosHandler.UltimaExtraccionRow
+            {
+                Estado = "exito",
+                DocumentosObtenidos = 0,
+                EjecutadoEn = DateTime.UtcNow,
+            });
+
+        var estado = await _service.ObtenerEstadoAsync(10);
+
+        estado.EstadoConjunto.Should().Be("completado");
+        estado.DescargaError.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task ObtenerEstadoAsync_SinFilasPeroExtraccionExitosaConDocs_NoEnmascara()
+    {
+        // Si el log dice 'exito' pero con documentos obtenidos > 0 y no hay filas persistidas,
+        // hay una inconsistencia real (los docs se perdieron al persistir) — NO debe mapearse
+        // a "completado" para no enmascarar el error.
+        _handlerMock.Setup(h => h.ListarAsync(10, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<AdjuntoDocumentosHandler.AdjuntoDocumentoFila>());
+        _handlerMock.Setup(h => h.ObtenerUltimaExtraccionAsync(10, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new AdjuntoDocumentosHandler.UltimaExtraccionRow
+            {
+                Estado = "exito",
+                DocumentosObtenidos = 3,
+                EjecutadoEn = DateTime.UtcNow,
+            });
+
+        var estado = await _service.ObtenerEstadoAsync(10);
+
+        estado.EstadoConjunto.Should().Be("pendiente", "no se debe enmascarar una extracción 'exito' sin filas persistidas");
+    }
+
+    [Fact]
     public async Task IniciarDescargaAsync_DescargaViva_NoRedisparaYDevuelveYaEnCurso()
     {
         _handlerMock.Setup(h => h.ExistenDescargasVivasAsync(10, It.IsAny<CancellationToken>()))

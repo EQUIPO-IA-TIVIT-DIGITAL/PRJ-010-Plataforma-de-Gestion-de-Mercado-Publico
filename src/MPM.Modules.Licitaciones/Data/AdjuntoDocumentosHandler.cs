@@ -62,6 +62,7 @@ public class AdjuntoDocumentosHandler(DbConnectionFactory dbFactory)
     public class UltimaExtraccionRow
     {
         public string Estado { get; set; } = string.Empty;
+        public int DocumentosObtenidos { get; set; }
         public string? Error { get; set; }
         public DateTime EjecutadoEn { get; set; }
     }

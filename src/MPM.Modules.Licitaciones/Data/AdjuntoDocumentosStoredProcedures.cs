@@ -29,7 +29,7 @@ public static class AdjuntoDocumentosStoredProcedures
     /// <summary>Último registro de extracción de la licitación (para reportar error aunque no haya filas).</summary>
     public const string UltimaExtraccion =
         """
-        SELECT estado AS Estado, error AS Error, ejecutado_en AS EjecutadoEn
+        SELECT estado AS Estado, error AS Error, documentos_obtenidos AS DocumentosObtenidos, ejecutado_en AS EjecutadoEn
         FROM extraccion_documentos_log
         WHERE licitacion_id = @p_licitacion_id
         ORDER BY ejecutado_en DESC

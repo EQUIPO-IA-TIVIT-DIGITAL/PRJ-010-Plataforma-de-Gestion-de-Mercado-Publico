@@ -58,7 +58,7 @@ public class DatabaseInitializer(ILogger<DatabaseInitializer> logger, DbConnecti
 
                 try
                 {
-                    await conn.ExecuteAsync(sql);
+                    await conn.ExecuteAsync(sql, commandTimeout: 300);
                     await conn.ExecuteAsync(
                         "INSERT INTO _migrations (version) VALUES (@v)", new { v = version });
                     logger.LogInformation("Migration {Version} applied successfully.", version);

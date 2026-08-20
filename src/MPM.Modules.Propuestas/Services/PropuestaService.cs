@@ -93,12 +93,25 @@ public sealed class PropuestaService(
 
         var certificationDocuments = await DownloadCertificationFilesAsync(certifications, ct);
         var summary = await summaryProvider.ObtenerResumenAsync(licitacion.Id, ct);
+        var usuario = await handler.ObtenerUsuarioAsync(generadoPor, ct);
+        var contactName = !string.IsNullOrWhiteSpace(usuario?.Nombre) ? usuario.Nombre : (generadoPor.Contains('@') ? "Equipo Comercial TIVIT" : generadoPor);
+        var contactEmail = !string.IsNullOrWhiteSpace(usuario?.Email) ? usuario.Email : (generadoPor.Contains('@') ? generadoPor : "comercial.chile@tivit.com");
+
         byte[] bytes;
         try
         {
             // Resolve explicitly before rendering so an absent file is PRO_010, not PRO_009.
             _ = templateProvider.ResolvePath();
-            bytes = generator.Generate(new ProposalDocumentInput(chapters, certificationDocuments, experiences, summary));
+            bytes = generator.Generate(new ProposalDocumentInput(
+                Chapters: chapters,
+                Certifications: certificationDocuments,
+                Experiences: experiences,
+                ExecutiveSummary: summary,
+                LicitacionTitulo: licitacion.Nombre,
+                LicitacionCodigo: licitacion.CodigoExterno,
+                OrganismoComprador: licitacion.Organismo,
+                ContactName: contactName,
+                ContactEmail: contactEmail));
         }
         catch (ProposalGenerationException ex)
         {
@@ -270,7 +283,7 @@ public sealed class PropuestaService(
 
     private static List<CapituloCatalogoDto> SelectChapters(List<long>? ids, IReadOnlyList<CapituloCatalogoDto> active)
     {
-        if (ids == null) return active.OrderBy(c => c.Orden).ThenBy(c => c.Id).ToList();
+        if (ids == null || ids.Count == 0) return active.OrderBy(c => c.Orden).ThenBy(c => c.Id).ToList();
         return SelectById(ids, active, "capítulos").OrderBy(c => c.Orden).ThenBy(c => c.Id).ToList();
     }
 

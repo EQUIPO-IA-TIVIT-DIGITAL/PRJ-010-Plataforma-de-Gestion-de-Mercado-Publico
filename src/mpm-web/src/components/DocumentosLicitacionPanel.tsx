@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   Alert,
   Button,
@@ -8,6 +8,7 @@ import {
   Progress,
   Space,
   Spin,
+  Steps,
   Tag,
   Typography,
   App as AntdApp,
@@ -23,6 +24,11 @@ import {
   CheckCircleOutlined,
   RobotOutlined,
   SyncOutlined,
+  GlobalOutlined,
+  SafetyCertificateOutlined,
+  CloudDownloadOutlined,
+  InboxOutlined,
+  InfoCircleOutlined,
 } from '@ant-design/icons';
 import {
   descargarArchivoDocumento,
@@ -54,29 +60,48 @@ export function DocumentosLicitacionPanel({ codigoExterno, onIrAAnalisis }: Prop
 
   // Contador de segundos en vivo durante la extracción
   const [segundosTranscurridos, setSegundosTranscurridos] = useState(0);
+  const prevEnProgresoRef = useRef(false);
 
   const enProgreso = estado?.estadoConjunto === 'descargando' || descargarMutation.isPending;
-  const completado = estado?.estadoConjunto === 'completado' && (estado.documentos?.length ?? 0) > 0;
+  const tieneDocumentos = estado?.estadoConjunto === 'completado' && (estado.documentos?.length ?? 0) > 0;
+  const esCompletadoSinDocs = estado?.estadoConjunto === 'completado' && (estado.documentos?.length ?? 0) === 0;
 
   useEffect(() => {
-    let timer: any;
+    let timer: ReturnType<typeof setInterval> | undefined;
     if (enProgreso) {
       timer = setInterval(() => {
         setSegundosTranscurridos((prev) => prev + 1);
         void refetch();
       }, 1500);
     } else {
+      // Si acabamos de terminar una descarga activa
+      if (prevEnProgresoRef.current && estado) {
+        if (estado.estadoConjunto === 'completado') {
+          if ((estado.documentos?.length ?? 0) > 0) {
+            message.success(`¡Extracción completada! Se obtuvieron ${estado.documentos.length} documentos oficiales.`);
+          } else {
+            message.info('Extracción finalizada: Esta licitación no registra documentos adjuntos en el portal.');
+          }
+        } else if (estado.estadoConjunto === 'error') {
+          message.error(estado.descargaError || 'La extracción de documentos finalizó con errores.');
+        }
+      }
       setSegundosTranscurridos(0);
     }
-    return () => clearInterval(timer);
-  }, [enProgreso, refetch]);
+
+    prevEnProgresoRef.current = enProgreso;
+    return () => {
+      if (timer) clearInterval(timer);
+    };
+  }, [enProgreso, refetch, estado, message]);
 
   const iniciarDescarga = (forzar = false) => {
+    setSegundosTranscurridos(1);
     descargarMutation.mutate(
       { codigoExterno, forzar },
       {
         onSuccess: () => {
-          message.info('Descarga de documentos iniciada en segundo plano');
+          message.info('Iniciando extracción automatizada desde Mercado Público...');
         },
         onError: (e) => {
           message.error(e instanceof Error ? e.message : 'No se pudo iniciar la descarga');
@@ -91,6 +116,17 @@ export function DocumentosLicitacionPanel({ codigoExterno, onIrAAnalisis }: Prop
     );
   };
 
+  // Cálculo de paso actual y porcentaje simulado para la UI
+  const pasoActual = segundosTranscurridos < 5 ? 0 : segundosTranscurridos < 13 ? 1 : segundosTranscurridos < 23 ? 2 : 3;
+  const porcentajeProgreso = Math.min(96, Math.max(12, segundosTranscurridos * 4));
+
+  const descripcionesPaso = [
+    'Inicializando agente navegador y preparando conexión segura con Mercado Público...',
+    'Navegando a la ficha oficial de la licitación y validando controles de acceso...',
+    'Explorando la grilla de documentos oficiales, actas de evaluación y anexos...',
+    'Descargando archivos, verificando firmas de integridad (SHA-256) y sincronizando storage...',
+  ];
+
   return (
     <div style={{ padding: '8px 0' }}>
       {/* Header bar */}
@@ -98,9 +134,14 @@ export function DocumentosLicitacionPanel({ codigoExterno, onIrAAnalisis }: Prop
         <div>
           <Typography.Title level={5} style={{ margin: 0 }}>
             Pliegos y Bases Oficiales
-            {completado && (
+            {tieneDocumentos && (
               <Tag color="success" style={{ marginLeft: 8 }}>
                 {estado.documentos.length} archivos descargados
+              </Tag>
+            )}
+            {esCompletadoSinDocs && (
+              <Tag color="default" style={{ marginLeft: 8 }}>
+                Sin adjuntos en portal
               </Tag>
             )}
           </Typography.Title>
@@ -110,13 +151,13 @@ export function DocumentosLicitacionPanel({ codigoExterno, onIrAAnalisis }: Prop
         </div>
 
         <Space size={8}>
-          {completado && onIrAAnalisis && (
+          {tieneDocumentos && onIrAAnalisis && (
             <Button type="primary" icon={<RobotOutlined />} onClick={onIrAAnalisis}>
               Pasar al Análisis IA
             </Button>
           )}
 
-          {completado ? (
+          {tieneDocumentos ? (
             <Popconfirm
               title="¿Volver a descargar pliegos?"
               description="Los archivos ya se encuentran descargados. ¿Deseas forzar una nueva extracción desde el portal?"
@@ -128,6 +169,14 @@ export function DocumentosLicitacionPanel({ codigoExterno, onIrAAnalisis }: Prop
                 Re-descargar bases
               </Button>
             </Popconfirm>
+          ) : esCompletadoSinDocs ? (
+            <Button
+              icon={<ReloadOutlined />}
+              loading={enProgreso}
+              onClick={() => iniciarDescarga(true)}
+            >
+              Re-verificar en portal
+            </Button>
           ) : (
             <Button
               type="primary"
@@ -147,46 +196,115 @@ export function DocumentosLicitacionPanel({ codigoExterno, onIrAAnalisis }: Prop
           <Spin tip="Consultando estado de documentos..." />
         </div>
       ) : enProgreso ? (
-        /* Tarjeta de progreso dinámico en vivo */
+        /* Tarjeta de progreso dinámico en vivo con Stepper */
         <Card
           style={{
             marginBottom: 20,
-            background: 'linear-gradient(135deg, rgba(230, 247, 255, 0.8) 0%, rgba(240, 245, 255, 0.8) 100%)',
+            background: 'linear-gradient(135deg, rgba(230, 247, 255, 0.95) 0%, rgba(240, 245, 255, 0.95) 100%)',
             borderColor: '#91caff',
+            borderRadius: 12,
+            boxShadow: '0 4px 12px rgba(22, 119, 255, 0.08)',
           }}
         >
-          <Space direction="vertical" size={12} style={{ width: '100%' }}>
+          <Space direction="vertical" size={16} style={{ width: '100%' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <Space>
                 <SyncOutlined spin style={{ fontSize: 20, color: '#1677ff' }} />
-                <Typography.Text strong style={{ fontSize: 15 }}>
-                  Descarga y extracción en curso desde Mercado Público
+                <Typography.Text strong style={{ fontSize: 16 }}>
+                  Extracción en curso desde Mercado Público
                 </Typography.Text>
               </Space>
-              <Tag color="processing">Tiempo transcurrido: {segundosTranscurridos}s</Tag>
+              <Tag color="processing" style={{ fontSize: 13, padding: '3px 10px', borderRadius: 20 }}>
+                ⏱️ Tiempo transcurrido: {segundosTranscurridos}s
+              </Tag>
             </div>
 
-            <Progress percent={99} status="active" showInfo={false} />
+            <Progress
+              percent={porcentajeProgreso}
+              status="active"
+              strokeColor={{ '0%': '#108ee9', '100%': '#87d068' }}
+            />
 
-            <Typography.Text type="secondary" style={{ fontSize: 13 }}>
-              Descargando las bases y documentos oficiales desde Mercado Público. Esta sección se actualizará automáticamente una vez finalizada la extracción.
-            </Typography.Text>
+            {/* Stepper dinámico con las fases del scraper */}
+            <div style={{ padding: '8px 0', marginTop: 4 }}>
+              <Steps
+                current={pasoActual}
+                size="small"
+                items={[
+                  {
+                    title: 'Conexión',
+                    description: 'Agente navegador',
+                    icon: pasoActual === 0 ? <SyncOutlined spin /> : pasoActual > 0 ? <CheckCircleOutlined style={{ color: '#52c41a' }} /> : <GlobalOutlined />,
+                  },
+                  {
+                    title: 'Ficha Oficial',
+                    description: 'Acceso portal',
+                    icon: pasoActual === 1 ? <SyncOutlined spin /> : pasoActual > 1 ? <CheckCircleOutlined style={{ color: '#52c41a' }} /> : <SafetyCertificateOutlined />,
+                  },
+                  {
+                    title: 'Extracción',
+                    description: 'Pliegos y actas',
+                    icon: pasoActual === 2 ? <SyncOutlined spin /> : pasoActual > 2 ? <CheckCircleOutlined style={{ color: '#52c41a' }} /> : <CloudDownloadOutlined />,
+                  },
+                  {
+                    title: 'Almacenamiento',
+                    description: 'Hash SHA-256 y guardado',
+                    icon: pasoActual === 3 ? <SyncOutlined spin /> : <InboxOutlined />,
+                  },
+                ]}
+              />
+            </div>
+
+            <div style={{ background: 'rgba(255, 255, 255, 0.75)', padding: '10px 14px', borderRadius: 8 }}>
+              <Typography.Text style={{ fontSize: 13, color: '#1f1f1f' }}>
+                <strong>Estado actual:</strong> {descripcionesPaso[pasoActual]}
+              </Typography.Text>
+            </div>
           </Space>
         </Card>
       ) : estado?.estadoConjunto === 'error' ? (
         <Alert
           type="error"
           showIcon
-          message="La extracción de documentos falló"
-          description={estado.descargaError ?? 'Ocurrió un problema al extraer los documentos desde el portal'}
+          message="La extracción de documentos no pudo completarse"
+          description={estado.descargaError ?? 'Ocurrió un problema al extraer los documentos desde el portal.'}
           action={
-            <Button size="small" icon={<ReloadOutlined />} onClick={() => iniciarDescarga(true)}>
-              Reintentar
+            <Button size="small" type="primary" danger icon={<ReloadOutlined />} onClick={() => iniciarDescarga(true)}>
+              Reintentar extracción
             </Button>
           }
-          style={{ marginBottom: 16 }}
+          style={{ marginBottom: 16, borderRadius: 8 }}
         />
-      ) : !completado ? (
+      ) : esCompletadoSinDocs ? (
+        /* Estado completado pero el portal no tenía documentos adjuntos */
+        <Card
+          style={{
+            marginBottom: 16,
+            borderRadius: 10,
+            borderStyle: 'dashed',
+            borderColor: '#d9d9d9',
+            backgroundColor: '#fafafa',
+            textAlign: 'center',
+            padding: '20px 10px',
+          }}
+        >
+          <Space direction="vertical" size={8} orientation="center">
+            <InfoCircleOutlined style={{ fontSize: 32, color: '#faad14' }} />
+            <Typography.Title level={5} style={{ margin: '4px 0' }}>
+              Extracción finalizada: Sin documentos adjuntos
+            </Typography.Title>
+            <Typography.Text type="secondary" style={{ maxWidth: 520, display: 'inline-block' }}>
+              El portal oficial de Mercado Público no registra archivos adjuntos ni bases descargables para esta licitación (habitual en compras ágiles o contrataciones menores).
+            </Typography.Text>
+            <div style={{ marginTop: 12 }}>
+              <Button icon={<ReloadOutlined />} onClick={() => iniciarDescarga(true)}>
+                Volver a consultar en el portal
+              </Button>
+            </div>
+          </Space>
+        </Card>
+      ) : !tieneDocumentos ? (
+        /* Estado pendiente (nunca se ha solicitado) */
         <Alert
           type="info"
           showIcon
@@ -197,9 +315,10 @@ export function DocumentosLicitacionPanel({ codigoExterno, onIrAAnalisis }: Prop
               Descargar ahora
             </Button>
           }
+          style={{ borderRadius: 8 }}
         />
       ) : (
-        /* Estado completado: Lista limpia y categorizada de documentos */
+        /* Estado completado con documentos */
         <>
           <Alert
             type="success"
@@ -207,12 +326,13 @@ export function DocumentosLicitacionPanel({ codigoExterno, onIrAAnalisis }: Prop
             icon={<CheckCircleOutlined />}
             message={`Todos los documentos están disponibles (${estado.documentos.length} archivos)`}
             description="Las bases y anexos han sido verificados y almacenados con hash SHA-256. Ya puedes proceder con el análisis inteligente."
-            style={{ marginBottom: 16 }}
+            style={{ marginBottom: 16, borderRadius: 8 }}
           />
 
           <List
             bordered
             size="small"
+            style={{ borderRadius: 8, overflow: 'hidden' }}
             dataSource={estado.documentos}
             renderItem={(doc) => (
               <List.Item

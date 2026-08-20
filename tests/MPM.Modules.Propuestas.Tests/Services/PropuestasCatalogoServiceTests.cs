@@ -32,10 +32,10 @@ public class PropuestasCatalogoServiceTests
         var handler = new Mock<PropuestasHandler>(new DbConnectionFactory("Host=unused"));
         var service = new PropuestasCatalogoService(handler.Object);
 
-        var act = () => service.ListarExperienciasAsync(null, true, 1, 101);
+        var act = () => service.ListarExperienciasAsync(null, true, 1, 1001);
 
         await act.Should().ThrowAsync<PropuestasCatalogoService.PropuestasValidationException>()
-            .WithMessage("size debe estar entre 1 y 100");
+            .WithMessage("size debe estar entre 1 y 1000");
         handler.Verify(h => h.ListarExperienciasAsync(It.IsAny<string?>(), It.IsAny<bool?>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 

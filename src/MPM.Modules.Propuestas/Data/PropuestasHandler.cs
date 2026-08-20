@@ -119,13 +119,13 @@ public class PropuestasHandler(DbConnectionFactory dbFactory)
         => await ExecuteMutationAsync<MutationResult>(PropuestasStoredProcedures.CapitulosEliminar, new { p_id = id, p_error_msg = "" });
 
     public virtual Task<CatalogoPage<CapituloCatalogoDto>> ListarCapitulosActivosAsync(CancellationToken ct = default)
-        => ListarCapitulosAsync(null, true, 1, 1000, ct);
+        => ListarCapitulosAsync(null, true, 1, 10000, ct);
 
     public virtual Task<CatalogoPage<CertificacionCatalogoDto>> ListarCertificacionesActivasAsync(CancellationToken ct = default)
-        => ListarCertificacionesAsync(null, true, null, null, 1, 1000, ct);
+        => ListarCertificacionesAsync(null, true, null, null, 1, 10000, ct);
 
     public virtual Task<CatalogoPage<ExperienciaCatalogoDto>> ListarExperienciasActivasAsync(CancellationToken ct = default)
-        => ListarExperienciasAsync(null, true, 1, 1000, ct);
+        => ListarExperienciasAsync(null, true, 1, 10000, ct);
 
     public virtual async Task<DecisionProposalRow?> ObtenerDecisionAsync(long licitacionId, CancellationToken ct = default)
     {
@@ -216,6 +216,23 @@ public class PropuestasHandler(DbConnectionFactory dbFactory)
         return row == null ? null : ToDto(row);
     }
 
+    public virtual async Task<UsuarioContactoRow?> ObtenerUsuarioAsync(string? identificador, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(identificador)) return null;
+        await using var conn = _dbFactory.Create();
+        if (long.TryParse(identificador, out var userId))
+        {
+            var row = await conn.QuerySingleOrDefaultAsync<UsuarioContactoRow>(
+                "SELECT id AS Id, nombre AS Nombre, email AS Email FROM usuarios WHERE id = @p_id LIMIT 1",
+                new { p_id = userId });
+            if (row != null) return row;
+        }
+
+        return await conn.QuerySingleOrDefaultAsync<UsuarioContactoRow>(
+            "SELECT id AS Id, nombre AS Nombre, email AS Email FROM usuarios WHERE LOWER(email) = LOWER(@p_email) LIMIT 1",
+            new { p_email = identificador });
+    }
+
     private async Task<CapituloCatalogoDto?> ObtenerCapituloAsync(long id, CancellationToken ct)
     {
         await using var conn = _dbFactory.Create();
@@ -281,7 +298,13 @@ public class PropuestasHandler(DbConnectionFactory dbFactory)
     private sealed class ExperienciaRow { public long Id { get; set; } public string Titulo { get; set; } = ""; public string Cliente { get; set; } = ""; public string? Descripcion { get; set; } public DateTime? FechaInicio { get; set; } public DateTime? FechaFin { get; set; } public decimal? MontoUsd { get; set; } public string? Pais { get; set; } public bool Activo { get; set; } public DateTime CreatedAt { get; set; } public DateTime UpdatedAt { get; set; } public long TotalCount { get; set; } }
     private sealed class CertificacionRow { public long Id { get; set; } public string Nombre { get; set; } = ""; public string NombreNormalizado { get; set; } = ""; public string? FileIdCensus { get; set; } public string? Institucion { get; set; } public string? Vigencia { get; set; } public string? Titular { get; set; } public string Tipo { get; set; } = "corporativa"; public bool Activo { get; set; } public DateTime CreatedAt { get; set; } public DateTime UpdatedAt { get; set; } public long TotalCount { get; set; } }
     private sealed class CapituloRow { public long Id { get; set; } public string Titulo { get; set; } = ""; public string? ContenidoMarkdown { get; set; } public int Orden { get; set; } public bool Activo { get; set; } public DateTime CreatedAt { get; set; } public DateTime UpdatedAt { get; set; } public long TotalCount { get; set; } }
-    private sealed class MutationResult { public long Id { get; set; } public string? ErrorMessage { get; set; } }
+    private sealed class MutationResult
+    {
+        public long Id { get; set; }
+        public long p_id { set => Id = value; }
+        public string? ErrorMessage { get; set; }
+        public string? p_error_msg { set => ErrorMessage = value; }
+    }
 }
 
 public sealed record CertificationSyncItem(string Nombre, string NombreNormalizado, string? FileIdCensus, string? Institucion, string? Vigencia);
@@ -290,8 +313,11 @@ public sealed class CensusSyncMutationResult { public int Insertadas { get; set;
 public sealed class ProposalMutationResult
 {
     public long Id { get; set; }
+    public long p_id { set => Id = value; }
     public int Version { get; set; }
+    public int p_version { set => Version = value; }
     public string? ErrorMessage { get; set; }
+    public string? p_error_msg { set => ErrorMessage = value; }
 }
 
 public sealed class DecisionProposalRow
@@ -319,4 +345,11 @@ public sealed class PropuestaRow
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
     public long TotalCount { get; set; }
+}
+
+public sealed class UsuarioContactoRow
+{
+    public long Id { get; set; }
+    public string Nombre { get; set; } = string.Empty;
+    public string Email { get; set; } = string.Empty;
 }

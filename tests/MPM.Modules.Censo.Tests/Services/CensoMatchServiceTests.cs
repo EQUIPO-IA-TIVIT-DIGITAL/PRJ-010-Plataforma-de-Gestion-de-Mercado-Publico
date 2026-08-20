@@ -124,7 +124,7 @@ public class CensoMatchServiceTests
     public async Task EjecutarMatchAsync_SinRequisitos_LanzaSinRequisitos()
     {
         _handlerMock.Setup(h => h.AnalisisRequisitosAsync(10, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new CensoHandler.AnalisisRequisitosResult(true, new List<string>()));
+            .ReturnsAsync(new CensoHandler.AnalisisRequisitosResult(true, new List<string>(), new List<string>()));
 
         var request = new CensoMatchRequest { Tecnologias = new List<string>(), Certificaciones = new List<string>() };
         var act = async () => await _service.EjecutarMatchAsync(10, "usuario@tivit.cl", request);
@@ -137,7 +137,7 @@ public class CensoMatchServiceTests
     public async Task EjecutarMatchAsync_SinAnalisisNiBody_LanzaSinAnalisis()
     {
         _handlerMock.Setup(h => h.AnalisisRequisitosAsync(10, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new CensoHandler.AnalisisRequisitosResult(false, new List<string>()));
+            .ReturnsAsync(new CensoHandler.AnalisisRequisitosResult(false, new List<string>(), new List<string>()));
 
         var act = async () => await _service.EjecutarMatchAsync(10, "usuario@tivit.cl", null);
 

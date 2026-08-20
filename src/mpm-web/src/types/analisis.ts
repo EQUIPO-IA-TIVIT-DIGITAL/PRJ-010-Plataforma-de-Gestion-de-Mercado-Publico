@@ -100,6 +100,9 @@ export interface LicitacionResumenEjecutivo {
   puntajeMaximo?: number | null
   fechaAnalisis: string
   competidoresNombres: string[]
+  competidorGano?: boolean
+  resultadoCompetidor?: string
+  montoCompetidor?: number | null
 }
 
 export interface CompetidorRanking {

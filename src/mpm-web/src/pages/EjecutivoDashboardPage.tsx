@@ -295,15 +295,23 @@ export default function EjecutivoDashboardPage() {
                             ),
                           },
                           {
-                            title: 'Resultado TIVIT',
+                            title: `Resultado Competidor`,
                             render: (_: unknown, row: LicitacionResumenEjecutivo) =>
-                              row.tivitGano
-                                ? <Tag color="success">Ganó TIVIT</Tag>
-                                : <Tag color="error">Perdió TIVIT</Tag>,
-                            width: 130,
+                              row.competidorGano
+                                ? <Tag color="gold" icon={<TrophyOutlined />}>Adjudicado</Tag>
+                                : <Tag color="default">{row.resultadoCompetidor || 'No adjudicado'}</Tag>,
+                            width: 160,
                           },
                           {
-                            title: 'Monto adj.',
+                            title: 'Adjudicatario oficial',
+                            render: (_: unknown, row: LicitacionResumenEjecutivo) =>
+                              row.tivitGano
+                                ? <Tag color="success">TIVIT SpA (Ganador)</Tag>
+                                : <span>{row.adjudicatario || '—'}</span>,
+                            width: 240,
+                          },
+                          {
+                            title: 'Monto adjudicado',
                             dataIndex: 'montoAdjudicado',
                             render: (v: number | null) => fmt(v),
                             align: 'right' as const,

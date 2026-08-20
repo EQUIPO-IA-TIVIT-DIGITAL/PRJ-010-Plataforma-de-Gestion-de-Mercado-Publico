@@ -143,6 +143,9 @@ public class LicitacionResumenEjecutivoDto
     public double? PuntajeMaximo { get; set; }
     public DateTime FechaAnalisis { get; set; }
     public List<string> CompetidoresNombres { get; set; } = new();
+    public bool? CompetidorGano { get; set; }
+    public string? ResultadoCompetidor { get; set; }
+    public decimal? MontoCompetidor { get; set; }
 }
 
 public class CompetidorRankingDto

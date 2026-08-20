@@ -26,7 +26,7 @@ public class AdjuntoDescargaService(
 {
     private const string NodeBinary = "node";
     private static readonly TimeSpan StaleDescargandoThreshold = TimeSpan.FromMinutes(10);
-    private static readonly ConcurrentDictionary<long, byte> EnCurso = new();
+    private static readonly ConcurrentDictionary<long, DateTime> EnCurso = new();
 
     /// <summary>Excepción tipada: ya hay una extracción en curso para esta licitación.</summary>
     public class DescargaEnCursoException : Exception
@@ -38,16 +38,19 @@ public class AdjuntoDescargaService(
     {
         var filas = await handler.ListarAsync(licitacionId, ct);
 
-        var estado = filas.Count == 0
-            ? "pendiente"
-            : filas.Any(f => f.DescargaEstado == "descargando") ? "descargando"
-            : filas.FirstOrDefault(f => f.DescargaEstado == "error") is { } err ? "error"
-            : "completado";
+        var enMemoria = EnCurso.TryGetValue(licitacionId, out var iniciada) && (DateTime.UtcNow - iniciada) < StaleDescargandoThreshold;
+
+        var estado = enMemoria
+            ? "descargando"
+            : filas.Count == 0
+                ? "pendiente"
+                : filas.Any(f => f.DescargaEstado == "descargando") ? "descargando"
+                : filas.FirstOrDefault(f => f.DescargaEstado == "error") is { } err ? "error"
+                : "completado";
 
         var error = filas.FirstOrDefault(f => f.DescargaEstado == "error")?.DescargaError;
 
-        // Sin filas de adjuntos: el estado se deriva del último intento de extracción (si falló,
-        // el usuario debe ver el motivo y poder reintentar — antes quedaba invisible como "pendiente").
+        // Sin filas de adjuntos y no está en curso: consultar último log de extracción
         if (filas.Count == 0 && estado == "pendiente")
         {
             var ultima = await handler.ObtenerUltimaExtraccionAsync(licitacionId, ct);
@@ -55,6 +58,10 @@ public class AdjuntoDescargaService(
             {
                 estado = "error";
                 error = ultima.Error;
+            }
+            else if (ultima is { Estado: "sin_adjuntos" } || ultima is { Estado: "exito", DocumentosObtenidos: 0 })
+            {
+                estado = "completado";
             }
         }
 
@@ -75,7 +82,7 @@ public class AdjuntoDescargaService(
         long licitacionId, string codigoExterno, string usuario, bool forzar, CancellationToken ct = default)
     {
         // Guard in-process: evita dobles clics simultáneos (DOC_006).
-        if (!EnCurso.TryAdd(licitacionId, 0))
+        if (!forzar && EnCurso.TryGetValue(licitacionId, out var inicio) && DateTime.UtcNow - inicio < StaleDescargandoThreshold)
             throw new DescargaEnCursoException("Ya hay una extracción de documentos en curso para esta licitación");
 
         try
@@ -107,18 +114,21 @@ public class AdjuntoDescargaService(
                 return await FallarAsync(licitacionId, "No se encontró el script de descarga de documentos", ct);
             }
 
+            EnCurso[licitacionId] = DateTime.UtcNow;
+
             var arranco = DispararScraper(scriptPath, licitacionId, codigoExterno);
             if (!arranco)
+            {
+                EnCurso.TryRemove(licitacionId, out _);
                 return await FallarAsync(licitacionId, "El proceso de descarga no arrancó (script/node no disponible)", ct);
-
-            await extraccionLogHandler.RegistrarAsync(
-                licitacionId, "navegador", "exito", 0, false, false, null, 0, ct);
+            }
 
             return new DescargarDocumentosResultDto { EstadoConjunto = "descargando", Accion = "descargando" };
         }
-        finally
+        catch
         {
             EnCurso.TryRemove(licitacionId, out _);
+            throw;
         }
     }
 
@@ -182,6 +192,19 @@ public class AdjuntoDescargaService(
             CreateNoWindow = true,
         };
 
+        // Xvfb: mismo patrón que ScraperBackgroundService — Mercado Público penaliza el
+        // fingerprint headless de Chromium en "Ver Adjuntos" con reCAPTCHA (403 sistemático,
+        // verificado en vivo 2026-07-06). En Cloud Run el Dockerfile instala xvfb-run; si está
+        // disponible, envolver la invocación de Node con un framebuffer virtual y correr Chromium
+        // en modo headed (MP_HEADLESS=false). En local (sin xvfb-run) cae al flujo headless.
+        var useXvfb = IsXvfbAvailable();
+        if (useXvfb)
+        {
+            startInfo.FileName = "xvfb-run";
+            startInfo.Arguments = $"--auto-servernum -- {NodeBinary} {args}";
+            logger.LogInformation("Xvfb detectado — descarga de documentos correrá en modo headed dentro de framebuffer virtual");
+        }
+
         // Mismas credenciales de DB que el scraper diario + credenciales MP para login.
         startInfo.EnvironmentVariables["DB_HOST"] = config["DB_HOST"] ?? "db";
         startInfo.EnvironmentVariables["DB_PORT"] = config["DB_PORT"] ?? "5432";
@@ -191,9 +214,7 @@ public class AdjuntoDescargaService(
         startInfo.EnvironmentVariables["DB_SSL"] = config["DB_SSL"] ?? "";
         startInfo.EnvironmentVariables["MP_RUT"] = config["MP_RUT"] ?? "";
         startInfo.EnvironmentVariables["MP_PASSWORD"] = config["MP_PASSWORD"] ?? "";
-        startInfo.EnvironmentVariables["MP_HEADLESS"] = config["MP_HEADLESS"] ?? "true";
-        // Default: raíz de uploads del proceso (cwd/uploads) — el storage local del backend.
-        // OJO: una clave vacía en appsettings NO debe anular el default ("" ?? default = "").
+        startInfo.EnvironmentVariables["MP_HEADLESS"] = useXvfb ? "false" : (config["MP_HEADLESS"] ?? "true");
         var adjuntosDir = config["Extraccion:AdjuntosDir"];
         startInfo.EnvironmentVariables["ADJUNTOS_DIR"] = string.IsNullOrWhiteSpace(adjuntosDir)
             ? Path.Combine(Directory.GetCurrentDirectory(), "uploads")
@@ -205,26 +226,45 @@ public class AdjuntoDescargaService(
 
         try
         {
-            var process = new Process { StartInfo = startInfo };
-            process.Start();
+            var process = new Process { StartInfo = startInfo, EnableRaisingEvents = true };
 
-            // Espera corta para detectar fallas inmediatas (script ausente, módulo roto, DB
-            // inalcanzable al boot). Una corrida legítima tarda minutos: si sigue viva tras 5s
-            // se deja correr fire-and-forget (persiste directo en Postgres).
-            if (process.WaitForExit(5000) && process.ExitCode != 0)
+            process.OutputDataReceived += (s, e) =>
             {
-                var stderr = process.StandardError.ReadToEnd();
-                logger.LogError(
-                    "El proceso de descarga para {Codigo} salió inmediatamente con código {ExitCode}: {Stderr}",
-                    codigoExterno, process.ExitCode, stderr);
+                if (!string.IsNullOrWhiteSpace(e.Data))
+                    logger.LogInformation("[SCRAPER-OUT] {Line}", e.Data);
+            };
+
+            process.ErrorDataReceived += (s, e) =>
+            {
+                if (!string.IsNullOrWhiteSpace(e.Data))
+                    logger.LogError("[SCRAPER-ERR] {Line}", e.Data);
+            };
+
+            process.Exited += (s, e) =>
+            {
+                logger.LogInformation(
+                    "Proceso scraper para licitación {Codigo} (id={LicitacionId}) terminó con ExitCode={ExitCode}",
+                    codigoExterno, licitacionId, process.ExitCode);
+                EnCurso.TryRemove(licitacionId, out _);
+                process.Dispose();
+            };
+
+            var started = process.Start();
+            if (!started)
+            {
+                EnCurso.TryRemove(licitacionId, out _);
                 return false;
             }
+
+            process.BeginOutputReadLine();
+            process.BeginErrorReadLine();
 
             return true;
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "No se pudo iniciar el proceso de descarga para {Codigo}", codigoExterno);
+            EnCurso.TryRemove(licitacionId, out _);
             return false;
         }
     }
@@ -248,6 +288,39 @@ public class AdjuntoDescargaService(
         if (File.Exists(repoPath)) return repoPath;
 
         return null;
+    }
+
+    /// <summary>
+    /// Detecta si <c>xvfb-run</c> está disponible en el PATH. Si lo está, la descarga de
+    /// documentos se envuelve con <c>xvfb-run --auto-servernum --</c> para correr Chromium en
+    /// modo headed dentro de un framebuffer virtual, evitando reCAPTCHA en Cloud Run (mismo
+    /// patrón que ScraperBackgroundService). En local (sin Xvfb instalado) retorna <c>false</c>
+    /// y el script cae al modo headless.
+    /// </summary>
+    private static bool IsXvfbAvailable()
+    {
+        try
+        {
+            using var probe = new Process
+            {
+                StartInfo = new ProcessStartInfo
+                {
+                    FileName = "xvfb-run",
+                    Arguments = "--help",
+                    UseShellExecute = false,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    CreateNoWindow = true,
+                }
+            };
+            probe.Start();
+            probe.WaitForExit(3000);
+            return probe.ExitCode == 0;
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     private static AdjuntoDocumentoDto MapToDto(AdjuntoDocumentosHandler.AdjuntoDocumentoFila f) => new()
