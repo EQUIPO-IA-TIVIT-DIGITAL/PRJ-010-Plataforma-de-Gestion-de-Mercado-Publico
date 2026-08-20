@@ -77,14 +77,34 @@ function isClosingSoon(fechaCierre: string | null): boolean {
   return diff > 0 && diff < 3 * 24 * 60 * 60 * 1000; // 3 días
 }
 
-export function LicitacionesTable({ dataSource, pagination, loading, onRowClick, onPageChange }: Props) {
+function formatMonto(monto: number | null, moneda: string): string {
+  if (monto == null) return '—';
+  try {
+    const f = new Intl.NumberFormat('es-CL', { style: 'currency', currency: moneda || 'CLP', maximumFractionDigits: 0 });
+    return f.format(monto);
+  } catch {
+    return `${moneda || 'CLP'} ${monto.toLocaleString('es-CL')}`;
+  }
+}
+
+export function LicitacionesTable({ dataSource, pagination, loading, onRowClick, onPageChange, onSortChange }: Props) {
   const navigate = useNavigate();
+
+  const handleTableChange = (_pagination: any, _filters: any, sorter: any) => {
+    if (sorter && sorter.field && sorter.order) {
+      const sortBy = sorter.field;
+      const sortDir = sorter.order === 'ascend' ? 'asc' : 'desc';
+      onSortChange(sortBy, sortDir);
+    }
+  };
+
   const columns: ColumnsType<LicitacionResumen> = [
     {
       title: 'Código',
       dataIndex: 'codigoExterno',
       key: 'codigo_externo',
       width: 145,
+      sorter: (a, b) => a.codigoExterno.localeCompare(b.codigoExterno),
       render: (codigo: string) => (
         <span
           style={{
@@ -107,6 +127,7 @@ export function LicitacionesTable({ dataSource, pagination, loading, onRowClick,
       dataIndex: 'nombre',
       key: 'nombre',
       ellipsis: { showTitle: false },
+      sorter: (a, b) => a.nombre.localeCompare(b.nombre),
       render: (nombre: string) => (
         <Tooltip title={nombre} placement="topLeft">
           <span
@@ -122,10 +143,37 @@ export function LicitacionesTable({ dataSource, pagination, loading, onRowClick,
       ),
     },
     {
+      title: 'Institución',
+      dataIndex: 'organismo',
+      key: 'organismo',
+      width: 180,
+      ellipsis: { showTitle: false },
+      sorter: (a, b) => (a.organismo || '').localeCompare(b.organismo || ''),
+      render: (org: string) => (
+        <Tooltip title={org || 'Sin institución'} placement="topLeft">
+          <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{org || '—'}</span>
+        </Tooltip>
+      ),
+    },
+    {
+      title: 'Presupuesto',
+      dataIndex: 'montoEstimado',
+      key: 'monto_estimado',
+      width: 140,
+      align: 'right',
+      sorter: (a, b) => (a.montoEstimado ?? 0) - (b.montoEstimado ?? 0),
+      render: (monto: number | null, record: LicitacionResumen) => (
+        <span style={{ fontSize: 12, fontWeight: monto != null ? 600 : 400, color: monto != null ? 'var(--text-primary)' : 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
+          {formatMonto(monto, record.moneda)}
+        </span>
+      ),
+    },
+    {
       title: 'Estado',
       dataIndex: 'estado',
       key: 'estado',
       width: 135,
+      sorter: (a, b) => a.estado.codigo - b.estado.codigo,
       render: (estado: { codigo: number; nombre: string }) => (
         <StatusBadge variant={ESTADO_VARIANT[estado.codigo] ?? 'neutral'} label={estado.nombre} />
       ),
@@ -135,6 +183,7 @@ export function LicitacionesTable({ dataSource, pagination, loading, onRowClick,
       dataIndex: 'tipo',
       key: 'tipo',
       width: 125,
+      sorter: (a, b) => (a.tipo || '').localeCompare(b.tipo || ''),
       render: (tipo: string) => (
         <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{tipo ?? '—'}</span>
       ),
@@ -144,6 +193,7 @@ export function LicitacionesTable({ dataSource, pagination, loading, onRowClick,
       dataIndex: 'fechaPublicacion',
       key: 'fecha_publicacion',
       width: 110,
+      sorter: (a, b) => new Date(a.fechaPublicacion || 0).getTime() - new Date(b.fechaPublicacion || 0).getTime(),
       render: (d: string) => (
         <span style={{ fontSize: 12, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
           {formatDate(d)}
@@ -155,6 +205,7 @@ export function LicitacionesTable({ dataSource, pagination, loading, onRowClick,
       dataIndex: 'fechaCierre',
       key: 'fecha_cierre',
       width: 110,
+      sorter: (a, b) => new Date(a.fechaCierre || 0).getTime() - new Date(b.fechaCierre || 0).getTime(),
       render: (d: string) => {
         const soon = isClosingSoon(d);
         return (
@@ -211,6 +262,8 @@ export function LicitacionesTable({ dataSource, pagination, loading, onRowClick,
         rowKey="codigoExterno"
         loading={loading}
         size="small"
+        scroll={{ x: 1100 }}
+        onChange={handleTableChange}
         onRow={(record) => ({
           onClick: () => onRowClick(record),
           style: { cursor: 'pointer' },

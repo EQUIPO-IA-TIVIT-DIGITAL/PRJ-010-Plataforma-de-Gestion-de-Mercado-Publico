@@ -166,6 +166,7 @@ public class LicitacionServiceTests
                 It.IsAny<int>(), It.IsAny<int>(), It.IsAny<string?>(), It.IsAny<short?>(),
                 It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>(),
                 It.IsAny<string>(), It.IsAny<string>(), It.IsAny<short?>(), It.IsAny<bool?>(),
+                It.IsAny<decimal?>(), It.IsAny<decimal?>(),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync((new List<LicitacionResumenDto>(), 0));
 
@@ -174,7 +175,7 @@ public class LicitacionServiceTests
 
         _handlerMock.Verify(h => h.ListarAsync(
             1, 20, null, null, null, null, null, null,
-            "fecha_publicacion", "desc", (short?)2, (bool?)null,
+            "fecha_publicacion", "desc", (short?)2, (bool?)null, null, null,
             It.IsAny<CancellationToken>()), Times.Once);
     }
 

@@ -14,10 +14,12 @@ public class LicitacionHandler(DbConnectionFactory dbFactory)
     private readonly DbConnectionFactory _dbFactory = dbFactory;
 
     // virtual para poder mockearlo en LicitacionServiceTests (mismo patrón que BuscarNaturalAsync)
+    // 0+1+2: + p_monto_desde/hasta para filtro por presupuesto (capacitacion 14-08-2026)
     public virtual async Task<(System.Collections.Generic.List<LicitacionResumenDto> items, int totalCount)> ListarAsync(
         int page, int pageSize, string? search, short? estado, string? tipo, string? organismo,
         DateTime? fechaDesde, DateTime? fechaHasta, string sortBy, string sortDir,
         short? area = null, bool? sinClasificar = null,
+        decimal? montoDesde = null, decimal? montoHasta = null,
         CancellationToken ct = default)
     {
         await using var conn = _dbFactory.Create();
@@ -42,6 +44,8 @@ public class LicitacionHandler(DbConnectionFactory dbFactory)
         p.Add("p_sort_dir", sortDir, DbType.String);
         p.Add("p_area", area, DbType.Int16);
         p.Add("p_sin_clasificar", sinClasificar, DbType.Boolean);
+        p.Add("p_monto_desde", montoDesde, DbType.Decimal);
+        p.Add("p_monto_hasta", montoHasta, DbType.Decimal);
 
         var result = await conn.QueryAsync<LicitacionResumenDto>(
             sql: LicitacionStoredProcedures.Listar,

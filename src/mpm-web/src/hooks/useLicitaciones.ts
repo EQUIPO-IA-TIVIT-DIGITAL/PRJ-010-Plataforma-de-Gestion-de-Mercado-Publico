@@ -27,6 +27,8 @@ async function fetchLicitaciones(filter: LicitacionFilter) {
   if (filter.sortDir) params.set('sortDir', filter.sortDir);
   if (filter.area) params.set('area', String(filter.area));
   if (filter.sinClasificar) params.set('sinClasificar', String(filter.sinClasificar));
+  if (filter.montoDesde != null) params.set('montoDesde', String(filter.montoDesde));
+  if (filter.montoHasta != null) params.set('montoHasta', String(filter.montoHasta));
 
   return apiGet<LicitacionesResponse>(`/api/v1/licitaciones?${params.toString()}`);
 }

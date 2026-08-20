@@ -177,6 +177,66 @@ export interface CensoPreferenciasUpdate {
   pais?: string;
 }
 
+// 028-listado-licitaciones + 031-areas-negocio (Fase listado principal) + 0+1+2 capacitacion 14-08-2026
+export interface LicitacionResumen {
+  id: number;
+  codigoExterno: string;
+  nombre: string;
+  tipo: string;
+  estado: { codigo: number; nombre: string };
+  organismo: string;
+  fechaPublicacion: string | null;
+  fechaCierre: string | null;
+  montoEstimado: number | null;
+  moneda: string;
+  itemsCount: number;
+}
+
+export interface LicitacionFilter {
+  page: number;
+  pageSize: number;
+  search?: string;
+  estado?: number | null;
+  tipo?: string | null;
+  organismo?: string | null;
+  fechaDesde?: string | null;
+  fechaHasta?: string | null;
+  sortBy: string;
+  sortDir: 'asc' | 'desc';
+  area?: number | null;
+  sinClasificar?: boolean | null;
+  montoDesde?: number | null;
+  montoHasta?: number | null;
+}
+
+export interface PaginationInfo {
+  page: number;
+  pageSize: number;
+  totalRecords: number;
+  totalPages: number;
+  hasNext: boolean;
+  hasPrevious: boolean;
+}
+
+export interface LicitacionNaturalSearchResult {
+  id: number;
+  codigoExterno: string;
+  nombre: string;
+  descripcion: string | null;
+  organismo: string | null;
+  codigoEstado: number;
+  tipo: string;
+  fechaPublicacion: string | null;
+  relevancia: number;
+  totalCount?: number | null;
+}
+
+export interface EstadoConteo {
+  codigoEstado: number;
+  nombreEstado: string;
+  cantidad: number;
+}
+
 // 036-flujo-comercial-ofertas (Fase 2): decisión GO/NO GO (spec decisiones.md).
 export type DecisionValor = 'go' | 'no_go';
 

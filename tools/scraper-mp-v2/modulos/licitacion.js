@@ -132,7 +132,7 @@ async function abrirFichaDirecta(page, context, licitacion) {
   return { fichaPage: page, isPopup: false };
 }
 
-async function abrirFichaPopup(page, context, licitacion) {
+export async function abrirFichaPopup(page, context, licitacion) {
   let urlFicha = licitacion.urlFicha;
 
   if (urlFicha && licitacion.onclick) {

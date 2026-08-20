@@ -32,6 +32,8 @@ public class LicitacionController(
         [FromQuery] string sortDir = "desc",
         [FromQuery] short? area = null,
         [FromQuery] bool? sinClasificar = null,
+        [FromQuery] decimal? montoDesde = null,
+        [FromQuery] decimal? montoHasta = null,
         CancellationToken ct = default)
     {
         DateTime? fechaDesdeDt = null;
@@ -44,7 +46,7 @@ public class LicitacionController(
 
         var (items, totalCount) = await licitacionService.ListarAsync(
             page, pageSize, search, estado, tipo, organismo,
-            fechaDesdeDt, fechaHastaDt, sortBy, sortDir, area, sinClasificar, ct);
+            fechaDesdeDt, fechaHastaDt, sortBy, sortDir, area, sinClasificar, montoDesde, montoHasta, ct);
 
         var paginatedResult = new PaginatedResult<LicitacionResumenDto>
         {

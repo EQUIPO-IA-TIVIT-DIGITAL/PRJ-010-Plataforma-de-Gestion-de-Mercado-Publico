@@ -84,7 +84,8 @@ export async function upsertLicitacion(datos) {
   const client = await p.connect();
   try {
     const tipoMapeado = mapearTipo(datos.tipo);
-    const estadoMapeado = mapearEstado(datos.estado);
+    // 0: API ya trae codigo_estado numerico (5,6,8...), si viene, usarlo directo para no perder fidelidad del mapeo de mapearEstado string
+    const estadoMapeado = datos.codigo_estado != null ? Number(datos.codigo_estado) : mapearEstado(datos.estado);
 
     const rawData = JSON.stringify({
       scraper_fecha_extraccion: datos.fechaExtraccion,
@@ -95,7 +96,9 @@ export async function upsertLicitacion(datos) {
       tipo_original: datos.tipo || '',
       adjuntos: datos.todosAdjuntos || [],
       raw_text_preview: (datos.rawText || '').substring(0, 50000),
-      url_ficha: datos.urlFicha || '',
+      url_ficha: datos.urlFicha || datos.link || '',
+      fuente: datos.fuente || 'scraper',
+      monto_estimado_api: datos.monto_estimado ?? datos.monto?.totalEstimado ?? null,
     });
 
     const fechaPub = datos.fechas?.publicacion
@@ -106,6 +109,15 @@ export async function upsertLicitacion(datos) {
       : (datos.fechaCierre ? parseFechaMP(datos.fechaCierre) : null);
     const fechaAdj = datos.fechas?.adjudicacion
       ? parseFechaMP(datos.fechas.adjudicacion) : null;
+
+    // 0: migrar licitacion.js -> ApiMpService: ahora sí persistir monto_estimado (antes pasaba null hardcoded)
+    let montoEstimado = null;
+    if (datos.monto_estimado != null) montoEstimado = Number(datos.monto_estimado);
+    else if (datos.monto?.totalEstimado != null) {
+      const parsed = String(datos.monto.totalEstimado).replace(/[^0-9.]/g, '');
+      const n = Number(parsed);
+      if (!isNaN(n)) montoEstimado = n;
+    }
 
     const result = await client.query(
       `CALL usp_Licitacion_UpsertFromScraper(
@@ -120,11 +132,11 @@ export async function upsertLicitacion(datos) {
         datos.organismo?.razonSocial || datos.demandante || null,
         datos.organismo?.unidad || null,
         mapearMoneda(datos.moneda),
-        null,
+        montoEstimado,
         fechaPub,
         fechaCierre,
         fechaAdj,
-        datos.urlFicha || null,
+        datos.urlFicha || datos.link || null,
         rawData,
       ]
     );
