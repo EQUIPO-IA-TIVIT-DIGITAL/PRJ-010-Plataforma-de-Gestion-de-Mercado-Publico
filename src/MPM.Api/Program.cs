@@ -290,7 +290,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseMiddleware<ErrorHandlingMiddleware>();
-app.UseMiddleware<TenantMiddleware>();
+app.UseMiddleware<CorrelationIdMiddleware>();
 app.UseSerilogRequestLogging(opts =>
 {
     opts.EnrichDiagnosticContext = (diagnosticContext, httpContext) =>
@@ -315,6 +315,7 @@ app.UseSerilogRequestLogging(opts =>
 
 app.UseCors();
 app.UseAuthentication();
+app.UseMiddleware<TenantMiddleware>();
 app.UseAuthorization();
 // E16 api-versioning: expone versión vigente y deja puerta a Sunset para futuros breaking changes.
 // No afecta flujo actual (todo sigue en /api/v1), solo añade headers para trazabilidad.
