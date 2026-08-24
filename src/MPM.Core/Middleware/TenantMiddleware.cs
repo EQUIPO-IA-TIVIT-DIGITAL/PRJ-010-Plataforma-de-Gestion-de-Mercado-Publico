@@ -1,62 +1,80 @@
-using MPM.Shared.Models;
-using Microsoft.AspNetCore.Http;
 using System.Diagnostics;
 using System.Security.Claims;
+using System.Text.RegularExpressions;
+using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Logging;
+using MPM.Shared.Models;
+using Serilog.Context;
 
 namespace MPM.Core.Middleware;
 
-public class TenantMiddleware(RequestDelegate next)
+public class TenantMiddleware(RequestDelegate next, ILogger<TenantMiddleware> logger)
 {
     public async Task InvokeAsync(HttpContext context)
     {
-        // 037-A: propagar X-Correlation-Id / TraceId
-        var correlationId = context.Request.Headers["X-Correlation-Id"].FirstOrDefault()
-            ?? context.Request.Headers["X-Request-Id"].FirstOrDefault()
-            ?? Activity.Current?.TraceId.ToString()
-            ?? context.TraceIdentifier
-            ?? Guid.NewGuid().ToString("N");
+        // E-06: sanitización + CorrelationId != TraceId
+        var raw = context.Request.Headers["X-Correlation-Id"].FirstOrDefault();
+        if (!string.IsNullOrWhiteSpace(raw)) raw = raw.Trim();
+        if (raw?.Length > 36) raw = raw.Substring(0, 36);
+        if (raw != null && !Regex.IsMatch(raw, @"^[a-zA-Z0-9-_]{8,36}$")) raw = null;
 
-        if (string.IsNullOrWhiteSpace(correlationId))
-            correlationId = Guid.NewGuid().ToString("N");
+        // fallback a X-Request-Id si X-Correlation-Id no es válido (compatibilidad)
+        if (raw == null)
+        {
+            var fallback = context.Request.Headers["X-Request-Id"].FirstOrDefault();
+            if (!string.IsNullOrWhiteSpace(fallback)) fallback = fallback.Trim();
+            if (fallback?.Length > 36) fallback = fallback.Substring(0, 36);
+            if (fallback != null && Regex.IsMatch(fallback, @"^[a-zA-Z0-9-_]{8,36}$")) raw = fallback;
+        }
 
-        // Normalizar: si viene con prefijo traceparent, extraer traceId (32 hex)
-        // pero respetar valor cliente si es un id válido.
+        var correlationId = raw ?? Activity.Current?.TraceId.ToString() ?? context.TraceIdentifier ?? Guid.NewGuid().ToString("N");
+        var traceId = Activity.Current?.TraceId.ToString() ?? correlationId;
+
         context.Items["CorrelationId"] = correlationId;
-        context.Items["TraceId"] = correlationId;
+        context.Items["TraceId"] = traceId;
         context.Items["X-Correlation-Id"] = correlationId;
 
-        // Enriquecer Activity actual para Serilog WithTraceId
         Activity.Current?.SetTag("correlationId", correlationId);
         Activity.Current?.SetTag("correlation_id", correlationId);
-        try { Activity.Current?.AddBaggage("correlationId", correlationId); } catch { }
+        try
+        {
+            Activity.Current?.AddBaggage("correlationId", correlationId);
+        }
+        catch (Exception ex)
+        {
+            logger.LogDebug(ex, "AddBaggage failed");
+        }
 
+        // Set headers immediately for testability + OnStarting for pipeline correctness
+        context.Response.Headers["X-Correlation-Id"] = correlationId;
+        context.Response.Headers["X-Trace-Id"] = traceId;
         context.Response.OnStarting(() =>
         {
             if (!context.Response.Headers.ContainsKey("X-Correlation-Id"))
                 context.Response.Headers["X-Correlation-Id"] = correlationId;
-            // También exponer TraceId para debug (no PII)
             if (!context.Response.Headers.ContainsKey("X-Trace-Id"))
-                context.Response.Headers["X-Trace-Id"] = Activity.Current?.TraceId.ToString() ?? correlationId;
+                context.Response.Headers["X-Trace-Id"] = traceId;
             return Task.CompletedTask;
         });
 
         var user = context.User;
         if (user?.Identity?.IsAuthenticated == true)
         {
-            // OJO: el claim JWT corto "role" se re-mapea a ClaimTypes.Role al deserializar
-            // (MapInboundClaims default en JwtSecurityTokenHandler) — FindAll("role") nunca
-            // encuentra nada. Se lee ClaimTypes.Role para que TenantContext.Roles funcione.
             var tenantContext = new TenantContext
             {
                 UserId = user.FindFirst("user_id")?.Value ?? "",
                 TenantId = user.FindFirst("tenant_id")?.Value ?? "",
                 Username = user.FindFirst("username")?.Value ?? "",
-                Roles = user.FindAll(ClaimTypes.Role).Select(c => c.Value).ToArray(),
+                Roles = user.FindAll(ClaimTypes.Role).Concat(user.FindAll("role")).Select(c => c.Value).Distinct().ToArray(),
                 TenantName = user.FindFirst("tenant_name")?.Value ?? ""
             };
             context.Items["TenantContext"] = tenantContext;
         }
 
-        await next(context);
+        using (LogContext.PushProperty("CorrelationId", correlationId))
+        using (LogContext.PushProperty("TraceId", traceId))
+        {
+            await next(context);
+        }
     }
 }

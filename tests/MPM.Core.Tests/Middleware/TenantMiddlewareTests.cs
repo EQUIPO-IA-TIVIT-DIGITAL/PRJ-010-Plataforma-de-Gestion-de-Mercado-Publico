@@ -2,6 +2,7 @@ using MPM.Core.Middleware;
 using MPM.Shared.Models;
 using FluentAssertions;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Logging.Abstractions;
 using System.Security.Claims;
 using Xunit;
 
@@ -41,7 +42,7 @@ public class TenantMiddlewareTests
         var context = CreateHttpContext(user);
         var nextCalled = false;
 
-        var middleware = new TenantMiddleware(_ => { nextCalled = true; return Task.CompletedTask; });
+        var middleware = new TenantMiddleware(_ => { nextCalled = true; return Task.CompletedTask; }, NullLogger<TenantMiddleware>.Instance);
 
         await middleware.InvokeAsync(context);
 
@@ -61,7 +62,7 @@ public class TenantMiddlewareTests
         var context = CreateHttpContext(null);
         var nextCalled = false;
 
-        var middleware = new TenantMiddleware(_ => { nextCalled = true; return Task.CompletedTask; });
+        var middleware = new TenantMiddleware(_ => { nextCalled = true; return Task.CompletedTask; }, NullLogger<TenantMiddleware>.Instance);
 
         await middleware.InvokeAsync(context);
 
@@ -85,7 +86,7 @@ public class TenantMiddlewareTests
         var context = CreateHttpContext(user);
         var nextCalled = false;
 
-        var middleware = new TenantMiddleware(_ => { nextCalled = true; return Task.CompletedTask; });
+        var middleware = new TenantMiddleware(_ => { nextCalled = true; return Task.CompletedTask; }, NullLogger<TenantMiddleware>.Instance);
 
         await middleware.InvokeAsync(context);
 

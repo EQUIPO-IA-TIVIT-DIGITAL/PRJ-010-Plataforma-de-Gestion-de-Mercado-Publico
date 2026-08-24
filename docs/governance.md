@@ -3,7 +3,7 @@
 **Proyecto:** PRJ-010 — Plataforma de Gestión de Mercado Público  
 **Framework:** TIVIT Foundry 4.3.0 — Hybrid mode  
 **Owner (HITL confirmado):** Matías Méndez / Equipo Digital TIVIT  
-**Última actualización:** 24.08.2026 — rama `036-flujo-comercial-ofertas`
+**Última actualización:** 24.08.2026 — rama `037-observabilidad-e05` fix 037-A (E01-E07)
 
 ## 1. Reglas del framework
 
@@ -27,7 +27,15 @@
 | EXC-002 | Sin Terraform/K8s manifests | Infra GCP Huawei/GCP en borrador v6 — se implementa en R2 | Equipo DevOps | 30.09.2026 |
 | EXC-003 | Sin observabilidad completa | OpenTelemetry/Langfuse postergado a R2 — se traza `modelo_usado` como mínimo viable | Equipo IA | 15.09.2026 |
 
-## 4. Deuda técnica registrada (no bloqueante pero trackeada)
+## 4. Dependencias añadidas 037-A (observabilidad)
+
+| Paquete | Versión | Proyecto | Motivo | Fecha |
+|---------|---------|----------|--------|-------|
+| Serilog.Formatting.Compact | 2.0.0 | MPM.Api | Requerido por `CompactJsonFormatter` en `Program.cs:66,77,87` (Serilog JSON estructurado). Faltaba referencia directa — `Serilog.AspNetCore` no la trae transitivamente en 8.0.2. Fix E-05. | 24.08.2026 |
+| Serilog.Sinks.Console | 5.0.1 | MPM.Api | Sink de consola para `WriteTo.Console(CompactJsonFormatter)` — explícito para evitar resolución transitiva. Fix E-05. | 24.08.2026 |
+| Serilog | 3.1.1 | MPM.Core | Necesario para `Serilog.Context.LogContext.PushProperty` en `TenantMiddleware` consolidado (E-03) sin acoplar Core a AspNetCore. | 24.08.2026 |
+
+## 5. Deuda técnica registrada (no bloqueante pero trackeada)
 
 | ID | Descripción | Origen | Plan |
 |----|-------------|--------|------|
@@ -36,17 +44,17 @@
 | DEBT-003 | Bundle frontend 2.3MB sin `manualChunks` | E09 | R3.3 |
 | DEBT-004 | `ROADMAP.md` y `cu010_*.txt` divergentes | E19 | R4.2 — `specs/` como fuente |
 
-## 5. Gates y validación
+## 6. Gates y validación
 
 - **Test Gate por capa:** todo cambio con lógica backend pasa `dotnet test`, con lógica frontend pasa `vitest` o `playwright` según corresponda.
 - **Security Gate:** `dotnet list package --vulnerable` 0 + `check-secrets` pass.
 - **Constitution Gate:** valida Articles 1-9 antes de cada PR.
 
-## 6. Proceso HITL pendiente
+## 7. Proceso HITL pendiente
 
 Ver `.workflow/state.json` `hitl_pending`. Bloquea `track1 T7-T9` y `track2 T11`. No bloquea R0-R2 pero debe resolverse antes de implementar Go/No-Go por tipo (E15).
 
-## 7. Referencias
+## 8. Referencias
 
 - `docs/constitution.md` — 9 artículos
 - `VERSIONS.md` — matriz de compatibilidad

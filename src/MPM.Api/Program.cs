@@ -53,7 +53,7 @@ if (!string.IsNullOrWhiteSpace(workerMode))
 
 var builder = WebApplication.CreateBuilder(args);
 
-// 037-A: Serilog JSON estruturado + correlationId. Default Information, fallback a Console si falta config.
+// 037-A: Serilog JSON estructurado + correlationId. Default Information, fallback a Console si falta config.
 try
 {
     var serilogSection = builder.Configuration.GetSection("Serilog");
@@ -63,7 +63,6 @@ try
             .ReadFrom.Configuration(builder.Configuration)
             .Enrich.FromLogContext()
             .Enrich.WithProperty("Application", "MPM.Api")
-            .WriteTo.Console(new CompactJsonFormatter())
             .CreateLogger();
     }
     else
@@ -77,16 +76,20 @@ try
             .WriteTo.Console(new CompactJsonFormatter())
             .CreateLogger();
     }
-    builder.Host.UseSerilog();
+    builder.Services.AddSerilog(Log.Logger);
 }
 catch (Exception ex)
 {
-    Console.WriteLine($"Serilog init fallback: {ex.Message}");
+    Log.Warning(ex, "Serilog fallback");
     Log.Logger = new LoggerConfiguration()
         .MinimumLevel.Information()
+        .MinimumLevel.Override("Microsoft", Serilog.Events.LogEventLevel.Warning)
+        .MinimumLevel.Override("System", Serilog.Events.LogEventLevel.Warning)
+        .Enrich.FromLogContext()
+        .Enrich.WithProperty("Application", "MPM.Api")
         .WriteTo.Console(new CompactJsonFormatter())
         .CreateLogger();
-    builder.Host.UseSerilog();
+    builder.Services.AddSerilog(Log.Logger);
 }
 
 // 037-A: ActivitySource vacío (sin OTel SDK aún, solo registro para 037-B)
@@ -252,6 +255,8 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+app.UseMiddleware<ErrorHandlingMiddleware>();
+app.UseMiddleware<TenantMiddleware>();
 app.UseSerilogRequestLogging(opts =>
 {
     opts.EnrichDiagnosticContext = (diagnosticContext, httpContext) =>
@@ -263,31 +268,16 @@ app.UseSerilogRequestLogging(opts =>
 });
 
 app.UseCors();
-
-// 037-A: correlación temprana para que ErrorHandling y logs tengan CorrelationId
-app.Use(async (context, next) =>
+app.UseAuthentication();
+app.UseAuthorization();
+// E16 api-versioning: expone versión vigente y deja puerta a Sunset para futuros breaking changes.
+// No afecta flujo actual (todo sigue en /api/v1), solo añade headers para trazabilidad.
+app.Use(async (ctx, next) =>
 {
-    var correlationId = context.Request.Headers["X-Correlation-Id"].FirstOrDefault()
-        ?? context.Request.Headers["X-Request-Id"].FirstOrDefault()
-        ?? Activity.Current?.TraceId.ToString()
-        ?? context.TraceIdentifier
-        ?? Guid.NewGuid().ToString("N");
-    if (string.IsNullOrWhiteSpace(correlationId))
-        correlationId = Guid.NewGuid().ToString("N");
-    context.Items["CorrelationId"] = correlationId;
-    context.Response.OnStarting(() =>
-    {
-        if (!context.Response.Headers.ContainsKey("X-Correlation-Id"))
-            context.Response.Headers["X-Correlation-Id"] = correlationId;
-        if (!context.Response.Headers.ContainsKey("X-Trace-Id"))
-            context.Response.Headers["X-Trace-Id"] = Activity.Current?.TraceId.ToString() ?? correlationId;
-        return Task.CompletedTask;
-    });
-    using (Serilog.Context.LogContext.PushProperty("CorrelationId", correlationId))
-    using (Serilog.Context.LogContext.PushProperty("TraceId", Activity.Current?.TraceId.ToString() ?? correlationId))
-    {
-        await next();
-    }
+    ctx.Response.Headers["X-API-Version"] = "v1";
+    ctx.Response.Headers["X-API-Supported-Versions"] = "v1";
+    // Cuando exista v2, se añadirá Sunset aquí para clientes en v1.
+    await next();
 });
 
 // 037-A: Health checks públicos, sin auth, nunca exponen PII (solo status + duración)
@@ -364,19 +354,6 @@ app.MapHealthChecks("/health/administracion", new HealthCheckOptions
     ResponseWriter = WriteHealthResponse
 });
 
-app.UseMiddleware<ErrorHandlingMiddleware>();
-app.UseAuthentication();
-app.UseMiddleware<TenantMiddleware>();
-app.UseAuthorization();
-// E16 api-versioning: expone versión vigente y deja puerta a Sunset para futuros breaking changes.
-// No afecta flujo actual (todo sigue en /api/v1), solo añade headers para trazabilidad.
-app.Use(async (ctx, next) =>
-{
-    ctx.Response.Headers["X-API-Version"] = "v1";
-    ctx.Response.Headers["X-API-Supported-Versions"] = "v1";
-    // Cuando exista v2, se añadirá Sunset aquí para clientes en v1.
-    await next();
-});
 app.MapControllers();
 app.MapHub<MensajeriaHub>("/hubs/mensajeria").RequireCors("SignalR");
 
