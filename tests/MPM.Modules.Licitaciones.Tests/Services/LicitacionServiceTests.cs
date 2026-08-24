@@ -199,4 +199,98 @@ public class LicitacionServiceTests
         result.Should().HaveCount(5);
         result.Select(r => r.CodigoEstado).Should().BeEquivalentTo(new short[] { 5, 6, 7, 8, 15 });
     }
+
+    // US1 (spec 031): filtro por monto estimado — montoDesde se pasa al handler
+    [Fact]
+    public async Task ListarAsync_ConMontoDesde_RetornaSoloMayoresIguales()
+    {
+        // Arrange
+        _handlerMock.Setup(h => h.ListarAsync(
+                It.IsAny<int>(), It.IsAny<int>(), It.IsAny<string?>(), It.IsAny<short?>(),
+                It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>(),
+                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<short?>(), It.IsAny<bool?>(),
+                50000000m, null, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((new List<LicitacionResumenDto>
+            {
+                new() { MontoEstimado = 75000000, CodigoExterno = "L-001" },
+                new() { MontoEstimado = 100000000, CodigoExterno = "L-002" }
+            }, 2));
+
+        // Act
+        var (items, total) = await _service.ListarAsync(
+            1, 20, null, null, null, null, null, null,
+            "fecha_publicacion", "desc", null, null, 50000000m, null);
+
+        // Assert
+        items.Should().HaveCount(2);
+        items.Should().AllSatisfy(i => i.MontoEstimado.Should().BeGreaterOrEqualTo(50000000m));
+        _handlerMock.Verify(h => h.ListarAsync(
+            1, 20, null, null, null, null, null, null,
+            "fecha_publicacion", "desc", null, null, 50000000m, null,
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    // US1 (spec 031): filtro por monto estimado — montoHasta se pasa al handler
+    [Fact]
+    public async Task ListarAsync_ConMontoHasta_RetornaSoloMenoresIguales()
+    {
+        // Arrange
+        _handlerMock.Setup(h => h.ListarAsync(
+                It.IsAny<int>(), It.IsAny<int>(), It.IsAny<string?>(), It.IsAny<short?>(),
+                It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>(),
+                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<short?>(), It.IsAny<bool?>(),
+                null, 50000000m, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((new List<LicitacionResumenDto>
+            {
+                new() { MontoEstimado = 25000000, CodigoExterno = "L-003" },
+                new() { MontoEstimado = 40000000, CodigoExterno = "L-004" }
+            }, 2));
+
+        // Act
+        var (items, total) = await _service.ListarAsync(
+            1, 20, null, null, null, null, null, null,
+            "fecha_publicacion", "desc", null, null, null, 50000000m);
+
+        // Assert
+        items.Should().HaveCount(2);
+        items.Should().AllSatisfy(i => i.MontoEstimado.Should().BeLessOrEqualTo(50000000m));
+        _handlerMock.Verify(h => h.ListarAsync(
+            1, 20, null, null, null, null, null, null,
+            "fecha_publicacion", "desc", null, null, null, 50000000m,
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    // US1 (spec 031): ordenamiento por monto estimado descendente — sortBy/sortDir se pasan correctamente
+    [Fact]
+    public async Task ListarAsync_OrdenMontoEstimadoDesc_PasaSortCorrecto()
+    {
+        // Arrange
+        _handlerMock.Setup(h => h.ListarAsync(
+                It.IsAny<int>(), It.IsAny<int>(), It.IsAny<string?>(), It.IsAny<short?>(),
+                It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>(),
+                "monto_estimado", "desc", It.IsAny<short?>(), It.IsAny<bool?>(),
+                It.IsAny<decimal?>(), It.IsAny<decimal?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((new List<LicitacionResumenDto>
+            {
+                new() { MontoEstimado = 100000000, CodigoExterno = "L-005" },
+                new() { MontoEstimado = 75000000, CodigoExterno = "L-006" },
+                new() { MontoEstimado = 50000000, CodigoExterno = "L-007" }
+            }, 3));
+
+        // Act
+        var (items, total) = await _service.ListarAsync(
+            1, 20, null, null, null, null, null, null,
+            "monto_estimado", "desc", null, null, null, null);
+
+        // Assert
+        items.Should().HaveCount(3);
+        // Verificar que están en orden descendente por monto
+        items[0].MontoEstimado.Should().Be(100000000);
+        items[1].MontoEstimado.Should().Be(75000000);
+        items[2].MontoEstimado.Should().Be(50000000);
+        _handlerMock.Verify(h => h.ListarAsync(
+            1, 20, null, null, null, null, null, null,
+            "monto_estimado", "desc", null, null, null, null,
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
 }

@@ -1,5 +1,5 @@
 import { List, Card, Tag, Empty, Spin, Typography, Tooltip } from 'antd';
-import { EnvironmentOutlined } from '@ant-design/icons';
+import { EnvironmentOutlined, DollarOutlined } from '@ant-design/icons';
 import type { LicitacionNaturalSearchResult } from '../types/licitacion';
 
 const { Text, Paragraph } = Typography;
@@ -23,6 +23,15 @@ function formatDate(d: string | null): string {
   if (!d) return '—';
   return new Intl.DateTimeFormat('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date(d));
 }
+
+const formatCLP = (value: number | null | undefined): string => {
+  if (value === null || value === undefined) return '—';
+  return new Intl.NumberFormat('es-CL', {
+    style: 'currency',
+    currency: 'CLP',
+    minimumFractionDigits: 0,
+  }).format(value);
+};
 
 // 018-buscador-inteligente-nl US3 (FR-004): muestra solo el resumen que ya viene en la
 // respuesta de buscar-natural -- nunca dispara una descarga de adjuntos al renderizar la

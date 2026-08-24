@@ -6,22 +6,22 @@ namespace MPM.Shared.Models
     public class ApiResponse<T>
     {
         public bool Success { get; set; }
-        public string Message { get; set; }
-        public T Data { get; set; }
-        public List<ErrorDetail> Errors { get; set; }
-        public PaginationInfo Pagination { get; set; }
-        public string CorrelationId { get; set; }
+        public string? Message { get; set; }
+        public T? Data { get; set; }
+        public List<ErrorDetail>? Errors { get; set; }
+        public PaginationInfo? Pagination { get; set; }
+        public string? CorrelationId { get; set; }
 
         public static ApiResponse<T> Ok(T data) => new() { Success = true, Data = data };
-        public static ApiResponse<T> Fail(string message, List<ErrorDetail> errors = null)
+        public static ApiResponse<T> Fail(string message, List<ErrorDetail>? errors = null)
             => new() { Success = false, Message = message, Errors = errors };
     }
 
     public class ErrorDetail
     {
-        public string Code { get; set; }
-        public string Field { get; set; }
-        public string Message { get; set; }
+        public string Code { get; set; } = string.Empty;
+        public string? Field { get; set; }
+        public string Message { get; set; } = string.Empty;
     }
 
     public class PaginationInfo

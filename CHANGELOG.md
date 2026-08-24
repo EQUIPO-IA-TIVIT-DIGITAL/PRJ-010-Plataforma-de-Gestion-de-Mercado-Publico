@@ -17,6 +17,11 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
 ### Added
 
+- **T1-T6 Sprint 1: Filtro por monto (desde/hasta) en listado licitaciones, render presupuesto CLP en tabla con sort, render institución con tooltip, validación rango monto, URL sync en filtros**
+  - **Backend (T1-T3)**: SP `usp_Licitaciones_Listar` con `p_monto_desde`, `p_monto_hasta`, sort por `monto_estimado` (NULLs last); endpoint `GET /api/v1/licitaciones` con query params `montoDesde`, `montoHasta` + validaciones (positivos, desde ≤ hasta); 7 tests unitarios cubriendo filtros, orden y validaciones
+  - **Frontend (T4-T6)**: `LicitacionFilterBar` con dos `InputNumber` (monto desde/hasta) + sincronización URL (`useSearchParams`); tarjetas renderizan "Presupuesto" en formato CLP (`Intl.NumberFormat es-CL`) con sort habilitado; "Institución" con `ellipsis` + tooltip nativo; responsive mobile
+  - **Docs**: `docs/api-first/licitaciones.md` actualizado (parámetros, sortBy, SP, Business Rules BUS_LIC_009-011)
+
 - **036 — Flujo Comercial de Ofertas (Fases 1, 2 y 3: Pliegos, Census, GO/NO GO, Propuestas DOCX y Google Drive)**
   - **Fase 1 (Descarga de pliegos y análisis on-demand)**: descarga bajo demanda de adjuntos de Mercado Público sin sesión logueada (resuelve reCAPTCHA Enterprise y previene bloqueos de sesión), almacenamiento en GCS/local con hash SHA-256 (V141). Zona IA on-demand para análisis comercial de bases con cache por conjunto de documentos (V142).
   - **Fase 2 (Match de capacidades Census y GO/NO GO formal)**: módulo `MPM.Modules.Censo` para integración con API interna de Census (auth JWT, renovación automática con `SemaphoreSlim` y retry 401). Expansión multi-capa de conceptos (Capa 1/2 catálogo local, Capa 3 IA cacheada). Búsqueda multi-skill paralela (semáforo 8) con cache 24h por tecnología y dedup por email. Decisión GO/NO GO formal en `MPM.Modules.Colaboracion` con snapshot inmutable de recomendación IA y motivo obligatorio en NO GO (migraciones V143, V144). Componentes frontend `CapacidadesTIVITPanel` y `DecisionGoNoGoPanel`.

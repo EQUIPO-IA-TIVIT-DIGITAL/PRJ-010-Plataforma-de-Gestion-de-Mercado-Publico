@@ -17,4 +17,19 @@ export default defineConfig({
       },
     },
   },
+  build: {
+    chunkSizeWarningLimit: 700,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['react', 'react-dom', 'react-router-dom'],
+          antd: ['antd', '@ant-design/icons', '@ant-design/x'],
+          query: ['@tanstack/react-query'],
+          signalr: ['@microsoft/signalr'],
+          pdf: ['jspdf', 'jspdf-autotable', 'html2canvas'],
+          markdown: ['react-markdown'],
+        },
+      },
+    },
+  },
 });

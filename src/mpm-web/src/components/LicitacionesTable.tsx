@@ -1,9 +1,10 @@
-import { Table, Tooltip, Button, message } from 'antd';
+import { Table, Tooltip, Button, message, Typography } from 'antd';
 import { StarOutlined, StarFilled, LoadingOutlined, RocketOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import type { ColumnsType } from 'antd/es/table';
 import type { LicitacionResumen, PaginationInfo } from '../types/licitacion';
 import { useEsSeguida, useSeguirToggle } from '../hooks/useLicitaciones';
+import { useMediaQuery } from '../hooks/useMediaQuery';
 import { StatusBadge } from './StatusBadge';
 import type { StatusBadgeVariant } from './StatusBadge';
 
@@ -14,10 +15,14 @@ interface Props {
   onRowClick: (row: LicitacionResumen) => void;
   onPageChange: (page: number, pageSize: number) => void;
   onSortChange: (sortBy: string, sortDir: 'asc' | 'desc') => void;
+  seguidasSet?: Set<string>;
 }
 
-function StarButtonCell({ codigoExterno }: { codigoExterno: string }) {
-  const { data: esSeguida, isLoading: loadingState } = useEsSeguida(codigoExterno);
+function StarButtonCell({ codigoExterno, seguidasSet }: { codigoExterno: string; seguidasSet?: Set<string> }) {
+  const singleQuery = useEsSeguida(seguidasSet ? '' : codigoExterno);
+  const esSeguidaFromSet = seguidasSet ? seguidasSet.has(codigoExterno) : undefined;
+  const esSeguida = seguidasSet ? esSeguidaFromSet : singleQuery.data;
+  const loadingState = seguidasSet ? false : singleQuery.isLoading;
   const toggle = useSeguirToggle();
 
   const handleClick = (e: React.MouseEvent) => {
@@ -77,6 +82,15 @@ function isClosingSoon(fechaCierre: string | null): boolean {
   return diff > 0 && diff < 3 * 24 * 60 * 60 * 1000; // 3 días
 }
 
+const formatCLP = (value: number | null | undefined): string => {
+  if (value === null || value === undefined) return '—';
+  return new Intl.NumberFormat('es-CL', {
+    style: 'currency',
+    currency: 'CLP',
+    minimumFractionDigits: 0,
+  }).format(value);
+};
+
 function formatMonto(monto: number | null, moneda: string): string {
   if (monto == null) return '—';
   try {
@@ -87,8 +101,9 @@ function formatMonto(monto: number | null, moneda: string): string {
   }
 }
 
-export function LicitacionesTable({ dataSource, pagination, loading, onRowClick, onPageChange, onSortChange }: Props) {
+export function LicitacionesTable({ dataSource, pagination, loading, onRowClick, onPageChange, onSortChange, seguidasSet }: Props) {
   const navigate = useNavigate();
+  const isMobile = useMediaQuery('(max-width: 639px)');
 
   const handleTableChange = (_pagination: any, _filters: any, sorter: any) => {
     if (sorter && sorter.field && sorter.order) {
@@ -147,12 +162,17 @@ export function LicitacionesTable({ dataSource, pagination, loading, onRowClick,
       dataIndex: 'organismo',
       key: 'organismo',
       width: 180,
-      ellipsis: { showTitle: false },
       sorter: (a, b) => (a.organismo || '').localeCompare(b.organismo || ''),
-      render: (org: string) => (
-        <Tooltip title={org || 'Sin institución'} placement="topLeft">
-          <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{org || '—'}</span>
-        </Tooltip>
+      render: (organismo: string) => (
+        <Typography.Text
+          ellipsis={{
+            rows: 1,
+            tooltip: organismo ? `Institución: ${organismo}` : 'Institución: —',
+          }}
+          style={{ display: 'block', maxWidth: '100%', fontSize: 12, color: 'var(--text-secondary)' }}
+        >
+          {organismo ? `Institución: ${organismo}` : 'Institución: —'}
+        </Typography.Text>
       ),
     },
     {
@@ -161,12 +181,20 @@ export function LicitacionesTable({ dataSource, pagination, loading, onRowClick,
       key: 'monto_estimado',
       width: 140,
       align: 'right',
-      sorter: (a, b) => (a.montoEstimado ?? 0) - (b.montoEstimado ?? 0),
-      render: (monto: number | null, record: LicitacionResumen) => (
-        <span style={{ fontSize: 12, fontWeight: monto != null ? 600 : 400, color: monto != null ? 'var(--text-primary)' : 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
-          {formatMonto(monto, record.moneda)}
-        </span>
-      ),
+      sorter: (a, b) => {
+        const aVal = a.montoEstimado ?? -1;
+        const bVal = b.montoEstimado ?? -1;
+        return aVal - bVal;
+      },
+      sortDirections: ['descend', 'ascend'],
+      render: (monto: number | null, record: LicitacionResumen) => {
+        const formatted = formatCLP(monto);
+        return (
+          <span style={{ fontSize: 12, fontWeight: monto != null ? 600 : 400, color: monto != null ? 'var(--text-primary)' : 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
+            {isMobile ? formatted : `Presupuesto: ${formatted}`}
+          </span>
+        );
+      },
     },
     {
       title: 'Estado',
@@ -249,7 +277,7 @@ export function LicitacionesTable({ dataSource, pagination, loading, onRowClick,
       width: 44,
       align: 'center',
       render: (_: unknown, record: LicitacionResumen) => (
-        <StarButtonCell codigoExterno={record.codigoExterno} />
+        <StarButtonCell codigoExterno={record.codigoExterno} seguidasSet={seguidasSet} />
       ),
     },
   ];

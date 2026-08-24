@@ -45,7 +45,7 @@ DECLARE
 BEGIN
     v_offset := (GREATEST(p_page, 1) - 1) * p_page_size;
 
-    IF p_sort_by IS NULL OR p_sort_by NOT IN ('fecha_publicacion', 'fecha_cierre', 'nombre', 'monto_estimado', 'codigo_externo') THEN
+    IF p_sort_by IS NULL OR p_sort_by NOT IN ('fecha_publicacion', 'fecha_cierre', 'nombre', 'monto_estimado', 'codigo_externo', 'organismo') THEN
         p_sort_by := 'fecha_publicacion';
     END IF;
     IF p_sort_dir IS NULL OR p_sort_dir NOT IN ('asc', 'desc') THEN
@@ -103,6 +103,8 @@ BEGIN
         CASE WHEN p_sort_by = 'monto_estimado' AND p_sort_dir = 'desc' THEN l.monto_estimado END DESC NULLS LAST,
         CASE WHEN p_sort_by = 'codigo_externo' AND p_sort_dir = 'asc' THEN l.codigo_externo END ASC NULLS LAST,
         CASE WHEN p_sort_by = 'codigo_externo' AND p_sort_dir = 'desc' THEN l.codigo_externo END DESC NULLS LAST,
+        CASE WHEN p_sort_by = 'organismo' AND p_sort_dir = 'asc' THEN l.organismo END ASC NULLS LAST,
+        CASE WHEN p_sort_by = 'organismo' AND p_sort_dir = 'desc' THEN l.organismo END DESC NULLS LAST,
         l.id DESC
     OFFSET v_offset
     LIMIT p_page_size;

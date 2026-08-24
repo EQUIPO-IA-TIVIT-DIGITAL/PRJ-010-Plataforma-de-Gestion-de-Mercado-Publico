@@ -123,6 +123,7 @@ export function LicitacionesPage() {
     : (data?.data?.totalRecords ?? 0);
 
   const seguidasLista = useMemo(() => seguidasData ?? [], [seguidasData]);
+  const seguidasSet = useMemo(() => new Set(seguidasLista.map((s) => s.codigoExterno)), [seguidasLista]);
   const seguidasFiltradas = useMemo(() => {
     if (!filtroSeguidas.trim()) return seguidasLista;
     const q = filtroSeguidas.toLowerCase();
@@ -170,7 +171,9 @@ export function LicitacionesPage() {
   }, []);
 
   const handleSortChange = useCallback((sortBy: string, sortDir: 'asc' | 'desc') => {
-    setFilter((prev) => ({ ...prev, sortBy, sortDir, page: 1 }));
+    // Default sortDir to 'desc' for monto_estimado (mayores primero)
+    const finalSortDir = sortBy === 'monto_estimado' && !sortDir ? 'desc' : sortDir;
+    setFilter((prev) => ({ ...prev, sortBy, sortDir: finalSortDir, page: 1 }));
   }, []);
 
   const handleRowClick = useCallback((row: LicitacionResumen) => {
@@ -394,6 +397,7 @@ export function LicitacionesPage() {
               onRowClick={handleRowClick}
               onPageChange={handlePageChange}
               onSortChange={handleSortChange}
+              seguidasSet={seguidasSet}
             />
           )}
         </>
