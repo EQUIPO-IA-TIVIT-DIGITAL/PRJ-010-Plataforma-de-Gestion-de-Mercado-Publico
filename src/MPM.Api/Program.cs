@@ -35,6 +35,9 @@ using System.Diagnostics;
 using Serilog;
 using Serilog.Formatting.Compact;
 using MPM.Modules.Licitaciones.Services;
+using OpenTelemetry.Trace;
+using Prometheus;
+using Npgsql;
 
 Dapper.DefaultTypeMap.MatchNamesWithUnderscores = true;
 
@@ -94,6 +97,36 @@ catch (Exception ex)
 
 // 037-A: ActivitySource vacío (sin OTel SDK aún, solo registro para 037-B)
 builder.Services.AddSingleton(MpmActivitySource.Instance);
+
+// 037-B: OpenTelemetry SDK + W3C propagacion. Feature-flag Otlp:Enabled (default false local).
+// Cuando Otlp:Enabled != true no se registra exporter (evita excepcion si collector no existe).
+// Endpoint configurable via Otlp:Endpoint (default http://localhost:4317, protocolo gRPC OTLP).
+// Traza: MPM.Api ActivitySource + AspNetCore (RecordException=true) + HttpClient + Npgsql.
+// Redis via StackExchangeRedis se instrumenta automaticamente cuando se resuelve IConnectionMultiplexer
+// (no requiere AddRedisInstrumentation explicito aqui; se deja hook via DiagnosticSource si paquete presente).
+var otlpEnabled = builder.Configuration.GetValue<bool>("Otlp:Enabled");
+var otlpEndpointRaw = builder.Configuration["Otlp:Endpoint"] ?? "http://localhost:4317";
+Uri? otlpEndpoint = Uri.TryCreate(otlpEndpointRaw, UriKind.Absolute, out var _parsed) ? _parsed : null;
+
+builder.Services.AddOpenTelemetry().WithTracing(tracer =>
+{
+    var b = tracer
+        .AddSource(MpmActivitySource.Name)
+        .AddAspNetCoreInstrumentation(o => o.RecordException = true)
+        .AddHttpClientInstrumentation();
+
+    // Npgsql trace via Npgsql.OpenTelemetry (AddNpgsql()).
+    b.AddNpgsql();
+    // Redis trace via OpenTelemetry.Instrumentation.StackExchangeRedis.
+    // El paquete expone AddRedisInstrumentation(IConnectionMultiplexer) y AddRedisInstrumentation(Action<Options>).
+    // Para no duplicar la conexion, usamos el overload de opciones (instrumenta todas las conexiones via DiagnosticSource).
+    b.AddRedisInstrumentation(o => o.SetVerboseDatabaseStatements = false);
+
+    if (otlpEnabled && otlpEndpoint != null)
+    {
+        b.AddOtlpExporter(o => o.Endpoint = otlpEndpoint);
+    }
+});
 
 // 037-A: Health checks por módulo + agregado (cada uno SELECT 1, sin PII)
 builder.Services.AddHealthChecks()
@@ -356,6 +389,21 @@ app.MapHealthChecks("/health/administracion", new HealthCheckOptions
 
 app.MapControllers();
 app.MapHub<MensajeriaHub>("/hubs/mensajeria").RequireCors("SignalR");
+
+// 037-B: prometheus-net /metrics - solo interno, AllowAnonymous sin CORS publico, sin PII labels (OBS-R005).
+// Se usa MapMetrics (endpoint routing) en vez de UseMetricServer; documentado como eleccion.
+// MpmMetrics static en MPM.Core/Observability/MpmMetrics.cs define mpm_http_requests_total, etc - solo declara, incremento en 037-C.
+// Warmup: toca los contadores para que prometheus registre HELP/TYPE aunque aun no hay observaciones.
+_ = MpmMetrics.HttpRequestsTotal;
+_ = MpmMetrics.HttpDurationSeconds;
+_ = MpmMetrics.LlmCallsTotal;
+_ = MpmMetrics.LlmTokensTotal;
+_ = MpmMetrics.LlmLatencySeconds;
+_ = MpmMetrics.SyncLicitacionesTotal;
+_ = MpmMetrics.AclaracionesDetectadasTotal;
+_ = MpmMetrics.ScraperRunsTotal;
+
+app.MapMetrics();
 
 using (var scope = app.Services.CreateScope())
 {
