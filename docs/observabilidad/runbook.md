@@ -77,10 +77,10 @@ curl -i http://localhost:5001/api/v1/licitaciones?montoDesde=50000000 | grep -i 
 
 **Síntoma:** Log JSON sin `TraceId` o `SpanId`, o `X-Correlation-Id` no coincide con `traceparent`.
 
-- Flujo esperado: cliente envía `X-Correlation-Id: abc123` → `TenantMiddleware` lo sanitiza (^[a-zA-Z0-9_-]{8,36}$), lo propaga como `correlationId` y como `traceId` fallback; si no viene, se usa `Activity.Current.TraceId` o `Guid.NewGuid()`. Respuesta siempre devuelve `X-Correlation-Id`, `X-Trace-Id`, `traceparent`.
+- Flujo esperado: cliente envía `X-Correlation-Id: abc123` → `CorrelationIdMiddleware` lo sanitiza (^[a-zA-Z0-9_-]{8,36}$), lo propaga como `correlationId` y como `traceId` fallback; si no viene, se usa `Activity.Current.TraceId` o `Guid.NewGuid()`. Respuesta siempre devuelve `X-Correlation-Id`, `X-Trace-Id`, `traceparent`.
 - Ver en logs: `docker logs mpm-api --tail 20 | jq .TraceId` — cada línea JSON debe traer `TraceId`, `SpanId`, `CorrelationId`, `UserId` (si autenticado) y `Module: MPM.Api` (OBS-R007)
 - Ver en respuesta: `curl -i http://localhost:5001/health | grep -E "X-Correlation|X-Trace|traceparent"`
-- Si `TraceId` vacío en logs pero sí en header: revisar `TenantMiddleware` order — debe ir antes de `UseSerilogRequestLogging` (ya está). Si sigue vacío, verificar `EnrichDiagnosticContext` en Program.cs: debe pushear `TraceId`, `SpanId`, `UserId`, `Module`.
+- Si `TraceId` vacío en logs pero sí en header: revisar `CorrelationIdMiddleware` order — debe ir antes de `UseSerilogRequestLogging` (ya está). Si sigue vacío, verificar `EnrichDiagnosticContext` en Program.cs: debe pushear `TraceId`, `SpanId`, `UserId`, `Module`.
 - Si `UserId` no aparece logueado: verificar claim `user_id` en JWT (AuthHandler lo emite). `TenantMiddleware` lee `user_id` | `tenant_id` | `username` | `role`.
 - **Langfuse deshabilitado no oculta TraceId** — solo afecta llm_usage vs Langfuse. Ver siguiente sección.
 
