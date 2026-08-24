@@ -3,6 +3,14 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig({
   plugins: [react()],
+  // E10: vitest para Test Gate por capa frontend (frameworks unit-testing mandatory)
+  // vitest usa mismo vite, no necesita config separada
+  test: {
+    environment: 'jsdom',
+    globals: true,
+    setupFiles: ['./src/test/setup.ts'],
+    include: ['src/**/*.{test,spec}.{ts,tsx}'],
+  },
   server: {
     port: 3000,
     proxy: {

@@ -198,6 +198,15 @@ app.UseMiddleware<ErrorHandlingMiddleware>();
 app.UseAuthentication();
 app.UseMiddleware<TenantMiddleware>();
 app.UseAuthorization();
+// E16 api-versioning: expone versión vigente y deja puerta a Sunset para futuros breaking changes.
+// No afecta flujo actual (todo sigue en /api/v1), solo añade headers para trazabilidad.
+app.Use(async (ctx, next) =>
+{
+    ctx.Response.Headers["X-API-Version"] = "v1";
+    ctx.Response.Headers["X-API-Supported-Versions"] = "v1";
+    // Cuando exista v2, se añadirá Sunset aquí para clientes en v1.
+    await next();
+});
 app.MapControllers();
 app.MapHub<MensajeriaHub>("/hubs/mensajeria").RequireCors("SignalR");
 
