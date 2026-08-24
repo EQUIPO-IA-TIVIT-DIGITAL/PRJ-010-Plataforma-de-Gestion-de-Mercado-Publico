@@ -9,12 +9,8 @@ public class HealthController(DbConnectionFactory dbFactory, AuthHandler authHan
 {
     private readonly DbConnectionFactory _dbFactory = dbFactory;
 
-    [HttpGet("/health")]
-    public IActionResult Health()
-    {
-        return Ok(new { status = "healthy", timestamp = DateTime.UtcNow });
-    }
-
+    // 037-A: /health agregado y /health/licitaciones ahora via MapHealthChecks (SELECT 1) - ver Program.cs
+    // Se deja solo auth y mensajeria aquí para no duplicar ruta y evitar SELECT COUNT(*) pesado (OBS-R006).
     [HttpGet("/health/auth")]
     public async Task<IActionResult> HealthAuth()
     {
@@ -29,39 +25,10 @@ public class HealthController(DbConnectionFactory dbFactory, AuthHandler authHan
                 timestamp = DateTime.UtcNow
             });
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            return StatusCode(503, new { status = "unhealthy", module = "auth", error = ex.Message, timestamp = DateTime.UtcNow });
-        }
-    }
-
-    [HttpGet("/health/licitaciones")]
-    public async Task<IActionResult> HealthLicitaciones()
-    {
-        try
-        {
-            await using var conn = _dbFactory.Create();
-            await conn.OpenAsync();
-            using var cmd = conn.CreateCommand();
-            cmd.CommandText = "SELECT COUNT(*) FROM licitaciones WHERE deleted_at IS NULL";
-            var count = Convert.ToInt64(await cmd.ExecuteScalarAsync());
-
-            using var cmd2 = conn.CreateCommand();
-            cmd2.CommandText = "SELECT MAX(ejecutado_en) FROM sync_log WHERE estado = 'COMPLETADO'";
-            var lastSync = await cmd2.ExecuteScalarAsync();
-
-            return Ok(new
-            {
-                status = "healthy",
-                module = "licitaciones",
-                totalRecords = count,
-                lastSync = lastSync != DBNull.Value ? Convert.ToDateTime(lastSync) : (DateTime?)null,
-                timestamp = DateTime.UtcNow
-            });
-        }
-        catch (Exception ex)
-        {
-            return StatusCode(503, new { status = "unhealthy", module = "licitaciones", error = ex.Message, timestamp = DateTime.UtcNow });
+            // No exponer ex.Message (PII / detalles internos)
+            return StatusCode(503, new { status = "unhealthy", module = "auth", timestamp = DateTime.UtcNow });
         }
     }
 
@@ -77,9 +44,9 @@ public class HealthController(DbConnectionFactory dbFactory, AuthHandler authHan
             await cmd.ExecuteScalarAsync();
             return Ok(new { status = "healthy", module = "mensajeria" });
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            return StatusCode(503, new { status = "unhealthy", module = "mensajeria", error = ex.Message });
+            return StatusCode(503, new { status = "unhealthy", module = "mensajeria" });
         }
     }
 }

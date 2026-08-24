@@ -3,9 +3,12 @@ using MPM.Api.Database;
 using MPM.Api.Services;
 using MPM.Core.Middleware;
 using MPM.Core.Data;
+using MPM.Core.Observability;
 using MPM.Core.SystemConfig;
 using MPM.Modules.Analisis;
+using MPM.Modules.Analisis.Health;
 using MPM.Modules.Licitaciones;
+using MPM.Modules.Licitaciones.Health;
 using MPM.Modules.Catalogo;
 using MPM.Modules.Mensajeria;
 using MPM.Modules.Auth;
@@ -15,13 +18,22 @@ using MPM.Modules.Alertas;
 using MPM.Modules.Competidores;
 using MPM.Modules.Colaboracion;
 using MPM.Modules.Administracion;
+using MPM.Modules.Administracion.Health;
 using MPM.Modules.Censo;
+using MPM.Modules.Censo.Health;
 using MPM.Modules.Propuestas;
+using MPM.Modules.Propuestas.Health;
 using MPM.Shared.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.IdentityModel.Tokens;
 using StackExchange.Redis;
 using System.Text;
+using System.Text.Json;
+using System.Diagnostics;
+using Serilog;
+using Serilog.Formatting.Compact;
 using MPM.Modules.Licitaciones.Services;
 
 Dapper.DefaultTypeMap.MatchNamesWithUnderscores = true;
@@ -40,6 +52,53 @@ if (!string.IsNullOrWhiteSpace(workerMode))
 }
 
 var builder = WebApplication.CreateBuilder(args);
+
+// 037-A: Serilog JSON estruturado + correlationId. Default Information, fallback a Console si falta config.
+try
+{
+    var serilogSection = builder.Configuration.GetSection("Serilog");
+    if (serilogSection.Exists())
+    {
+        Log.Logger = new LoggerConfiguration()
+            .ReadFrom.Configuration(builder.Configuration)
+            .Enrich.FromLogContext()
+            .Enrich.WithProperty("Application", "MPM.Api")
+            .WriteTo.Console(new CompactJsonFormatter())
+            .CreateLogger();
+    }
+    else
+    {
+        Log.Logger = new LoggerConfiguration()
+            .MinimumLevel.Information()
+            .MinimumLevel.Override("Microsoft", Serilog.Events.LogEventLevel.Warning)
+            .MinimumLevel.Override("System", Serilog.Events.LogEventLevel.Warning)
+            .Enrich.FromLogContext()
+            .Enrich.WithProperty("Application", "MPM.Api")
+            .WriteTo.Console(new CompactJsonFormatter())
+            .CreateLogger();
+    }
+    builder.Host.UseSerilog();
+}
+catch (Exception ex)
+{
+    Console.WriteLine($"Serilog init fallback: {ex.Message}");
+    Log.Logger = new LoggerConfiguration()
+        .MinimumLevel.Information()
+        .WriteTo.Console(new CompactJsonFormatter())
+        .CreateLogger();
+    builder.Host.UseSerilog();
+}
+
+// 037-A: ActivitySource vacío (sin OTel SDK aún, solo registro para 037-B)
+builder.Services.AddSingleton(MpmActivitySource.Instance);
+
+// 037-A: Health checks por módulo + agregado (cada uno SELECT 1, sin PII)
+builder.Services.AddHealthChecks()
+    .AddCheck<LicitacionesHealthCheck>("licitaciones", tags: new[] { "licitaciones" })
+    .AddCheck<AnalisisHealthCheck>("analisis", tags: new[] { "analisis" })
+    .AddCheck<CensoHealthCheck>("censo", tags: new[] { "censo" })
+    .AddCheck<PropuestasHealthCheck>("propuestas", tags: new[] { "propuestas" })
+    .AddCheck<AdministracionHealthCheck>("administracion", tags: new[] { "administracion" });
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
@@ -193,7 +252,118 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+app.UseSerilogRequestLogging(opts =>
+{
+    opts.EnrichDiagnosticContext = (diagnosticContext, httpContext) =>
+    {
+        var cid = httpContext.Items["CorrelationId"] as string ?? httpContext.TraceIdentifier;
+        diagnosticContext.Set("CorrelationId", cid);
+        diagnosticContext.Set("TraceId", Activity.Current?.TraceId.ToString() ?? cid);
+    };
+});
+
 app.UseCors();
+
+// 037-A: correlación temprana para que ErrorHandling y logs tengan CorrelationId
+app.Use(async (context, next) =>
+{
+    var correlationId = context.Request.Headers["X-Correlation-Id"].FirstOrDefault()
+        ?? context.Request.Headers["X-Request-Id"].FirstOrDefault()
+        ?? Activity.Current?.TraceId.ToString()
+        ?? context.TraceIdentifier
+        ?? Guid.NewGuid().ToString("N");
+    if (string.IsNullOrWhiteSpace(correlationId))
+        correlationId = Guid.NewGuid().ToString("N");
+    context.Items["CorrelationId"] = correlationId;
+    context.Response.OnStarting(() =>
+    {
+        if (!context.Response.Headers.ContainsKey("X-Correlation-Id"))
+            context.Response.Headers["X-Correlation-Id"] = correlationId;
+        if (!context.Response.Headers.ContainsKey("X-Trace-Id"))
+            context.Response.Headers["X-Trace-Id"] = Activity.Current?.TraceId.ToString() ?? correlationId;
+        return Task.CompletedTask;
+    });
+    using (Serilog.Context.LogContext.PushProperty("CorrelationId", correlationId))
+    using (Serilog.Context.LogContext.PushProperty("TraceId", Activity.Current?.TraceId.ToString() ?? correlationId))
+    {
+        await next();
+    }
+});
+
+// 037-A: Health checks públicos, sin auth, nunca exponen PII (solo status + duración)
+static Task WriteHealthResponse(HttpContext ctx, HealthReport report)
+{
+    ctx.Response.ContentType = "application/json";
+    ctx.Response.StatusCode = report.Status == HealthStatus.Healthy ? 200 : 503;
+    var jsonOpts = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+    var path = ctx.Request.Path.Value ?? "";
+    var isModule = path.StartsWith("/health/", StringComparison.OrdinalIgnoreCase) && path.Length > 8;
+    var basePayload = new
+    {
+        status = report.Status.ToString().ToLowerInvariant(),
+        timestamp = DateTime.UtcNow.ToString("o"),
+        checks = report.Entries.ToDictionary(
+            e => e.Key,
+            e => new
+            {
+                status = e.Value.Status.ToString().ToLowerInvariant(),
+                durationMs = Math.Round(e.Value.Duration.TotalMilliseconds, 2)
+            }),
+        totalDurationMs = Math.Round(report.TotalDuration.TotalMilliseconds, 2)
+    };
+    if (isModule)
+    {
+        var module = path.Split('/', StringSplitOptions.RemoveEmptyEntries).LastOrDefault() ?? "unknown";
+        var payload = new
+        {
+            status = basePayload.status,
+            module,
+            timestamp = basePayload.timestamp,
+            checks = basePayload.checks,
+            totalDurationMs = basePayload.totalDurationMs
+        };
+        return ctx.Response.WriteAsync(JsonSerializer.Serialize(payload, jsonOpts));
+    }
+    return ctx.Response.WriteAsync(JsonSerializer.Serialize(basePayload, jsonOpts));
+}
+
+app.MapHealthChecks("/health", new HealthCheckOptions
+{
+    AllowCachingResponses = false,
+    Predicate = _ => true,
+    ResponseWriter = WriteHealthResponse
+});
+app.MapHealthChecks("/health/licitaciones", new HealthCheckOptions
+{
+    AllowCachingResponses = false,
+    Predicate = r => r.Name == "licitaciones",
+    ResponseWriter = WriteHealthResponse
+});
+app.MapHealthChecks("/health/analisis", new HealthCheckOptions
+{
+    AllowCachingResponses = false,
+    Predicate = r => r.Name == "analisis",
+    ResponseWriter = WriteHealthResponse
+});
+app.MapHealthChecks("/health/censo", new HealthCheckOptions
+{
+    AllowCachingResponses = false,
+    Predicate = r => r.Name == "censo",
+    ResponseWriter = WriteHealthResponse
+});
+app.MapHealthChecks("/health/propuestas", new HealthCheckOptions
+{
+    AllowCachingResponses = false,
+    Predicate = r => r.Name == "propuestas",
+    ResponseWriter = WriteHealthResponse
+});
+app.MapHealthChecks("/health/administracion", new HealthCheckOptions
+{
+    AllowCachingResponses = false,
+    Predicate = r => r.Name == "administracion",
+    ResponseWriter = WriteHealthResponse
+});
+
 app.UseMiddleware<ErrorHandlingMiddleware>();
 app.UseAuthentication();
 app.UseMiddleware<TenantMiddleware>();
