@@ -1,0 +1,77 @@
+{
+  "__inputs": [],
+  "__requires": [{ "type": "datasource", "id": "prometheus", "name": "DS_PROMETHEUS", "version": "1.0.0" }],
+  "title": "MPM Operativo — RPS, Latencia y Errores",
+  "uid": "mpm-operativo-037",
+  "tags": ["mpm", "observabilidad", "037-C"],
+  "description": "Dashboard operativo 037-C: RPS, P95 latency, error rate y saturación. Fuente: /metrics (prometheus-net mpm_http_*)",
+  "timezone": "browser",
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "time": { "from": "now-6h", "to": "now" },
+  "refresh": "30s",
+  "panels": [
+    {
+      "type": "timeseries",
+      "title": "RPS por ruta templada (sin PII)",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "fieldConfig": { "defaults": { "unit": "reqps" }, "overrides": [] },
+      "targets": [
+        {
+          "expr": "sum by (route) (rate(mpm_http_requests_total[5m]))",
+          "legendFormat": "{{route}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Latencia p50 / p95 / p99 (s)",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
+      "targets": [
+        { "expr": "histogram_quantile(0.50, sum by (le) (rate(mpm_http_duration_seconds_bucket[5m])) )", "legendFormat": "p50", "refId": "A" },
+        { "expr": "histogram_quantile(0.95, sum by (le) (rate(mpm_http_duration_seconds_bucket[5m])) )", "legendFormat": "p95", "refId": "B" },
+        { "expr": "histogram_quantile(0.99, sum by (le) (rate(mpm_http_duration_seconds_bucket[5m])) )", "legendFormat": "p99", "refId": "C" }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "Error rate (5xx / total) 5m",
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 8 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "fieldConfig": { "defaults": { "unit": "percentunit", "thresholds": { "steps": [{ "color": "green", "value": 0 }, { "color": "red", "value": 0.01 }] } }, "overrides": [] },
+      "targets": [
+        { "expr": "sum(rate(mpm_http_requests_total{status=~\"5..\"}[5m])) / sum(rate(mpm_http_requests_total[5m]))", "refId": "A" }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Requests por código de estado",
+      "gridPos": { "h": 8, "w": 18, "x": 6, "y": 8 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "targets": [
+        { "expr": "sum by (status) (rate(mpm_http_requests_total[5m]))", "legendFormat": "{{status}}", "refId": "A" }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Duración HTTP — heatmap buckets",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 16 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "targets": [
+        { "expr": "sum(rate(mpm_http_duration_seconds_bucket[5m])) by (le)", "refId": "A" }
+      ]
+    }
+  ],
+  "templating": {
+    "list": [
+      { "name": "DS_PROMETHEUS", "type": "datasource", "query": "prometheus", "current": { "text": "Prometheus", "value": "prometheus" } }
+    ]
+  },
+  "links": [
+    { "title": "Runbook 037", "url": "/docs/observabilidad/runbook.md", "type": "link" }
+  ]
+}

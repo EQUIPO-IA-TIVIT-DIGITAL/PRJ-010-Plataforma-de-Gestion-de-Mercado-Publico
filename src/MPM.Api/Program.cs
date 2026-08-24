@@ -181,6 +181,7 @@ builder.Services.AddSingleton<DbConnectionFactory>(_ =>
 builder.Services.AddMemoryCache();
 builder.Services.AddSingleton<ISystemConfigData, SystemConfigData>();
 builder.Services.AddSingleton<SystemConfigService>();
+builder.Services.AddScoped<MPM.Shared.Services.LlmUsageService>();
 builder.Services.AddScoped<LlmClientResolver>();
 builder.Services.AddKeyedScoped<ILlmClient, VertexGeminiClient>("gemini");
 builder.Services.AddKeyedScoped<ILlmClient, OpenAiCompatClient>("openai");
@@ -297,6 +298,18 @@ app.UseSerilogRequestLogging(opts =>
         var cid = httpContext.Items["CorrelationId"] as string ?? httpContext.TraceIdentifier;
         diagnosticContext.Set("CorrelationId", cid);
         diagnosticContext.Set("TraceId", Activity.Current?.TraceId.ToString() ?? cid);
+        var spanId = Activity.Current?.SpanId.ToString();
+        if (!string.IsNullOrEmpty(spanId))
+            diagnosticContext.Set("SpanId", spanId);
+        // OBS-R001/R007: user.id cuando autenticado, para logs y trazas
+        var userId = httpContext.User?.FindFirst("user_id")?.Value
+                     ?? httpContext.User?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        if (!string.IsNullOrWhiteSpace(userId))
+        {
+            diagnosticContext.Set("UserId", userId);
+            Activity.Current?.SetTag("user.id", userId);
+        }
+        diagnosticContext.Set("Module", "MPM.Api");
     };
 });
 
