@@ -1,21 +1,18 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useRef } from 'react';
 import {
   Alert,
   Button,
   Card,
   List,
-  Popconfirm,
-  Progress,
   Space,
   Spin,
-  Steps,
   Tag,
   Typography,
+  Upload,
   App as AntdApp,
 } from 'antd';
 import {
   DownloadOutlined,
-  ReloadOutlined,
   FilePdfOutlined,
   FileWordOutlined,
   FileExcelOutlined,
@@ -23,20 +20,20 @@ import {
   FileTextOutlined,
   CheckCircleOutlined,
   RobotOutlined,
-  SyncOutlined,
-  GlobalOutlined,
-  SafetyCertificateOutlined,
-  CloudDownloadOutlined,
+  LinkOutlined,
+  CloudUploadOutlined,
   InboxOutlined,
-  InfoCircleOutlined,
+  DeleteOutlined,
 } from '@ant-design/icons';
 import {
   descargarArchivoDocumento,
   formatTamanio,
-  useDescargarDocumentos,
   useEstadoDocumentos,
+  useUploadManualDocumentos,
 } from '../hooks/useDocumentosLicitacion';
 import type { LicitacionDocumentoItem } from '../types/licitacion';
+
+const { Dragger } = Upload;
 
 interface Props {
   codigoExterno: string;
@@ -45,295 +42,258 @@ interface Props {
 
 function getFileIcon(nombre: string) {
   const ext = nombre.split('.').pop()?.toLowerCase();
-  if (ext === 'pdf') return <FilePdfOutlined style={{ fontSize: 24, color: '#ff4d4f' }} />;
-  if (ext === 'doc' || ext === 'docx') return <FileWordOutlined style={{ fontSize: 24, color: '#1677ff' }} />;
-  if (ext === 'xls' || ext === 'xlsx') return <FileExcelOutlined style={{ fontSize: 24, color: '#52c41a' }} />;
-  if (ext === 'zip' || ext === 'rar') return <FileZipOutlined style={{ fontSize: 24, color: '#faad14' }} />;
-  return <FileTextOutlined style={{ fontSize: 24, color: '#8c8c8c' }} />;
+  if (ext === 'pdf') return <FilePdfOutlined style={{ fontSize: 22, color: '#cf1322' }} />;
+  if (ext === 'doc' || ext === 'docx') return <FileWordOutlined style={{ fontSize: 22, color: '#0958d9' }} />;
+  if (ext === 'xls' || ext === 'xlsx') return <FileExcelOutlined style={{ fontSize: 22, color: '#389e0d' }} />;
+  if (ext === 'zip' || ext === 'rar') return <FileZipOutlined style={{ fontSize: 22, color: '#d48806' }} />;
+  return <FileTextOutlined style={{ fontSize: 22, color: '#595959' }} />;
+}
+
+function fichaUrl(codigo: string) {
+  return `https://www.mercadopublico.cl/fichaLicitacion.html?idlicitacion=${encodeURIComponent(codigo)}`;
 }
 
 export function DocumentosLicitacionPanel({ codigoExterno, onIrAAnalisis }: Props) {
   const { message } = AntdApp.useApp();
-  const { data: estadoData, isLoading: estadoLoading, refetch } = useEstadoDocumentos(codigoExterno);
-  const descargarMutation = useDescargarDocumentos();
+  const { data: estadoData, isLoading: estadoLoading } = useEstadoDocumentos(codigoExterno);
+  const uploadMutation = useUploadManualDocumentos();
   const estado = estadoData?.data;
 
-  // Contador de segundos en vivo durante la extracción
-  const [segundosTranscurridos, setSegundosTranscurridos] = useState(0);
-  const prevEnProgresoRef = useRef(false);
+  const [fileList, setFileList] = useState<File[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const enProgreso = estado?.estadoConjunto === 'descargando' || descargarMutation.isPending;
   const tieneDocumentos = estado?.estadoConjunto === 'completado' && (estado.documentos?.length ?? 0) > 0;
   const esCompletadoSinDocs = estado?.estadoConjunto === 'completado' && (estado.documentos?.length ?? 0) === 0;
 
-  useEffect(() => {
-    let timer: ReturnType<typeof setInterval> | undefined;
-    if (enProgreso) {
-      timer = setInterval(() => {
-        setSegundosTranscurridos((prev) => prev + 1);
-        void refetch();
-      }, 1500);
-    } else {
-      // Si acabamos de terminar una descarga activa
-      if (prevEnProgresoRef.current && estado) {
-        if (estado.estadoConjunto === 'completado') {
-          if ((estado.documentos?.length ?? 0) > 0) {
-            message.success(`¡Extracción completada! Se obtuvieron ${estado.documentos.length} documentos oficiales.`);
-          } else {
-            message.info('Extracción finalizada: Esta licitación no registra documentos adjuntos en el portal.');
-          }
-        } else if (estado.estadoConjunto === 'error') {
-          message.error(estado.descargaError || 'La extracción de documentos finalizó con errores.');
-        }
-      }
-      setSegundosTranscurridos(0);
+  const handleUpload = () => {
+    if (fileList.length === 0) {
+      message.warning('Selecciona al menos un archivo');
+      return;
     }
-
-    prevEnProgresoRef.current = enProgreso;
-    return () => {
-      if (timer) clearInterval(timer);
-    };
-  }, [enProgreso, refetch, estado, message]);
-
-  const iniciarDescarga = (forzar = false) => {
-    setSegundosTranscurridos(1);
-    descargarMutation.mutate(
-      { codigoExterno, forzar },
+    uploadMutation.mutate(
+      { codigoExterno, files: fileList },
       {
-        onSuccess: () => {
-          message.info('Iniciando extracción automatizada desde Mercado Público...');
+        onSuccess: (res: any) => {
+          const d = res?.data;
+          if (d?.rechazados > 0) {
+            message.warning(d.mensaje || `Carga parcial: ${d.descargados + d.reutilizados} ok, ${d.rechazados} rechazados`);
+          } else {
+            message.success(d?.mensaje || `Se cargaron ${d?.descargados ?? fileList.length} archivos correctamente`);
+          }
+          setFileList([]);
         },
-        onError: (e) => {
-          message.error(e instanceof Error ? e.message : 'No se pudo iniciar la descarga');
+        onError: (e: any) => {
+          const msg = e?.message || 'No se pudo subir los archivos';
+          // DOC_007 = auto deshabilitado, pero este es manual, no aplica
+          message.error(msg);
         },
       },
     );
   };
 
   const descargarLocal = (doc: LicitacionDocumentoItem) => {
-    descargarArchivoDocumento(codigoExterno, doc).catch(() =>
-      message.error('No se pudo descargar el archivo'),
-    );
+    descargarArchivoDocumento(codigoExterno, doc).catch(() => message.error('No se pudo descargar el archivo'));
   };
 
-  // Cálculo de paso actual y porcentaje simulado para la UI
-  const pasoActual = segundosTranscurridos < 5 ? 0 : segundosTranscurridos < 13 ? 1 : segundosTranscurridos < 23 ? 2 : 3;
-  const porcentajeProgreso = Math.min(96, Math.max(12, segundosTranscurridos * 4));
-
-  const descripcionesPaso = [
-    'Inicializando agente navegador y preparando conexión segura con Mercado Público...',
-    'Navegando a la ficha oficial de la licitación y validando controles de acceso...',
-    'Explorando la grilla de documentos oficiales, actas de evaluación y anexos...',
-    'Descargando archivos, verificando firmas de integridad (SHA-256) y sincronizando storage...',
-  ];
+  const beforeUpload = (file: File) => {
+    const ext = file.name.split('.').pop()?.toLowerCase() ?? '';
+    const permitidas = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'zip', 'rar', 'txt'];
+    if (!permitidas.includes(ext)) {
+      message.error(`${file.name}: extensión .${ext} no permitida`);
+      return Upload.LIST_IGNORE;
+    }
+    if (file.size > 20 * 1024 * 1024) {
+      message.error(`${file.name}: supera 20MB`);
+      return Upload.LIST_IGNORE;
+    }
+    if (fileList.length >= 10) {
+      message.warning('Máximo 10 archivos por carga');
+      return Upload.LIST_IGNORE;
+    }
+    // No auto upload, manejamos manualmente
+    setFileList((prev) => [...prev, file]);
+    return false;
+  };
 
   return (
     <div style={{ padding: '8px 0' }}>
-      {/* Header bar */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
+      {/* Header */}
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'flex-start',
+          marginBottom: 20,
+          flexWrap: 'wrap',
+          gap: 12,
+        }}
+      >
         <div>
-          <Typography.Title level={5} style={{ margin: 0 }}>
+          <Typography.Title level={5} style={{ margin: 0, fontWeight: 700, letterSpacing: -0.2 }}>
             Pliegos y Bases Oficiales
             {tieneDocumentos && (
-              <Tag color="success" style={{ marginLeft: 8 }}>
-                {estado.documentos.length} archivos descargados
+              <Tag color="success" style={{ marginLeft: 8, borderRadius: 4 }}>
+                {estado!.documentos.length} archivos
               </Tag>
             )}
             {esCompletadoSinDocs && (
-              <Tag color="default" style={{ marginLeft: 8 }}>
-                Sin adjuntos en portal
-              </Tag>
+              <Tag style={{ marginLeft: 8, borderRadius: 4 }}>Sin archivos</Tag>
             )}
           </Typography.Title>
           <Typography.Text type="secondary" style={{ fontSize: 13 }}>
-            Descarga bajo demanda y extracción automatizada desde Mercado Público.
+            Carga manual — descarga desde Mercado Público y sube aquí para analizar con IA.
           </Typography.Text>
         </div>
 
-        <Space size={8}>
+        <Space size={8} wrap>
+          <Button
+            icon={<LinkOutlined />}
+            href={fichaUrl(codigoExterno)}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Ver en Mercado Público
+          </Button>
           {tieneDocumentos && onIrAAnalisis && (
             <Button type="primary" icon={<RobotOutlined />} onClick={onIrAAnalisis}>
-              Pasar al Análisis IA
-            </Button>
-          )}
-
-          {tieneDocumentos ? (
-            <Popconfirm
-              title="¿Volver a descargar pliegos?"
-              description="Los archivos ya se encuentran descargados. ¿Deseas forzar una nueva extracción desde el portal?"
-              onConfirm={() => iniciarDescarga(true)}
-              okText="Sí, re-descargar"
-              cancelText="Cancelar"
-            >
-              <Button icon={<ReloadOutlined />} loading={enProgreso}>
-                Re-descargar bases
-              </Button>
-            </Popconfirm>
-          ) : esCompletadoSinDocs ? (
-            <Button
-              icon={<ReloadOutlined />}
-              loading={enProgreso}
-              onClick={() => iniciarDescarga(true)}
-            >
-              Re-verificar en portal
-            </Button>
-          ) : (
-            <Button
-              type="primary"
-              icon={<DownloadOutlined />}
-              loading={enProgreso}
-              onClick={() => iniciarDescarga(false)}
-            >
-              Descargar documentos
+              Analizar con IA
             </Button>
           )}
         </Space>
       </div>
 
-      {/* Estados dinámicos */}
-      {estadoLoading && !estado ? (
-        <div style={{ textAlign: 'center', padding: 40 }}>
-          <Spin tip="Consultando estado de documentos..." />
-        </div>
-      ) : enProgreso ? (
-        /* Tarjeta de progreso dinámico en vivo con Stepper */
-        <Card
-          style={{
-            marginBottom: 20,
-            background: 'linear-gradient(135deg, rgba(230, 247, 255, 0.95) 0%, rgba(240, 245, 255, 0.95) 100%)',
-            borderColor: '#91caff',
-            borderRadius: 12,
-            boxShadow: '0 4px 12px rgba(22, 119, 255, 0.08)',
-          }}
+      {/* Info permanente: flujo manual */}
+      <Alert
+        type="info"
+        showIcon
+        style={{ marginBottom: 16, borderRadius: 8, border: '1px solid #d6e4ff', background: '#f0f5ff' }}
+        message="Flujo manual activo"
+        description={
+          <span>
+            Mercado Público protege los adjuntos con reCAPTCHA Enterprise.{' '}
+            <Typography.Text strong style={{ color: '#1d39c4' }}>
+              Abre la ficha oficial, descarga los pliegos a tu PC y arrástralos a la zona de carga.
+            </Typography.Text>{' '}
+            El análisis IA (Go/No-Go) se habilita automáticamente al subir.
+          </span>
+        }
+      />
+
+      {/* Dropzone */}
+      <Card
+        size="small"
+        style={{
+          marginBottom: 16,
+          borderRadius: 10,
+          borderStyle: 'dashed',
+          background: '#fafafa',
+        }}
+        bodyStyle={{ padding: 16 }}
+      >
+        <Dragger
+          multiple
+          maxCount={10}
+          fileList={[]}
+          beforeUpload={beforeUpload}
+          showUploadList={false}
+          accept=".pdf,.doc,.docx,.xls,.xlsx,.zip,.rar,.txt"
+          disabled={uploadMutation.isPending}
+          style={{ background: '#fff', borderRadius: 8 }}
         >
-          <Space direction="vertical" size={16} style={{ width: '100%' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <Space>
-                <SyncOutlined spin style={{ fontSize: 20, color: '#1677ff' }} />
-                <Typography.Text strong style={{ fontSize: 16 }}>
-                  Extracción en curso desde Mercado Público
-                </Typography.Text>
-              </Space>
-              <Tag color="processing" style={{ fontSize: 13, padding: '3px 10px', borderRadius: 20 }}>
-                ⏱️ Tiempo transcurrido: {segundosTranscurridos}s
-              </Tag>
-            </div>
+          <p className="ant-upload-drag-icon">
+            <InboxOutlined style={{ color: '#1677ff', fontSize: 32 }} />
+          </p>
+          <p className="ant-upload-text" style={{ fontWeight: 600 }}>
+            Arrastra los pliegos aquí o haz click para seleccionar
+          </p>
+          <p className="ant-upload-hint" style={{ color: '#8c8c8c' }}>
+            PDF, DOC, DOCX, XLS, XLSX, ZIP, TXT — hasta 20MB por archivo, máx. 10 archivos
+          </p>
+        </Dragger>
 
-            <Progress
-              percent={porcentajeProgreso}
-              status="active"
-              strokeColor={{ '0%': '#108ee9', '100%': '#87d068' }}
-            />
-
-            {/* Stepper dinámico con las fases del scraper */}
-            <div style={{ padding: '8px 0', marginTop: 4 }}>
-              <Steps
-                current={pasoActual}
-                size="small"
-                items={[
-                  {
-                    title: 'Conexión',
-                    description: 'Agente navegador',
-                    icon: pasoActual === 0 ? <SyncOutlined spin /> : pasoActual > 0 ? <CheckCircleOutlined style={{ color: '#52c41a' }} /> : <GlobalOutlined />,
-                  },
-                  {
-                    title: 'Ficha Oficial',
-                    description: 'Acceso portal',
-                    icon: pasoActual === 1 ? <SyncOutlined spin /> : pasoActual > 1 ? <CheckCircleOutlined style={{ color: '#52c41a' }} /> : <SafetyCertificateOutlined />,
-                  },
-                  {
-                    title: 'Extracción',
-                    description: 'Pliegos y actas',
-                    icon: pasoActual === 2 ? <SyncOutlined spin /> : pasoActual > 2 ? <CheckCircleOutlined style={{ color: '#52c41a' }} /> : <CloudDownloadOutlined />,
-                  },
-                  {
-                    title: 'Almacenamiento',
-                    description: 'Hash SHA-256 y guardado',
-                    icon: pasoActual === 3 ? <SyncOutlined spin /> : <InboxOutlined />,
-                  },
-                ]}
-              />
-            </div>
-
-            <div style={{ background: 'rgba(255, 255, 255, 0.75)', padding: '10px 14px', borderRadius: 8 }}>
-              <Typography.Text style={{ fontSize: 13, color: '#1f1f1f' }}>
-                <strong>Estado actual:</strong> {descripcionesPaso[pasoActual]}
-              </Typography.Text>
-            </div>
-          </Space>
-        </Card>
-      ) : estado?.estadoConjunto === 'error' ? (
-        <Alert
-          type="error"
-          showIcon
-          message="La extracción de documentos no pudo completarse"
-          description={estado.descargaError ?? 'Ocurrió un problema al extraer los documentos desde el portal.'}
-          action={
-            <Button size="small" type="primary" danger icon={<ReloadOutlined />} onClick={() => iniciarDescarga(true)}>
-              Reintentar extracción
-            </Button>
-          }
-          style={{ marginBottom: 16, borderRadius: 8 }}
-        />
-      ) : esCompletadoSinDocs ? (
-        /* Estado completado pero el portal no tenía documentos adjuntos */
-        <Card
-          style={{
-            marginBottom: 16,
-            borderRadius: 10,
-            borderStyle: 'dashed',
-            borderColor: '#d9d9d9',
-            backgroundColor: '#fafafa',
-            textAlign: 'center',
-            padding: '20px 10px',
-          }}
-        >
-          <Space direction="vertical" size={8} orientation="center">
-            <InfoCircleOutlined style={{ fontSize: 32, color: '#faad14' }} />
-            <Typography.Title level={5} style={{ margin: '4px 0' }}>
-              Extracción finalizada: Sin documentos adjuntos
-            </Typography.Title>
-            <Typography.Text type="secondary" style={{ maxWidth: 520, display: 'inline-block' }}>
-              El portal oficial de Mercado Público no registra archivos adjuntos ni bases descargables para esta licitación (habitual en compras ágiles o contrataciones menores).
+        {/* Lista de archivos por subir (seleccionados) */}
+        {fileList.length > 0 && (
+          <div style={{ marginTop: 16 }}>
+            <Typography.Text strong style={{ fontSize: 13 }}>
+              Archivos seleccionados ({fileList.length}):
             </Typography.Text>
-            <div style={{ marginTop: 12 }}>
-              <Button icon={<ReloadOutlined />} onClick={() => iniciarDescarga(true)}>
-                Volver a consultar en el portal
+            <List
+              size="small"
+              style={{ marginTop: 8, background: '#fff', borderRadius: 8 }}
+              bordered
+              dataSource={fileList}
+              renderItem={(file, idx) => (
+                <List.Item
+                  actions={[
+                    <Button
+                      key="remove"
+                      type="text"
+                      size="small"
+                      danger
+                      icon={<DeleteOutlined />}
+                      onClick={() => setFileList((prev) => prev.filter((_, i) => i !== idx))}
+                    />,
+                  ]}
+                >
+                  <List.Item.Meta
+                    avatar={getFileIcon(file.name)}
+                    title={<span style={{ fontSize: 13 }}>{file.name}</span>}
+                    description={`${formatTamanio(file.size)}`}
+                  />
+                </List.Item>
+              )}
+            />
+            <div style={{ marginTop: 12, display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <Button onClick={() => setFileList([])} disabled={uploadMutation.isPending}>
+                Limpiar
+              </Button>
+              <Button
+                type="primary"
+                icon={<CloudUploadOutlined />}
+                loading={uploadMutation.isPending}
+                onClick={handleUpload}
+              >
+                Subir {fileList.length} archivo{fileList.length > 1 ? 's' : ''}
               </Button>
             </div>
-          </Space>
-        </Card>
-      ) : !tieneDocumentos ? (
-        /* Estado pendiente (nunca se ha solicitado) */
-        <Alert
-          type="info"
-          showIcon
-          message="Los pliegos aún no se han descargado"
-          description="Presiona 'Descargar documentos' para iniciar la extracción oficial de las bases y anexos de esta licitación."
-          action={
-            <Button type="primary" size="small" icon={<DownloadOutlined />} onClick={() => iniciarDescarga(false)}>
-              Descargar ahora
-            </Button>
-          }
-          style={{ borderRadius: 8 }}
-        />
-      ) : (
-        /* Estado completado con documentos */
+          </div>
+        )}
+      </Card>
+
+      {/* Input oculto fallback */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        multiple
+        accept=".pdf,.doc,.docx,.xls,.xlsx,.zip,.rar,.txt"
+        style={{ display: 'none' }}
+        onChange={(e) => {
+          const files = Array.from(e.target.files ?? []);
+          files.forEach((f) => beforeUpload(f));
+          if (fileInputRef.current) fileInputRef.current.value = '';
+        }}
+      />
+
+      {/* Estados de documentos ya persistidos */}
+      {estadoLoading && !estado ? (
+        <div style={{ textAlign: 'center', padding: 24 }}>
+          <Spin tip="Consultando documentos..." />
+        </div>
+      ) : tieneDocumentos ? (
         <>
           <Alert
             type="success"
             showIcon
             icon={<CheckCircleOutlined />}
-            message={`Todos los documentos están disponibles (${estado.documentos.length} archivos)`}
-            description="Las bases y anexos han sido verificados y almacenados con hash SHA-256. Ya puedes proceder con el análisis inteligente."
-            style={{ marginBottom: 16, borderRadius: 8 }}
+            message={`Documentos listos para análisis (${estado!.documentos.length})`}
+            description="Verificados con SHA-256 y almacenados. Ya puedes ejecutar el análisis comercial."
+            style={{ marginBottom: 12, borderRadius: 8 }}
           />
-
           <List
             bordered
             size="small"
-            style={{ borderRadius: 8, overflow: 'hidden' }}
-            dataSource={estado.documentos}
+            style={{ borderRadius: 8, overflow: 'hidden', background: '#fff' }}
+            dataSource={estado!.documentos}
             renderItem={(doc) => (
               <List.Item
                 actions={[
@@ -350,31 +310,74 @@ export function DocumentosLicitacionPanel({ codigoExterno, onIrAAnalisis }: Prop
               >
                 <List.Item.Meta
                   avatar={getFileIcon(doc.nombreArchivo)}
-                  title={<Typography.Text strong>{doc.nombreArchivo}</Typography.Text>}
+                  title={
+                    <Typography.Text strong style={{ fontSize: 13 }}>
+                      {doc.nombreArchivo}
+                    </Typography.Text>
+                  }
                   description={
-                    <Space size={16} wrap>
-                      <Tag color={doc.esActa ? 'purple' : 'blue'}>
-                        {doc.esActa ? 'Acta de evaluación' : 'Bases / Anexo'}
+                    <Space size={12} wrap>
+                      <Tag
+                        style={{
+                          borderRadius: 4,
+                          fontSize: 11,
+                          textTransform: 'uppercase',
+                          letterSpacing: 0.3,
+                        }}
+                        color={doc.esActa ? 'purple' : 'blue'}
+                      >
+                        {doc.esActa ? 'Acta' : 'Anexo'}
                       </Tag>
-                      <span style={{ color: '#595959' }}>Tamaño: {formatTamanio(doc.tamanioBytes)}</span>
-                      <span style={{ color: '#595959' }}>Versión: v{doc.version}</span>
-                      {doc.fechaGrilla && <span style={{ color: '#8c8c8c' }}>Portal: {doc.fechaGrilla}</span>}
+                      <span style={{ color: '#595959', fontSize: 12 }}>Tamaño: {formatTamanio(doc.tamanioBytes)}</span>
+                      <span style={{ color: '#595959', fontSize: 12 }}>v{doc.version}</span>
+                      {doc.fechaGrilla && <span style={{ color: '#8c8c8c', fontSize: 12 }}>{doc.fechaGrilla}</span>}
                     </Space>
                   }
                 />
               </List.Item>
             )}
           />
-
-          {estado.conjuntoHash && (
-            <div style={{ marginTop: 14 }}>
-              <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                ✓ Respaldo inmutable: Hash SHA-256 del conjunto <code>{estado.conjuntoHash.slice(0, 24)}…</code>
+          {estado!.conjuntoHash && (
+            <div style={{ marginTop: 10 }}>
+              <Typography.Text type="secondary" style={{ fontSize: 11 }}>
+                Hash conjunto: <code style={{ background: '#f5f5f5', padding: '2px 6px', borderRadius: 4 }}>{estado!.conjuntoHash.slice(0, 24)}…</code>
               </Typography.Text>
             </div>
           )}
         </>
+      ) : esCompletadoSinDocs ? (
+        <Alert
+          type="warning"
+          showIcon
+          message="Aún no hay documentos cargados"
+          description="Sube los pliegos descargados desde Mercado Público para habilitar el análisis."
+          style={{ borderRadius: 8 }}
+        />
+      ) : estado?.estadoConjunto === 'error' ? (
+        <Alert
+          type="error"
+          showIcon
+          message="Error en la carga previa"
+          description={estado.descargaError ?? 'Ocurrió un problema al procesar los documentos.'}
+          style={{ borderRadius: 8 }}
+        />
+      ) : (
+        <Alert
+          type="warning"
+          showIcon
+          message="Sin documentos"
+          description="Aún no has subido pliegos para esta licitación. Usa la zona de carga superior."
+          style={{ borderRadius: 8 }}
+        />
       )}
+
+      <div style={{ marginTop: 16, padding: '10px 12px', background: '#fffbe6', border: '1px solid #ffe58f', borderRadius: 8 }}>
+        <Typography.Text style={{ fontSize: 12, color: '#595959' }}>
+          <strong>Nota de referencia:</strong> la descarga automatizada está deprecada por bloqueo reCAPTCHA Enterprise (ADR-015).
+          Se conserva en <code>tools/scraper-mp-v2/descargar-documentos.js</code> como referencia. Modo actual: <code>manual</code>.
+          Otros scrapers (licitaciones, ficha, competidores) siguen operativos.
+        </Typography.Text>
+      </div>
     </div>
   );
 }

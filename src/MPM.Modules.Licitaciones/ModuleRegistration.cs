@@ -31,7 +31,11 @@ public static class ModuleRegistration
 
         // 036-flujo-comercial-ofertas: descarga bajo demanda de documentos + cache por hash.
         services.AddScoped<AdjuntoDocumentosHandler>();
+#pragma warning disable CS0618 // ADR-015 deprecated
         services.AddScoped<AdjuntoDescargaService>();
+#pragma warning restore CS0618
+        // 038-carga-manual-pliegos: carga manual (ADR-015) — default, scraper deprecado
+        services.AddScoped<AdjuntoManualUploadService>();
 
         // 036-flujo-comercial-ofertas (Fase 1.3): zona IA on-demand con cache por conjunto.
         services.AddScoped<AnalisisComercialHandler>();

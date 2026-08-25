@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { apiDownload, apiGet, apiPost } from '../lib/apiClient';
+import { apiDownload, apiGet, apiPost, apiPostForm } from '../lib/apiClient';
 import type { DescargarDocumentosResult, EstadoDocumentos } from '../types/licitacion';
 
 const BASE = (codigoExterno: string) => `/api/v1/licitaciones/${encodeURIComponent(codigoExterno)}/documentos`;
@@ -21,7 +21,7 @@ export function useEstadoDocumentos(codigoExterno: string | null) {
   });
 }
 
-/** Dispara la descarga bajo demanda de los documentos (botón en la ficha). */
+/** Dispara la descarga bajo demanda de los documentos (botón en la ficha). @deprecated ADR-015 - modo manual por defecto */
 export function useDescargarDocumentos() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -40,6 +40,26 @@ export function useDescargarDocumentos() {
         },
       });
       queryClient.invalidateQueries({ queryKey: ['licitacion-documentos', params.codigoExterno] });
+    },
+  });
+}
+
+/** Carga manual de pliegos (ADR-015, 038). */
+export function useUploadManualDocumentos() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (params: { codigoExterno: string; files: File[] }) => {
+      const form = new FormData();
+      params.files.forEach((f) => form.append('files', f, f.name));
+      return apiPostForm<{ data: { descargados: number; reutilizados: number; rechazados: number; errores: string[]; conjuntoHash: string | null; mensaje: string } }>(
+        BASE(params.codigoExterno) + '/upload-manual',
+        form,
+      );
+    },
+    onSuccess: (_data, params) => {
+      queryClient.invalidateQueries({ queryKey: ['licitacion-documentos', params.codigoExterno] });
+      // También invalida análisis comercial (puede pasar de pendiente a desactualizado)
+      queryClient.invalidateQueries({ queryKey: ['licitacion-analisis-comercial', params.codigoExterno] });
     },
   });
 }

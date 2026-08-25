@@ -12,11 +12,17 @@ namespace MPM.Modules.Licitaciones.Services;
 /// Descarga bajo demanda de los documentos de una licitación (036-flujo-comercial-ofertas,
 /// spec docs/api-first/licitaciones-documentos.md).
 ///
+/// ADR-015 (2026-08-25): DEPRECADO para descarga automática — bloqueado por reCAPTCHA Enterprise
+/// + WAF Volterra en ViewAttachment. Conservado como referencia (no borrar). Modo por defecto
+/// es carga manual (Extraccion:ModoDescarga=manual). Ver docs/adr/ADR-015-carga-manual-pliegos.md
+/// y tools/scraper-mp-v2/descargar-documentos.js (@DEPRECATED).
+///
 /// Patrón get-or-generate (igual que CompetidorMercadoService): el request HTTP nunca espera
 /// al scraper Node; responde "descargando" y el frontend hace polling a ObtenerEstadoAsync.
 /// El script Node (tools/scraper-mp-v2/descargar-documentos.js) hace login con la sesión
 /// existente, descarga TODOS los adjuntos, calcula SHA-256 y persiste (hash + versión + estado).
 /// </summary>
+[Obsolete("ADR-015: bloqueado por reCAPTCHA Enterprise. Usar upload manual. Flag Extraccion:ModoDescarga=manual")]
 public class AdjuntoDescargaService(
     ILogger<AdjuntoDescargaService> logger,
     IConfiguration config,

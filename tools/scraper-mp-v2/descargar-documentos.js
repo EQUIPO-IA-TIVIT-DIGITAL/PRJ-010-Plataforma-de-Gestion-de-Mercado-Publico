@@ -1,4 +1,7 @@
 #!/usr/bin/env node
+// @DEPRECATED — ADR-015 (2026-08-25): Bloqueo verificado reCAPTCHA Enterprise + WAF Volterra en ViewAttachment.
+// Conservado como referencia. No invocar en prod. Modo por defecto es carga manual (Extraccion:ModoDescarga=manual).
+// Ver docs/adr/ADR-015-carga-manual-pliegos.md y docs/specs/038-carga-manual-pliegos.feature-spec.md
 // descargar-documentos.js — Descarga TODOS los adjuntos de una licitación puntual,
 // bajo demanda (036-flujo-comercial-ofertas, spec docs/api-first/licitaciones-documentos.md).
 //
