@@ -141,7 +141,7 @@ export function DocumentosLicitacionPanel({ codigoExterno, onIrAAnalisis }: Prop
             )}
           </Typography.Title>
           <Typography.Text type="secondary" style={{ fontSize: 13 }}>
-            Carga manual — descarga desde Mercado Público y sube aquí para analizar con IA.
+            Descarga los documentos desde Mercado Público y cárgalos aquí para habilitar el análisis.
           </Typography.Text>
         </div>
 
@@ -161,23 +161,6 @@ export function DocumentosLicitacionPanel({ codigoExterno, onIrAAnalisis }: Prop
           )}
         </Space>
       </div>
-
-      {/* Info permanente: flujo manual */}
-      <Alert
-        type="info"
-        showIcon
-        style={{ marginBottom: 16, borderRadius: 8, border: '1px solid #d6e4ff', background: '#f0f5ff' }}
-        message="Flujo manual activo"
-        description={
-          <span>
-            Mercado Público protege los adjuntos con reCAPTCHA Enterprise.{' '}
-            <Typography.Text strong style={{ color: '#1d39c4' }}>
-              Abre la ficha oficial, descarga los pliegos a tu PC y arrástralos a la zona de carga.
-            </Typography.Text>{' '}
-            El análisis IA (Go/No-Go) se habilita automáticamente al subir.
-          </span>
-        }
-      />
 
       {/* Dropzone */}
       <Card
@@ -371,13 +354,6 @@ export function DocumentosLicitacionPanel({ codigoExterno, onIrAAnalisis }: Prop
         />
       )}
 
-      <div style={{ marginTop: 16, padding: '10px 12px', background: '#fffbe6', border: '1px solid #ffe58f', borderRadius: 8 }}>
-        <Typography.Text style={{ fontSize: 12, color: '#595959' }}>
-          <strong>Nota de referencia:</strong> la descarga automatizada está deprecada por bloqueo reCAPTCHA Enterprise (ADR-015).
-          Se conserva en <code>tools/scraper-mp-v2/descargar-documentos.js</code> como referencia. Modo actual: <code>manual</code>.
-          Otros scrapers (licitaciones, ficha, competidores) siguen operativos.
-        </Typography.Text>
-      </div>
     </div>
   );
 }
