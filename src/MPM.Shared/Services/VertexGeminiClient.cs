@@ -94,7 +94,7 @@ public class VertexGeminiClient(
                         await llmUsageService.RegistrarAsync(traceId, "gemini", ModelName, 0, 0, (int)sw.ElapsedMilliseconds, null, null, ct);
                     }
                 }
-                catch { }
+                catch (Exception ex) { logger.LogDebug(ex, "VertexGeminiClient fallback llm_usage sin innerResult modelo {Modelo}", ModelName); }
             }
         }
     }

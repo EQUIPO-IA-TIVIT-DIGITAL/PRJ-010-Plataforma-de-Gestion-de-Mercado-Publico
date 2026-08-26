@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.Extensions.Logging;
+using MPM.Modules.Licitaciones;
 
 namespace MPM.Modules.Licitaciones.Services;
 
@@ -8,6 +9,7 @@ namespace MPM.Modules.Licitaciones.Services;
 /// Track2 ligero — cliente mserv-datos-abiertos (ADR-016 opción B sin zip).
 /// BaseUrl: https://mserv-datos-abiertos.chilecompra.cl/v1
 /// Solo lectura agregada; sin retry, throw directo en 429/5xx, timeout 30s.
+/// OBS-001: logs con EventId estable CmEventIds.
 /// </summary>
 public class ChileCompraMservService
 {
@@ -158,11 +160,17 @@ public class ChileCompraMservService
 
     private async Task<T?> GetPayloadAsync<T>(string url, CancellationToken ct) where T : class
     {
-        _logger.LogDebug("mserv GET {Url}", url);
+        _logger.LogDebug(CmEventIds.SyncOk, "mserv GET {Url}", url);
         var response = await _http.GetAsync(url, ct);
 
         if ((int)response.StatusCode == 429)
+        {
+            _logger.LogWarning(CmEventIds.Sync429, "mserv 429 Too Many Requests {Url}", url);
             throw new HttpRequestException("429 Too Many Requests from mserv", null, System.Net.HttpStatusCode.TooManyRequests);
+        }
+
+        if ((int)response.StatusCode >= 500)
+            _logger.LogWarning(CmEventIds.Sync5xx, "mserv 5xx {Status} {Url}", (int)response.StatusCode, url);
 
         // 5xx throw directo, sin retry
         response.EnsureSuccessStatusCode();
@@ -174,11 +182,17 @@ public class ChileCompraMservService
 
     private async Task<List<T>> GetPayloadListAsync<T>(string url, CancellationToken ct) where T : class
     {
-        _logger.LogDebug("mserv GET {Url}", url);
+        _logger.LogDebug(CmEventIds.SyncOk, "mserv GET {Url}", url);
         var response = await _http.GetAsync(url, ct);
 
         if ((int)response.StatusCode == 429)
+        {
+            _logger.LogWarning(CmEventIds.Sync429, "mserv 429 Too Many Requests {Url}", url);
             throw new HttpRequestException("429 Too Many Requests from mserv", null, System.Net.HttpStatusCode.TooManyRequests);
+        }
+
+        if ((int)response.StatusCode >= 500)
+            _logger.LogWarning(CmEventIds.Sync5xx, "mserv 5xx {Status} {Url}", (int)response.StatusCode, url);
 
         response.EnsureSuccessStatusCode();
 

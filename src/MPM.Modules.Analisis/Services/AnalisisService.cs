@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using MPM.Modules.Analisis.Data;
 using MPM.Modules.Analisis.Models;
 using MPM.Shared.Services;
@@ -11,12 +12,14 @@ public class AnalisisService(
     GeminiService geminiService,
     IStorageService storageService,
     IAnalisisBackgroundService backgroundService,
+    ILogger<AnalisisService>? logger = null,
     IServiceProvider? serviceProvider = null)
 {
     private readonly AnalisisHandler _handler = handler;
     private readonly GeminiService _geminiService = geminiService;
     private readonly IStorageService _storageService = storageService;
     private readonly IAnalisisBackgroundService _backgroundService = backgroundService;
+    private readonly ILogger<AnalisisService> _logger = logger ?? Microsoft.Extensions.Logging.Abstractions.NullLogger<AnalisisService>.Instance;
     private readonly IServiceProvider? _serviceProvider = serviceProvider;
 
     public async Task<(PaginatedResult<WorkspaceItemDto>? Result, string? Error)> ListarWorkspacesAsync(
@@ -256,7 +259,7 @@ public class AnalisisService(
                         montoCmVacio = await cmHandler.ObtenerMontoAnualAsync("76.130.712-6", anio.Value, ct);
                 }
             }
-            catch { /* dashboard nunca falla por CM */ }
+            catch (Exception ex) { _logger.LogDebug(ex, "CM cache fallback anio {Anio}", anio); }
 
             return (new DashboardEjecutivoDto
             {
@@ -455,7 +458,7 @@ public class AnalisisService(
                     montoConvenioMarco = await cmHandler.ObtenerMontoAnualAsync("76.130.712-6", anio.Value, ct);
             }
         }
-        catch { /* dashboard nunca falla por CM */ }
+        catch (Exception ex) { _logger.LogDebug(ex, "CM cache fallback anio {Anio}", anio); }
 
         var montoTotalGanadoConCm = montoTotalGanado + montoConvenioMarco;
 

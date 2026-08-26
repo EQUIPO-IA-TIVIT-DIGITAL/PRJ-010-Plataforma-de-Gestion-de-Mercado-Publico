@@ -188,7 +188,7 @@ public class AdjuntoManualUploadService(
             var errorLog = errores.Count > 0 ? string.Join("; ", errores.Take(3)) : null;
             await extraccionLogHandler.RegistrarAsync(licitacionId, "manual", estado, descargados + reutilizados, false, false, errorLog, 0, ct);
         }
-        catch { /* no bloquear */ }
+        catch (Exception ex) { logger.LogWarning(ex, "ManualUpload extraccionLog fallback lic {LicitacionId}", licitacionId); }
 
         // Calcular conjuntoHash actualizado
         string? conjuntoHash = null;
@@ -197,7 +197,7 @@ public class AdjuntoManualUploadService(
             var filasActuales = await handler.ListarAsync(licitacionId, ct);
             conjuntoHash = AdjuntoDocumentosHash.CalcularConjuntoHash(filasActuales);
         }
-        catch { }
+        catch (Exception ex) { logger.LogWarning(ex, "ManualUpload conjuntoHash fallback lic {LicitacionId}", licitacionId); }
 
         return new UploadManualResult(files.Count, descargados, reutilizados, rechazados, errores, conjuntoHash);
     }

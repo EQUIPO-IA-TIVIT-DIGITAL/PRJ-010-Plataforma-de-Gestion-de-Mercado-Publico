@@ -34,8 +34,12 @@ public class CmIngestaController(
         if (string.IsNullOrWhiteSpace(rut) || !EsRutValido(rut))
             return BadRequest(ApiResponse<object>.Fail("RUT inválido", [new ErrorDetail { Code = "VAL_001", Field = "rut", Message = "RUT con formato inválido" }]));
 
+        // S-001 DoS rango: valida anio dentro de 2020..año+1 (evita enumeración infinita / query sin límite)
         if (anio.HasValue)
         {
+            if (anio.Value < 2020 || anio.Value > DateTime.UtcNow.Year + 1)
+                return BadRequest(ApiResponse<object>.Fail("VAL_001: anio fuera de rango permitido 2020..año+1", [new ErrorDetail { Code = "VAL_001", Field = "anio", Message = "anio fuera de rango 2020..año+1" }]));
+
             var row = await cacheHandler.ObtenerPorAnioAsync(rut, anio.Value, ct);
             if (row == null)
                 return Ok(ApiResponse<object>.Ok(new { rut, anio = anio.Value, amountClp = 0L, actualizadoAt = (DateTime?)null, payload = (object?)null, cacheHit = false }));
@@ -65,6 +69,21 @@ public class CmIngestaController(
         if (string.IsNullOrWhiteSpace(rut) || !EsRutValido(rut))
             return BadRequest(ApiResponse<object>.Fail("RUT inválido", [new ErrorDetail { Code = "VAL_001", Field = "rut", Message = "RUT con formato inválido" }]));
 
+        // S-001 DoS rango: validación estricta para evitar ingesta masiva (max 6 años, 2020..año+1)
+        if (anio.HasValue)
+        {
+            if (anio.Value < 2020 || anio.Value > DateTime.UtcNow.Year + 1)
+                return BadRequest(ApiResponse<object>.Fail("VAL_001: anio fuera de rango 2020..año+1", [new ErrorDetail { Code = "VAL_001", Field = "anio", Message = "anio fuera de rango 2020..año+1" }]));
+        }
+        if (desde.HasValue || hasta.HasValue)
+        {
+            // S-001: rango documentado max 6 años, 2020..año+1
+            var d = desde ?? 2020;
+            var h = hasta ?? DateTime.UtcNow.Year;
+            if (d < 2020 || h > DateTime.UtcNow.Year + 1 || h - d > 5)
+                return BadRequest(ApiResponse<object>.Fail("VAL_001: rango max 6 años, 2020..año+1", [new ErrorDetail { Code = "VAL_001", Field = "rango", Message = "rango max 6 años, 2020..año+1" }]));
+        }
+
         var years = new List<int>();
         if (anio.HasValue) years.Add(anio.Value);
         else if (desde.HasValue || hasta.HasValue)
@@ -88,17 +107,21 @@ public class CmIngestaController(
                 var montoCm = modalities.FirstOrDefault(m => m.IdModalidad == 5)?.AmountCLPAnnual ?? 0L;
                 var payloadJson = JsonSerializer.Serialize(modalities);
                 await cacheHandler.UpsertCacheAsync(y, rut, montoCm, payloadJson, ct);
-                logger.LogInformation("CM sync {Rut} {Anio} -> {Monto}", rut, y, montoCm);
+                logger.LogInformation(CmEventIds.SyncOk, "CM sync {Rut} {Anio} -> {Monto}", rut, y, montoCm);
                 results.Add(new { anio = y, rut, amountClp = montoCm, ok = true });
             }
             catch (HttpRequestException ex)
             {
-                logger.LogWarning(ex, "CM sync fallo {Rut} {Anio}: {Msg}", rut, y, ex.Message);
+                var is429 = ex.StatusCode == System.Net.HttpStatusCode.TooManyRequests;
+                if (is429)
+                    logger.LogWarning(CmEventIds.Sync429, ex, "CM sync 429 {Rut} {Anio}: {Msg}", rut, y, ex.Message);
+                else
+                    logger.LogWarning(CmEventIds.Sync5xx, ex, "CM sync fallo {Rut} {Anio}: {Msg}", rut, y, ex.Message);
                 results.Add(new { anio = y, rut, amountClp = 0L, ok = false, error = ex.Message });
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "CM sync error inesperado {Rut} {Anio}", rut, y);
+                logger.LogError(CmEventIds.Sync5xx, ex, "CM sync error inesperado {Rut} {Anio}", rut, y);
                 return StatusCode(502, ApiResponse<object>.Fail($"Error sync {y}: {ex.Message}"));
             }
         }

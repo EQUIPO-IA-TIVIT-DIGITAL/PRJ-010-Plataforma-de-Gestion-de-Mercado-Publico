@@ -132,6 +132,3 @@ BEGIN
     LIMIT p_page_size;
 END;
 $$;
-
--- 5. Registrar migración
-INSERT INTO _migrations (version) VALUES ('V153');

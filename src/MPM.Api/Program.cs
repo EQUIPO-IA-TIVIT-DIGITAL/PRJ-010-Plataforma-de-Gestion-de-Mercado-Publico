@@ -129,12 +129,14 @@ builder.Services.AddOpenTelemetry().WithTracing(tracer =>
 });
 
 // 037-A: Health checks por módulo + agregado (cada uno SELECT 1, sin PII)
+// PLAT-004: liveness vs readiness — self para /health/live (siempre Healthy), resto para /health/ready
 builder.Services.AddHealthChecks()
-    .AddCheck<LicitacionesHealthCheck>("licitaciones", tags: new[] { "licitaciones" })
-    .AddCheck<AnalisisHealthCheck>("analisis", tags: new[] { "analisis" })
-    .AddCheck<CensoHealthCheck>("censo", tags: new[] { "censo" })
-    .AddCheck<PropuestasHealthCheck>("propuestas", tags: new[] { "propuestas" })
-    .AddCheck<AdministracionHealthCheck>("administracion", tags: new[] { "administracion" });
+    .AddCheck("self", () => HealthCheckResult.Healthy(), tags: new[] { "live" })
+    .AddCheck<LicitacionesHealthCheck>("licitaciones", tags: new[] { "licitaciones", "ready" })
+    .AddCheck<AnalisisHealthCheck>("analisis", tags: new[] { "analisis", "ready" })
+    .AddCheck<CensoHealthCheck>("censo", tags: new[] { "censo", "ready" })
+    .AddCheck<PropuestasHealthCheck>("propuestas", tags: new[] { "propuestas", "ready" })
+    .AddCheck<AdministracionHealthCheck>("administracion", tags: new[] { "administracion", "ready" });
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
@@ -398,6 +400,18 @@ app.MapHealthChecks("/health/administracion", new HealthCheckOptions
 {
     AllowCachingResponses = false,
     Predicate = r => r.Name == "administracion",
+    ResponseWriter = WriteHealthResponse
+});
+app.MapHealthChecks("/health/live", new HealthCheckOptions
+{
+    AllowCachingResponses = false,
+    Predicate = r => r.Name == "self",
+    ResponseWriter = WriteHealthResponse
+});
+app.MapHealthChecks("/health/ready", new HealthCheckOptions
+{
+    AllowCachingResponses = false,
+    Predicate = r => r.Name != "self",
     ResponseWriter = WriteHealthResponse
 });
 
