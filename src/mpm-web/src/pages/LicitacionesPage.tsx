@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import {
   Alert,
   Button,
@@ -47,6 +47,7 @@ import {
 } from '../hooks/useLicitaciones';
 import { useLicitacionesInteresListado, useMarcarInteres } from '../hooks/useLicitacionesInteres';
 import { useLicitacionDetalle } from '../hooks/useLicitacionDetalle';
+import { usePreferenciasLicitaciones } from '../hooks/usePreferenciasLicitaciones';
 import type { LicitacionResumen, LicitacionFilter } from '../types/licitacion';
 
 function varianteEstado(nombreEstado: string): StatusBadgeVariant {
@@ -91,6 +92,35 @@ export function LicitacionesPage() {
   // Filtro de búsqueda rápida en pestañas
   const [filtroSeguidas, setFiltroSeguidas] = useState('');
   const [filtroInteres, setFiltroInteres] = useState('');
+
+  // F1-T5: preferencia monto mínimo (D2 siembra frontend, PREF-R001)
+  // Si URL no trae montoDesde, sembrar desde preferencia. Override explícito en URL gana.
+  // Limpiar filtro = ver todo en sesión, pero recarga reaplica.
+  const { data: preferenciasResp, isFetched: preferenciasFetched } = usePreferenciasLicitaciones();
+  // Envelope backend: { success, data: { montoMinimo } } -> preferenciaMontoMinimo
+  const preferenciaMontoMinimo = (preferenciasResp as unknown as { data?: { montoMinimo?: number | null } })?.data?.montoMinimo ?? null;
+  const preferenciaActiva = preferenciaMontoMinimo;
+  const preferenciaAplicadaRef = useRef(false);
+  useEffect(() => {
+    const urlMonto = searchParams.get('montoDesde');
+    const hasUrlOverride = urlMonto !== null && urlMonto !== '';
+    // URL explícito siempre gana (PREF-R001), incluso si ya sembramos preferencia
+    if (hasUrlOverride) {
+      const parsed = Number(urlMonto);
+      if (!Number.isNaN(parsed) && filter.montoDesde !== parsed) {
+        setFilter((prev) => ({ ...prev, montoDesde: parsed }));
+      }
+      preferenciaAplicadaRef.current = true;
+      return;
+    }
+    // Sin override en URL: siembra una sola vez desde preferencia
+    if (preferenciaAplicadaRef.current) return;
+    if (!preferenciasFetched) return;
+    if (preferenciaMontoMinimo != null && filter.montoDesde == null) {
+      setFilter((prev) => ({ ...prev, montoDesde: preferenciaMontoMinimo }));
+    }
+    preferenciaAplicadaRef.current = true;
+  }, [preferenciaMontoMinimo, preferenciasFetched, searchParams, filter.montoDesde]);
 
   const { data, isLoading, isError } = useLicitaciones(filter);
   const { data: estadisticasEstado } = useEstadisticasEstado(filter.area, filter.sinClasificar);
@@ -348,6 +378,7 @@ export function LicitacionesPage() {
               naturalQuery={naturalQuery}
               onNaturalQueryChange={handleNaturalQueryChange}
               onNaturalQuerySubmit={() => setSubmittedNaturalQuery(naturalQuery)}
+              preferenciaActiva={preferenciaActiva}
             />
           </div>
 

@@ -1,4 +1,4 @@
-import { Row, Col, Input, Select, DatePicker, Button, Segmented, Checkbox, InputNumber, Tooltip } from 'antd';
+import { Row, Col, Input, Select, DatePicker, Button, Segmented, Checkbox, InputNumber, Tooltip, Tag } from 'antd';
 import { SearchOutlined, ClearOutlined, BulbOutlined, FilterOutlined, DollarOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { useCatalogos, useAreasNegocio } from '../hooks/useCatalogos';
@@ -15,11 +15,14 @@ interface Props {
   naturalQuery: string;
   onNaturalQueryChange: (q: string) => void;
   onNaturalQuerySubmit: () => void;
+  /** F1-T5: monto preferido del usuario (para tag discreto). Si filter.montoDesde === preferenciaActiva se muestra "según tu preferencia". */
+  preferenciaActiva?: number | null;
 }
 
 export function LicitacionFilterBar({
   filter, onChange, onReset,
   searchMode, onSearchModeChange, naturalQuery, onNaturalQueryChange, onNaturalQuerySubmit,
+  preferenciaActiva,
 }: Props) {
   const { data: catalogos } = useCatalogos();
   const { data: areasNegocio } = useAreasNegocio();
@@ -150,6 +153,17 @@ export function LicitacionFilterBar({
             data-testid="filter-monto-desde"
           />
         </Tooltip>
+        {preferenciaActiva != null && filter.montoDesde === preferenciaActiva && (
+          <Tooltip title="Valor aplicado desde tu preferencia guardada. Puedes editarlo o limpiarlo; la preferencia no cambia.">
+            <Tag
+              color="blue"
+              data-testid="tag-preferencia-monto"
+              style={{ marginTop: 4, fontSize: 11, lineHeight: '16px', borderRadius: 999, maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis' }}
+            >
+              según tu preferencia
+            </Tag>
+          </Tooltip>
+        )}
       </Col>
       <Col xs={12} sm={6} md={3}>
         <Tooltip title="Monto máximo">
