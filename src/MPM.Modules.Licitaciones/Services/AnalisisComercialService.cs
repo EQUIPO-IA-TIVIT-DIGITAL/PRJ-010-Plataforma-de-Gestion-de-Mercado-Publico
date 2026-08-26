@@ -18,6 +18,9 @@ namespace MPM.Modules.Licitaciones.Services;
 /// Cache por conjuntoHash (V142): si la misma versión de documentos ya fue analizada, el
 /// resultado se devuelve sin re-pagar IA. El request nunca espera al LLM: responde
 /// "analizando" y el frontend hace polling (patrón de los workspaces de análisis).
+///
+/// F1-T7 Go/No-Go por tipo (039): el prompt se modula según licitaciones.tipo + tipos_licitacion
+/// (LE/LP/LQ/LR, CO, etc.) e incluye modulacion_tipo en el JSON persistido.
 /// </summary>
 public class AnalisisComercialService(
     ILogger<AnalisisComercialService> logger,
@@ -80,6 +83,7 @@ public class AnalisisComercialService(
     /// <summary>
     /// Inicia el análisis comercial del conjunto actual de documentos. Cache hit si la misma
     /// versión ya fue analizada (no re-paga IA). Fire-and-forget para el LLM (patrón existente).
+    /// F1-T7: resuelve el tipo de la licitación para modular el prompt (GO-R013: fallo no aborta).
     /// </summary>
     public async Task<IniciarAnalisisComercialResultDto> IniciarAnalisisAsync(
         long licitacionId, string codigoExterno, string usuario, CancellationToken ct = default)
@@ -120,6 +124,20 @@ public class AnalisisComercialService(
                 throw new InvalidOperationException("No se pudo iniciar el análisis (error interno)");
             }
 
+            // F1-T7: resolver tipo antes de disparar el background (GO-R013: no aborta si falla)
+            string? tipoCodigo = null;
+            try
+            {
+                var tipoInfo = await analisisHandler.ObtenerTipoLicitacionAsync(licitacionId, ct);
+                tipoCodigo = tipoInfo.TipoCodigo;
+                if (!string.IsNullOrWhiteSpace(tipoCodigo))
+                    logger.LogInformation("Modulación por tipo para licitación {Codigo}: tipo={Tipo} nombre={Nombre}", codigoExterno, tipoCodigo, tipoInfo.TipoNombre);
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "No se pudo resolver tipo de licitación {LicitacionId}, usando fallback genérico (GO-R013)", licitacionId);
+            }
+
             // Procesamiento asíncrono: el LLM puede tardar minutos (todos los PDFs en una llamada).
             // IMPORTANTE: el servicio es SCOPED — su IServiceProvider/LlmClientResolver se dispondría
             // al terminar el request. Se resuelve una instancia fresca dentro de un scope propio
@@ -130,7 +148,7 @@ public class AnalisisComercialService(
                 {
                     await using var scope = scopeFactory.CreateAsyncScope();
                     var servicio = scope.ServiceProvider.GetRequiredService<AnalisisComercialService>();
-                    await servicio.ProcesarAsync(id, filas, conjuntoHash, CancellationToken.None);
+                    await servicio.ProcesarAsync(id, filas, conjuntoHash, CancellationToken.None, tipoCodigo);
                 }
                 catch (Exception ex)
                 {
@@ -154,8 +172,10 @@ public class AnalisisComercialService(
         }
     }
 
-    /// <summary>Procesa el análisis: descarga bytes → LLM → saneado → persistencia. Publico para tests.</summary>
-    public async Task ProcesarAsync(long analisisId, List<AdjuntoDocumentosHandler.AdjuntoDocumentoFila> filas, string conjuntoHash, CancellationToken ct = default)
+    /// <summary>Procesa el análisis: descarga bytes → LLM → saneado → persistencia. Publico para tests.
+    /// F1-T7: parámetro opcional tipoCodigo modula el prompt; si es null intenta resolverlo vía handler (GO-R013 fallback).
+    /// </summary>
+    public async Task ProcesarAsync(long analisisId, List<AdjuntoDocumentosHandler.AdjuntoDocumentoFila> filas, string conjuntoHash, CancellationToken ct = default, string? tipoCodigo = null)
     {
         try
         {
@@ -203,10 +223,26 @@ public class AnalisisComercialService(
                 return;
             }
 
-            logger.LogInformation("Analizando {Count} documento(s) de la licitación (conjunto {Hash}) con el proveedor IA activo",
-                documentosCount, HashCorto(conjuntoHash));
+            // F1-T7: resolver tipo si no vino por parámetro (GO-R013: no aborta)
+            var tipoEfectivo = tipoCodigo;
+            if (string.IsNullOrWhiteSpace(tipoEfectivo) && filas.Count > 0)
+            {
+                try
+                {
+                    var licitacionId = filas[0].LicitacionId;
+                    var tipoInfo = await analisisHandler.ObtenerTipoLicitacionAsync(licitacionId, ct);
+                    tipoEfectivo = tipoInfo.TipoCodigo;
+                }
+                catch (Exception ex)
+                {
+                    logger.LogWarning(ex, "No se pudo resolver tipo en ProcesarAsync para analisis {AnalisisId}, usando fallback genérico", analisisId);
+                }
+            }
 
-            parts.Add(new LlmTextPart(PromptAnalisisComercial(documentosCount)));
+            logger.LogInformation("Analizando {Count} documento(s) de la licitación (conjunto {Hash}) con el proveedor IA activo{TipoInfo}",
+                documentosCount, HashCorto(conjuntoHash), string.IsNullOrWhiteSpace(tipoEfectivo) ? "" : $" tipo={tipoEfectivo}");
+
+            parts.Add(new LlmTextPart(PromptAnalisisComercial(documentosCount, tipoEfectivo)));
 
             var request = new LlmRequest(
                 Messages: [new LlmMessage("user", parts)],
@@ -283,7 +319,7 @@ public class AnalisisComercialService(
         return ms2.ToArray();
     }
 
-    /// <summary>Sanea la respuesta del LLM (strip \0, valida JSON, extrae campos top-level).</summary>
+    /// <summary>Sanea la respuesta del LLM (strip \0, valida JSON, extrae campos top-level). F1-T7: tolera modulacion_tipo aditivo (GO-R011).</summary>
     internal static (string Json, string? Resumen, string? GoNoGo, decimal? Score) SanearYExtraer(string? texto)
     {
         if (string.IsNullOrWhiteSpace(texto))
@@ -315,6 +351,8 @@ public class AnalisisComercialService(
                 if (v.TryGetDecimal(out var d)) { score = d; break; }
             }
 
+        // F1-T7: modulacion_tipo es aditivo y se persiste tal cual vía GetRawText(); no se valida estricto
+        // para no romper análisis legacy ni futuros códigos. Si el modelo lo incluye, queda en JSON.
         return (root.GetRawText(), resumen, goNoGo, score);
     }
 
@@ -328,12 +366,88 @@ public class AnalisisComercialService(
         catch { return null; }
     }
 
-    /// <summary>Prompt del análisis comercial (adaptado de la base PRJ-001: RFP_DATA_EXTRACTION + analisis-tender).</summary>
-    internal static string PromptAnalisisComercial(int documentCount)
+    // ─────────────────────────────────────────────────────────────────
+    // F1-T7 Go/No-Go por tipo: modulación del prompt según catálogo
+    // Spec docs/specs/go-nogo-por-tipo.feature-spec.md §6, GO-T001..T008, GO-R011/R013
+    // ─────────────────────────────────────────────────────────────────
+
+    /// <summary>Resuelve grupo/regla/instrucción/nombre para un código de tipo. Fallback genérico si es null/desconocido (GO-R013).</summary>
+    internal static (string GrupoRegla, string ReglaAplicada, string Instruccion, string? TipoNombre) ResolverModulacionTipo(string? tipoCodigo)
+    {
+        var codigo = tipoCodigo?.Trim().ToUpperInvariant();
+        if (string.IsNullOrWhiteSpace(codigo))
+            return ("generico_sin_clasificar", "generico_sin_clasificar",
+                "TIPO NO CLASIFICADO: aplica criterios generales actuales (match TIVIT, requisitos, riesgos, estimación). No asumas un tipo específico.", null);
+
+        return codigo switch
+        {
+            "CO" => ("convenio_marco", "convenio_marco_evaluacion_catalogo",
+                "CONVENIO MARCO: evalúa ajuste a catálogo, no umbral de monto. Analiza si la oferta de TIVIT encaja en el catálogo pre-adjudicado (alcance, precio referencial, condiciones). La recomendación go/no_go debe justificarse en términos de catálogo, no de precio total. No apliques criterios de garantías o monto como en licitación pública.",
+                "Convenio Marco"),
+            "LE" => ("licitacion_publica", "licitacion_publica_menor",
+                "LICITACIÓN PÚBLICA MENOR (LE, <100 UTM): convocatoria de bajo monto. Pondera si el esfuerzo de propuesta se justifica frente al monto; evalúa capacidad de respuesta formal (garantías, personal, certificaciones) sin exigir experiencia extensa.",
+                "Licitación Pública Menor"),
+            "LP" => ("licitacion_publica", "licitacion_publica_media",
+                "LICITACIÓN PÚBLICA MEDIA (LP, 100–1.000 UTM): convocatoria estándar de bienes/servicios. Evalúa capacidad de respuesta completa (garantías, experiencia intermedia, equipo).",
+                "Licitación Pública Media"),
+            "LQ" => ("licitacion_publica", "licitacion_publica_mayor",
+                "LICITACIÓN PÚBLICA MAYOR (LQ, 1.000–2.000 UTM): volumen intermedio alto. Exige evidencia de experiencia comparable; penaliza brechas en certificaciones o dotación.",
+                "Licitación Pública Mayor"),
+            "LR" => ("licitacion_publica", "licitacion_publica_grande",
+                "LICITACIÓN PÚBLICA GRANDE (LR, >2.000 UTM): convocatoria compleja y de alto monto. Exige evidencia fuerte de experiencia previa comparable en magnitud y sector; ante brechas baja el score y sesga a no_go. Evaluación exhaustiva.",
+                "Licitación Pública Grande"),
+            "CA" => ("compra_agil", "compra_agil_ciclo_corto",
+                "COMPRA ÁGIL (CA, ≤30 UTM): ciclo corto y monto bajo. Prioriza velocidad de respuesta y margen; penaliza desarrollo a medida no reutilizable. Score bajo si exige esfuerzo desproporcionado.",
+                "Compra Ágil"),
+            "TD" => ("trato_directo", "trato_directo_causal_legal",
+                "TRATO DIRECTO (TD): verifica causal legal de contratación directa citada en documentos; riesgo reputacional/compliance si la causal es débil — sesgo conservador. Exige justificación explícita.",
+                "Trato Directo"),
+            "LS" => ("servicios", "servicios_consultoria_equipo",
+                "LICITACIÓN DE SERVICIOS (LS): pondera experiencia en consultoría/servicios gestionados y perfil del equipo exigido. Valora certificaciones y horas por perfil.",
+                "Licitación de Servicios"),
+            "L" or "B" or "R" or "O" => ("obras", "obras_infraestructura",
+                "OBRAS / SUMINISTROS (L/B/R/O): dominio ajeno al core TIVIT (infraestructura) — score base más bajo salvo componente tecnológico claro (ej. suministro de insumos complejos tech). Solo go si hay encaje tecnológico explícito.",
+                "Obras Públicas / Suministros"),
+            "E" or "I" => ("especiales", "especiales_elegibilidad_innovacion",
+                "ESPECIALES / INTERNACIONALES (E/I): convocatorias de organismos multilaterales o bases especiales de financiamiento. Revisa requisitos de elegibilidad y financiamiento.",
+                "Especiales / Internacionales"),
+            "H" => ("especiales", "especiales_elegibilidad_innovacion",
+                "ESPECIALES — PRIVADA MEDIA (H): licitación privada para contratos entre 100 y 1.000 UTM. Trátala como pública media (evaluación equivalente a LP).",
+                "Licitación Privada Media"),
+            "CI" => ("especiales", "especiales_elegibilidad_innovacion",
+                "ESPECIALES — CONTRATO PARA LA INNOVACIÓN (CI): mecanismo con preselección orientado a soluciones innovadoras. Evalúa encaje innovador.",
+                "Contrato para la Innovación"),
+            "DC" => ("especiales", "especiales_elegibilidad_innovacion",
+                "ESPECIALES — DIÁLOGO COMPETITIVO (DC): permite dialogar con proveedores preseleccionados antes de la oferta final. Evalúa encaje innovador y capacidad de co-creación.",
+                "Diálogo Competitivo"),
+            _ => ("generico_sin_clasificar", "generico_sin_clasificar",
+                $"TIPO NO CATALOGADO ('{codigo}'): código aún no catalogado en tipos_licitacion. Aplica criterios generales y menciónalo en modulacion_tipo.notas.", null),
+        };
+    }
+
+    /// <summary>Texto corto para prompt por tipo (wrapper de ResolverModulacionTipo).</summary>
+    internal static string InstruccionesPorTipo(string? tipoCodigo)
+        => ResolverModulacionTipo(tipoCodigo).Instruccion;
+
+    /// <summary>Prompt del análisis comercial (adaptado de la base PRJ-001: RFP_DATA_EXTRACTION + analisis-tender).
+    /// F1-T7: segundo parámetro opcional modula el prompt según el tipo de licitación (GO-T001..T008).
+    /// </summary>
+    internal static string PromptAnalisisComercial(int documentCount, string? tipoCodigo = null)
     {
         var contexto = documentCount > 1
             ? $"Se te están proporcionando {documentCount} documentos de la MISMA licitación (pliego: bases administrativas, técnicas, preguntas y respuestas, anexos). Trátalos como un conjunto y sintetiza la información de TODOS en UN ÚNICO objeto JSON — nunca respondas con un array."
             : "Se te está proporcionando el documento (pliego) de una licitación.";
+
+        var (grupoRegla, reglaAplicada, instruccion, tipoNombre) = ResolverModulacionTipo(tipoCodigo);
+        var codigoMostrar = string.IsNullOrWhiteSpace(tipoCodigo) ? "no disponible" : tipoCodigo!.Trim().ToUpperInvariant();
+        var nombreMostrar = tipoNombre ?? (string.IsNullOrWhiteSpace(tipoCodigo) ? "Sin clasificar" : codigoMostrar);
+        var tipoCodigoJson = string.IsNullOrWhiteSpace(tipoCodigo) ? "null" : $"\"{tipoCodigo!.Trim().ToUpperInvariant()}\"";
+        var tipoNombreJson = tipoNombre == null ? "null" : $"\"{tipoNombre}\"";
+
+        var bloqueModulacion = $$"""
+            MODULACIÓN POR TIPO: La licitación es de tipo '{{codigoMostrar}}' ({{nombreMostrar}}, grupo_regla: '{{grupoRegla}}'). {{instruccion}}
+            Incluye en tu respuesta el objeto "modulacion_tipo": {"tipo_codigo": {{tipoCodigoJson}}, "tipo_nombre": {{tipoNombreJson}}, "grupo_regla": "{{grupoRegla}}", "regla_aplicada": "{{reglaAplicada}}", "notas": string | null} dentro del JSON top-level. Si el tipo detectado en los documentos difiere del oficial '{{codigoMostrar}}', menciónalo solo en notas sin cambiar regla_aplicada.
+            """;
 
         return $$"""
             Eres un analista comercial senior de TIVIT (empresa de tecnología: cloud, ciberseguridad, data center, telecomunicaciones, servicios gestionados).
@@ -408,7 +522,14 @@ public class AnalisisComercialService(
               "go_no_go": "strong_go"|"go"|"no_go"|"strong_no_go",
               "score_confianza": number,
               "resumen_ejecutivo": "3-5 líneas ejecutivas: qué pide, cuánto, cuándo, qué requisitos clave y si TIVIT puede ofertar",
-              "justificacion": "razones principales de la recomendación"
+              "justificacion": "razones principales de la recomendación",
+              "modulacion_tipo": {
+                "tipo_codigo": string | null,
+                "tipo_nombre": string | null,
+                "grupo_regla": string,
+                "regla_aplicada": string,
+                "notas": string | null
+              }
             }
 
             REGLAS:
@@ -417,6 +538,7 @@ public class AnalisisComercialService(
             - "go_no_go" es una RECOMENDACIÓN de la IA; la decisión final es humana. Sé conservador: si falta información crítica, baja el score.
             - "estimacion" es orientativa: indica supuestos explícitos y marca la nota textual tal cual.
             - "score_confianza": número entre 0 y 1 (confianza en la recomendación).
+            {{bloqueModulacion}}
             RESPONDE SOLO CON JSON VÁLIDO. No uses markdown ni fences.
             """;
     }

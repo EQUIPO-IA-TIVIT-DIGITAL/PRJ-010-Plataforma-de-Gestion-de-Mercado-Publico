@@ -65,6 +65,23 @@ public class AnalisisComercialHandler(DbConnectionFactory dbFactory)
         return result.FirstOrDefault()?.p_error_msg is { Length: > 0 } err ? err : null;
     }
 
+    /// <summary>F1-T7 Go/No-Go por tipo: resuelve tipo oficial de la licitación (código + nombre catálogo). No lanza si falla — caller hace fallback genérico (GO-R013).</summary>
+    public virtual async Task<(string? TipoCodigo, string? TipoNombre)> ObtenerTipoLicitacionAsync(long licitacionId, CancellationToken ct = default)
+    {
+        await using var conn = _dbFactory.Create();
+        var row = await conn.QueryFirstOrDefaultAsync<TipoLicitacionRow>(
+            "SELECT l.tipo AS TipoCodigo, t.nombre AS TipoNombre FROM licitaciones l LEFT JOIN tipos_licitacion t ON t.codigo = l.tipo WHERE l.id = @licitacionId",
+            new { licitacionId },
+            commandType: CommandType.Text);
+        return (row?.TipoCodigo, row?.TipoNombre);
+    }
+
+    private class TipoLicitacionRow
+    {
+        public string? TipoCodigo { get; set; }
+        public string? TipoNombre { get; set; }
+    }
+
     public class AnalisisComercialFila
     {
         public long Id { get; set; }

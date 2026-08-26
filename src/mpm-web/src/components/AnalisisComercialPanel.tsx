@@ -143,6 +143,46 @@ export function AnalisisComercialPanel({ codigoExterno }: Props) {
     const puedeLabel = puede === 'si' ? 'Sí' : puede === 'no' ? 'No' : puede === 'parcial' ? 'Parcial' : (puede ? puede.toUpperCase() : 'No especificado');
     const puedeColor = puede === 'si' ? 'success' : puede === 'no' ? 'error' : 'warning';
 
+    // F1-T7 Go/No-Go por tipo: modulacion_tipo aditiva (GO-R011)
+    const mod = asObj(r?.modulacion_tipo);
+    const hasMod = mod != null;
+    const modTipoCodigo = str(mod?.tipo_codigo);
+    const modTipoNombre = str(mod?.tipo_nombre);
+    const modGrupo = str(mod?.grupo_regla);
+    const modRegla = str(mod?.regla_aplicada);
+    const modNotas = str(mod?.notas);
+    const modChipColor =
+      modGrupo === 'convenio_marco' ? 'purple'
+      : modGrupo === 'licitacion_publica' ? 'blue'
+      : modGrupo === 'compra_agil' ? 'cyan'
+      : modGrupo === 'trato_directo' ? 'orange'
+      : modGrupo === 'servicios' ? 'geekblue'
+      : modGrupo === 'obras' ? 'volcano'
+      : modGrupo === 'especiales' ? 'magenta'
+      : 'default';
+    const modReglaLabel = (() => {
+      if (!modRegla) return modGrupo ?? '';
+      const map: Record<string, string> = {
+        convenio_marco_evaluacion_catalogo: 'Evaluación de catálogo',
+        licitacion_publica_menor: 'Licitación pública menor (<100 UTM)',
+        licitacion_publica_media: 'Licitación pública media (100–1.000 UTM)',
+        licitacion_publica_mayor: 'Licitación pública mayor (1.000–2.000 UTM)',
+        licitacion_publica_grande: 'Licitación pública grande (>2.000 UTM)',
+        licitacion_publica_evaluacion_completa: 'Licitación pública · evaluación completa',
+        compra_agil_ciclo_corto: 'Compra ágil · ciclo corto (≤30 UTM)',
+        trato_directo_causal_legal: 'Trato directo · causal legal',
+        servicios_consultoria_equipo: 'Servicios · consultoría y equipo',
+        obras_infraestructura: 'Obras / Suministros · infraestructura',
+        especiales_elegibilidad_innovacion: 'Especiales · elegibilidad / innovación',
+        generico_sin_clasificar: 'Criterios generales (sin clasificar)',
+      };
+      return map[modRegla] ?? modRegla;
+    })();
+    const modChipLabel =
+      modTipoNombre ??
+      (modTipoCodigo ? `Tipo ${modTipoCodigo}` : null) ??
+      (modGrupo === 'generico_sin_clasificar' ? 'Sin clasificar' : modGrupo ?? 'Sin clasificar');
+
     return (
       <div style={{ padding: '4px 0' }}>
         {estado.desactualizado && (
@@ -185,6 +225,27 @@ export function AnalisisComercialPanel({ codigoExterno }: Props) {
               </Button>
             </Space>
           </div>
+
+          {hasMod ? (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center', marginBottom: 10 }}>
+              <Tag color={modChipColor} style={{ fontSize: 12, padding: '2px 8px', fontWeight: 500 }}>
+                {modChipLabel}
+                {modTipoCodigo && modTipoNombre ? ` · ${modTipoCodigo}` : ''}
+              </Tag>
+              <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                {modReglaLabel}
+              </Typography.Text>
+              {modNotas && (
+                <Typography.Text type="secondary" style={{ fontSize: 11, fontStyle: 'italic' }}>
+                  — {modNotas}
+                </Typography.Text>
+              )}
+            </div>
+          ) : (
+            <Typography.Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 10 }}>
+              Tipo: no disponible (análisis previo)
+            </Typography.Text>
+          )}
 
           <Typography.Title level={5} style={{ margin: '8px 0 4px 0' }}>
             Resumen Ejecutivo
