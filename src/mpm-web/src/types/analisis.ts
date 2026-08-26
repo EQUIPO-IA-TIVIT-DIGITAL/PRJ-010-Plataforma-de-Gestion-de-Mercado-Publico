@@ -136,4 +136,7 @@ export interface DashboardEjecutivo {
   licitaciones: LicitacionResumenEjecutivo[]
   aniosDisponibles: number[]
   comparacionAnual?: ComparacionAnual | null
+  // Track2 ligero — Convenio Marco (mserv)
+  montoConvenioMarco: number
+  montoTotalGanadoConCm: number
 }

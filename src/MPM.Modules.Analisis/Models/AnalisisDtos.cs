@@ -182,6 +182,10 @@ public class DashboardEjecutivoDto
     public List<LicitacionResumenEjecutivoDto> Licitaciones { get; set; } = new();
     public List<int> AniosDisponibles { get; set; } = new();
     public ComparacionAnualDto? ComparacionAnual { get; set; }
+
+    // Track2 ligero — CM Convenio Marco (ADR-016 opción B sin zip)
+    public decimal MontoConvenioMarco { get; set; }
+    public decimal MontoTotalGanadoConCm { get; set; }
 }
 
 public class PaginatedResult<T>

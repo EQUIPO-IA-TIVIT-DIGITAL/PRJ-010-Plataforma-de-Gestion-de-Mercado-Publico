@@ -202,6 +202,20 @@ export default function EjecutivoDashboardPage() {
               prefix={<RiseOutlined style={{ color: '#10b981' }} />}
               valueStyle={{ color: '#10b981', fontSize: 18, fontWeight: 700 }}
             />
+            {/* Track2 ligero — Convenio Marco desglose (solo con filtro año y cache disponible) */}
+            {(dash.montoConvenioMarco ?? 0) > 0 && (
+              <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px solid #f1f5f9' }}>
+                <Text type="secondary" style={{ fontSize: 11, display: 'block', lineHeight: 1.3 }}>
+                  <Tooltip title="Convenio Marco (idModalidad=5) desde mserv-datos-abiertos — neto CLP, fuente agregada">
+                    <span style={{ cursor: 'help', borderBottom: '1px dotted #94a3b8' }}>+ Convenio Marco</span>
+                  </Tooltip>{' '}
+                  {fmt(dash.montoConvenioMarco)}
+                </Text>
+                <Text strong style={{ fontSize: 13, color: '#0f766e' }}>
+                  Total con CM {fmt(dash.montoTotalGanadoConCm)}
+                </Text>
+              </div>
+            )}
           </Card>
         </Col>
         <Col xs={24} sm={12} md={6}>

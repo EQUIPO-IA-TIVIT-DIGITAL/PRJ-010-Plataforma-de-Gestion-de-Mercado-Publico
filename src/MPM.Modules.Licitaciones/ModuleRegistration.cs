@@ -2,6 +2,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using MPM.Modules.Licitaciones.Data;
 using MPM.Modules.Licitaciones.Services;
+using MPM.Shared.Services;
 
 namespace MPM.Modules.Licitaciones;
 
@@ -18,6 +19,10 @@ public static class ModuleRegistration
         services.AddScoped<ImportBackfillService>();
         services.AddScoped<SyncService>();
         services.AddHttpClient<ApiMpService>();
+        // Track2 ligero mserv (ADR-016 opción B sin zip) — cache cm_resumen_api_cache + HttpClient 30s
+        services.AddScoped<ICmResumenHandler, CmResumenHandler>();
+        services.AddScoped<CmResumenHandler>();
+        services.AddHttpClient<ChileCompraMservService>(c => c.Timeout = TimeSpan.FromSeconds(30));
         // 033-migracion-qwen-g4: ConsultaSemanticaService ya no hace HTTP propio -- resuelve
         // el cliente de IA activo vía LlmClientResolver (registrado en Program.cs).
         services.AddScoped<ConsultaSemanticaService>();

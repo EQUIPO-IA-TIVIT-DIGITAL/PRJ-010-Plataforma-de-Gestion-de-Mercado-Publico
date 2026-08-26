@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Microsoft.Extensions.DependencyInjection;
 using MPM.Modules.Analisis.Data;
 using MPM.Modules.Analisis.Models;
 using MPM.Shared.Services;
@@ -9,12 +10,14 @@ public class AnalisisService(
     AnalisisHandler handler,
     GeminiService geminiService,
     IStorageService storageService,
-    IAnalisisBackgroundService backgroundService)
+    IAnalisisBackgroundService backgroundService,
+    IServiceProvider? serviceProvider = null)
 {
     private readonly AnalisisHandler _handler = handler;
     private readonly GeminiService _geminiService = geminiService;
     private readonly IStorageService _storageService = storageService;
     private readonly IAnalisisBackgroundService _backgroundService = backgroundService;
+    private readonly IServiceProvider? _serviceProvider = serviceProvider;
 
     public async Task<(PaginatedResult<WorkspaceItemDto>? Result, string? Error)> ListarWorkspacesAsync(
         int page, int pageSize, string? search, string? estado,
@@ -242,7 +245,26 @@ public class AnalisisService(
                 };
             }
 
-            return (new DashboardEjecutivoDto { AniosDisponibles = [], ComparacionAnual = comparacionVacia }, null);
+            // Track2 ligero — CM cache (mserv) hook: si hay año filtrado intenta sumar Convenio Marco
+            decimal montoCmVacio = 0m;
+            try
+            {
+                if (_serviceProvider != null && anio.HasValue)
+                {
+                    var cmHandler = _serviceProvider.GetService<ICmResumenHandler>();
+                    if (cmHandler != null)
+                        montoCmVacio = await cmHandler.ObtenerMontoAnualAsync("76.130.712-6", anio.Value, ct);
+                }
+            }
+            catch { /* dashboard nunca falla por CM */ }
+
+            return (new DashboardEjecutivoDto
+            {
+                AniosDisponibles = [],
+                ComparacionAnual = comparacionVacia,
+                MontoConvenioMarco = montoCmVacio,
+                MontoTotalGanadoConCm = montoCmVacio
+            }, null);
         }
 
         var licitaciones = new List<LicitacionResumenEjecutivoDto>();
@@ -422,6 +444,21 @@ public class AnalisisService(
         var montoTotalGanado = ganadas.Sum(l => l.MontoAdjudicado ?? 0);
         var montoTotalPerdido = perdidas.Sum(l => l.MontoAdjudicado ?? 0);
 
+        // Track2 ligero — CM Convenio Marco desde cache mserv (idModalidad=5)
+        decimal montoConvenioMarco = 0m;
+        try
+        {
+            if (_serviceProvider != null && anio.HasValue)
+            {
+                var cmHandler = _serviceProvider.GetService<ICmResumenHandler>();
+                if (cmHandler != null)
+                    montoConvenioMarco = await cmHandler.ObtenerMontoAnualAsync("76.130.712-6", anio.Value, ct);
+            }
+        }
+        catch { /* dashboard nunca falla por CM */ }
+
+        var montoTotalGanadoConCm = montoTotalGanado + montoConvenioMarco;
+
         ComparacionAnualDto? comparacionAnual = null;
         if (anio.HasValue)
         {
@@ -458,7 +495,9 @@ public class AnalisisService(
             FactoresPerdidaFrecuentes = factoresFrecuentes,
             Licitaciones = licitaciones.OrderByDescending(l => l.FechaAnalisis).ToList(),
             AniosDisponibles = todosLosAnios.OrderDescending().ToList(),
-            ComparacionAnual = comparacionAnual
+            ComparacionAnual = comparacionAnual,
+            MontoConvenioMarco = montoConvenioMarco,
+            MontoTotalGanadoConCm = montoTotalGanadoConCm
         }, null);
     }
 
