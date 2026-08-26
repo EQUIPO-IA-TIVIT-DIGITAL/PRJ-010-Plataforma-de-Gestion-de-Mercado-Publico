@@ -97,8 +97,8 @@ export function LicitacionesPage() {
   // Si URL no trae montoDesde, sembrar desde preferencia. Override explícito en URL gana.
   // Limpiar filtro = ver todo en sesión, pero recarga reaplica.
   const { data: preferenciasResp, isFetched: preferenciasFetched } = usePreferenciasLicitaciones();
-  // Envelope backend: { success, data: { montoMinimo } } -> preferenciaMontoMinimo
-  const preferenciaMontoMinimo = (preferenciasResp as unknown as { data?: { montoMinimo?: number | null } })?.data?.montoMinimo ?? null;
+  // Envelope backend: ApiResponse<PreferenciasLicitaciones> -> tipado estricto sin unknown (F-001)
+  const preferenciaMontoMinimo = preferenciasResp?.data?.montoMinimo ?? null;
   const preferenciaActiva = preferenciaMontoMinimo;
   const preferenciaAplicadaRef = useRef(false);
   useEffect(() => {

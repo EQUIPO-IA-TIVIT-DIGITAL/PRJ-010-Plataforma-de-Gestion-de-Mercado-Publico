@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiGet, apiPut } from '../lib/apiClient';
+import type { ApiResponse } from '../types/api';
 
 export interface PreferenciasLicitaciones {
   montoMinimo: number | null;
@@ -20,7 +21,7 @@ const BASE = '/api/v1/usuarios/me/preferencias-licitaciones';
 export function usePreferenciasLicitaciones() {
   return useQuery({
     queryKey: ['preferencias-licitaciones'],
-    queryFn: () => apiGet<{ data: PreferenciasLicitaciones }>(BASE),
+    queryFn: () => apiGet<ApiResponse<PreferenciasLicitaciones>>(BASE),
     staleTime: 5 * 60 * 1000,
     retry: 1,
   });
@@ -35,7 +36,7 @@ export function useActualizarPreferenciaLicitaciones() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (body: PreferenciasLicitacionesUpdate) =>
-      apiPut<{ data: PreferenciasLicitaciones }>(BASE, body),
+      apiPut<ApiResponse<PreferenciasLicitaciones>>(BASE, body),
     onSuccess: (data) => {
       queryClient.setQueryData(['preferencias-licitaciones'], data);
       queryClient.invalidateQueries({ queryKey: ['preferencias-licitaciones'] });

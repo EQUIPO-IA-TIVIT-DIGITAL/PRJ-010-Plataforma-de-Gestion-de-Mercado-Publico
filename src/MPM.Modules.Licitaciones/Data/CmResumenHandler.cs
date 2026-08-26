@@ -36,8 +36,7 @@ public class CmResumenHandler(DbConnectionFactory dbFactory) : ICmResumenHandler
             """
             INSERT INTO cm_resumen_api_cache (anio, rut, amount_clp, payload_json, actualizado_at)
             VALUES (@anio, @rut, @amountClp, @payloadJson::jsonb, NOW())
-            ON CONFLICT (anio) DO UPDATE SET
-              rut = EXCLUDED.rut,
+            ON CONFLICT (anio, rut) DO UPDATE SET
               amount_clp = EXCLUDED.amount_clp,
               payload_json = EXCLUDED.payload_json,
               actualizado_at = NOW()
@@ -89,10 +88,7 @@ public class CmResumenHandler(DbConnectionFactory dbFactory) : ICmResumenHandler
     public async Task<long> ObtenerMontoAnualAsync(string rut, int anio, CancellationToken ct = default)
     {
         var row = await ObtenerPorAnioAsync(rut, anio, ct);
-        if (row != null) return row.AmountClp;
-        // fallback sin filtro rut (PK solo anio en V159 original)
-        var fallback = await ObtenerPorAnioAsync(anio, ct);
-        return fallback?.AmountClp ?? 0L;
+        return row?.AmountClp ?? 0L;
     }
 
     public Task<IReadOnlyList<CmResumenCacheDto>> ObtenerResumenAnualAsync(string rut, int anioDesde, int anioHasta, CancellationToken ct = default)

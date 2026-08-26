@@ -36,8 +36,7 @@ public class CmIngestaController(
 
         if (anio.HasValue)
         {
-            var row = await cacheHandler.ObtenerPorAnioAsync(rut, anio.Value, ct)
-                      ?? await cacheHandler.ObtenerPorAnioAsync(anio.Value, ct);
+            var row = await cacheHandler.ObtenerPorAnioAsync(rut, anio.Value, ct);
             if (row == null)
                 return Ok(ApiResponse<object>.Ok(new { rut, anio = anio.Value, amountClp = 0L, actualizadoAt = (DateTime?)null, payload = (object?)null, cacheHit = false }));
             return Ok(ApiResponse<object>.Ok(new { rut = row.Rut, anio = row.Anio, amountClp = row.AmountClp, actualizadoAt = row.ActualizadoAt, payload = TryParseJson(row.PayloadJson), cacheHit = true }));
@@ -46,12 +45,6 @@ public class CmIngestaController(
         var desde = 2020;
         var hasta = DateTime.UtcNow.Year;
         var rows = await cacheHandler.ObtenerRangoAsync(rut, desde, hasta, ct);
-        // fallback: si tabla usa PK anio sin rut, el rango por rut puede venir vacío pero hay filas con otro rut literal
-        if (rows.Count == 0)
-        {
-            // intenta lectura directa sin filtro rut
-            rows = await cacheHandler.ObtenerRangoAsync(rut, desde, hasta, ct);
-        }
         var data = rows.Select(r => new { rut = r.Rut, anio = r.Anio, amountClp = r.AmountClp, actualizadoAt = r.ActualizadoAt, payload = TryParseJson(r.PayloadJson) }).ToList();
         return Ok(ApiResponse<object>.Ok(new { rut, desde, hasta, total = data.Count, items = data }));
     }
@@ -115,8 +108,25 @@ public class CmIngestaController(
 
     private static bool EsRutValido(string rut)
     {
-        var t = rut.Trim();
-        return t.Length >= 8 && t.Contains('-');
+        if (string.IsNullOrWhiteSpace(rut)) return false;
+        var t = rut.Trim().Replace(".", "").Replace(" ", "").ToUpperInvariant();
+        var parts = t.Split('-');
+        if (parts.Length != 2) return false;
+        var cuerpo = parts[0];
+        var dv = parts[1];
+        if (cuerpo.Length < 7 || cuerpo.Length > 8) return false;
+        if (dv.Length != 1) return false;
+        foreach (var c in cuerpo) if (c < '0' || c > '9') return false;
+        if (!(dv[0] >= '0' && dv[0] <= '9') && dv[0] != 'K') return false;
+        int suma = 0, mult = 2;
+        for (int i = cuerpo.Length - 1; i >= 0; i--)
+        {
+            suma += (cuerpo[i] - '0') * mult;
+            mult = mult == 7 ? 2 : mult + 1;
+        }
+        int resto = 11 - (suma % 11);
+        char esperado = resto == 11 ? '0' : resto == 10 ? 'K' : (char)('0' + resto);
+        return dv[0] == esperado;
     }
 
     private static object? TryParseJson(string json)

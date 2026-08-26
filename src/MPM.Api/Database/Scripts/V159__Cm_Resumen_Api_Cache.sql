@@ -4,16 +4,17 @@
 -- Spec original ingesta-datos-abiertos.md pivotado a API JSON (ver ADR-016 § Track 2 pivot)
 
 CREATE TABLE IF NOT EXISTS cm_resumen_api_cache (
-  anio SMALLINT PRIMARY KEY,
+  anio SMALLINT NOT NULL,
   rut VARCHAR(20) NOT NULL,
   amount_clp BIGINT NOT NULL DEFAULT 0,
   payload_json JSONB NOT NULL,
-  actualizado_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  actualizado_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (anio, rut)
 );
 
 CREATE INDEX IF NOT EXISTS idx_cm_resumen_api_cache_rut ON cm_resumen_api_cache(rut);
 
--- SP Upsert — ON CONFLICT (anio) porque V159 usa anio como PK (solo TIVIT activo, HITL-02)
+-- SP Upsert — PK compuesta (anio, rut) corrige D-001/D-002: un anio puede tener N ruts
 CREATE OR REPLACE PROCEDURE usp_CmResumenApi_Upsert(
   p_anio INT,
   p_rut VARCHAR(20),
@@ -24,8 +25,7 @@ LANGUAGE plpgsql AS $$
 BEGIN
   INSERT INTO cm_resumen_api_cache (anio, rut, amount_clp, payload_json, actualizado_at)
   VALUES (p_anio::SMALLINT, p_rut, p_amount_clp, p_payload_json, NOW())
-  ON CONFLICT (anio) DO UPDATE SET
-    rut = EXCLUDED.rut,
+  ON CONFLICT (anio, rut) DO UPDATE SET
     amount_clp = EXCLUDED.amount_clp,
     payload_json = EXCLUDED.payload_json,
     actualizado_at = NOW();
