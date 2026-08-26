@@ -219,7 +219,31 @@ public class AnalisisService(
         var resultados = (await _handler.ObtenerResultadosCompletosAsync(anio, ct)).ToList();
 
         if (resultados.Count == 0)
-            return (new DashboardEjecutivoDto { AniosDisponibles = [] }, null);
+        {
+            ComparacionAnualDto? comparacionVacia = null;
+            if (anio.HasValue)
+            {
+                var anioAnteriorVacio = anio.Value - 1;
+                var (montoAnteriorVacio, tieneDatosVacio) = await CalcularTotalesGanadasAsync(anioAnteriorVacio, ct);
+                double? variacionVacia = null;
+                if (tieneDatosVacio && montoAnteriorVacio != 0)
+                {
+                    variacionVacia = Math.Round((double)((0m - montoAnteriorVacio) / montoAnteriorVacio * 100m), 1);
+                }
+
+                comparacionVacia = new ComparacionAnualDto
+                {
+                    AnioActual = anio.Value,
+                    AnioAnterior = anioAnteriorVacio,
+                    MontoActual = 0m,
+                    MontoAnterior = montoAnteriorVacio,
+                    VariacionPorcentaje = variacionVacia,
+                    TieneDatosAnioAnterior = tieneDatosVacio
+                };
+            }
+
+            return (new DashboardEjecutivoDto { AniosDisponibles = [], ComparacionAnual = comparacionVacia }, null);
+        }
 
         var licitaciones = new List<LicitacionResumenEjecutivoDto>();
         var competidores = new Dictionary<string, CompetidorRankingDto>(StringComparer.OrdinalIgnoreCase);
@@ -395,19 +419,46 @@ public class AnalisisService(
             .Select(g => g.Key)
             .ToList();
 
+        var montoTotalGanado = ganadas.Sum(l => l.MontoAdjudicado ?? 0);
+        var montoTotalPerdido = perdidas.Sum(l => l.MontoAdjudicado ?? 0);
+
+        ComparacionAnualDto? comparacionAnual = null;
+        if (anio.HasValue)
+        {
+            var anioActual = anio.Value;
+            var anioAnterior = anioActual - 1;
+            var (montoAnterior, tieneDatosAnterior) = await CalcularTotalesGanadasAsync(anioAnterior, ct);
+            double? variacionPorcentaje = null;
+            if (tieneDatosAnterior && montoAnterior != 0)
+            {
+                variacionPorcentaje = Math.Round((double)((montoTotalGanado - montoAnterior) / montoAnterior * 100m), 1);
+            }
+
+            comparacionAnual = new ComparacionAnualDto
+            {
+                AnioActual = anioActual,
+                AnioAnterior = anioAnterior,
+                MontoActual = montoTotalGanado,
+                MontoAnterior = montoAnterior,
+                VariacionPorcentaje = variacionPorcentaje,
+                TieneDatosAnioAnterior = tieneDatosAnterior
+            };
+        }
+
         return (new DashboardEjecutivoDto
         {
             TotalAnalizadas = licitaciones.Count,
             TotalGanadas = ganadas.Count,
             TotalPerdidas = perdidas.Count,
-            MontoTotalGanado = ganadas.Sum(l => l.MontoAdjudicado ?? 0),
-            MontoTotalPerdido = perdidas.Sum(l => l.MontoAdjudicado ?? 0),
+            MontoTotalGanado = montoTotalGanado,
+            MontoTotalPerdido = montoTotalPerdido,
             PuntajePromedioTivit = puntajePromTivit > 0 ? puntajePromTivit : null,
             PuntajePromedioGanador = puntajePromGanador > 0 ? puntajePromGanador : null,
             RankingCompetidores = rankingCompetidores,
             FactoresPerdidaFrecuentes = factoresFrecuentes,
             Licitaciones = licitaciones.OrderByDescending(l => l.FechaAnalisis).ToList(),
-            AniosDisponibles = todosLosAnios.OrderDescending().ToList()
+            AniosDisponibles = todosLosAnios.OrderDescending().ToList(),
+            ComparacionAnual = comparacionAnual
         }, null);
     }
 
@@ -431,6 +482,63 @@ public class AnalisisService(
             return fechaPub.Year;
 
         return null;
+    }
+
+    private async Task<(decimal montoTotalGanado, bool tieneDatos)> CalcularTotalesGanadasAsync(int anioObjetivo, CancellationToken ct)
+    {
+        var resultadosAnio = (await _handler.ObtenerResultadosCompletosAsync(anioObjetivo, ct)).ToList();
+        if (resultadosAnio.Count == 0)
+            return (0m, false);
+
+        var vistos = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        decimal montoGanado = 0m;
+        int totalDistintas = 0;
+
+        foreach (var r in resultadosAnio)
+        {
+            if (string.IsNullOrWhiteSpace(r.ContenidoJson))
+                continue;
+
+            JsonElement root;
+            try { root = JsonDocument.Parse(r.ContenidoJson).RootElement; }
+            catch { continue; }
+            if (root.ValueKind != JsonValueKind.Object) continue;
+
+            var anioReal = ExtraerAnioRealLicitacion(root) ?? r.CreadoEn.Year;
+            if (anioReal != anioObjetivo)
+                continue;
+
+            var key = r.LicitacionId.HasValue && r.LicitacionId.Value > 0
+                ? $"lic_{r.LicitacionId.Value}"
+                : $"ws_{r.WorkspaceId}";
+            if (!vistos.Add(key))
+                continue;
+
+            totalDistintas++;
+
+            bool tivitGano = false;
+            decimal? montoAdj = null;
+
+            if (root.TryGetProperty("analisis_tivit", out var at) && at.ValueKind == JsonValueKind.Object)
+            {
+                tivitGano = at.TryGetProperty("es_ganador", out var eg) && eg.ValueKind == JsonValueKind.True;
+            }
+
+            if (root.TryGetProperty("adjudicacion", out var adj) && adj.ValueKind == JsonValueKind.Object)
+            {
+                if (adj.TryGetProperty("adjudicatario", out var adjt) && adjt.ValueKind == JsonValueKind.Object)
+                {
+                    montoAdj = adjt.TryGetProperty("monto_adjudicado", out var ma) && ma.ValueKind == JsonValueKind.Number
+                        ? (decimal?)ma.GetDecimal()
+                        : null;
+                }
+            }
+
+            if (tivitGano)
+                montoGanado += montoAdj ?? 0m;
+        }
+
+        return (montoGanado, totalDistintas > 0);
     }
 
     private static bool EsResultadoGanador(string? resultado, string nombre, string? rut, string? adjNombre, string? adjRut)

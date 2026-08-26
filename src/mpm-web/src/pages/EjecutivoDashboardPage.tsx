@@ -25,6 +25,17 @@ function fmtPct(a: number, b: number) {
   return `${Math.round((a / b) * 100)}%`
 }
 
+function fmtClpConCero(n?: number | null) {
+  if (n == null) return '—'
+  return new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 }).format(n)
+}
+
+function formatVariacion(v: number) {
+  const sign = v > 0 ? '+' : ''
+  const formatted = new Intl.NumberFormat('es-CL', { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(v)
+  return `${sign}${formatted}%`
+}
+
 export default function EjecutivoDashboardPage() {
   const navigate = useNavigate()
   const [anioFiltro, setAnioFiltro] = useState<number | null>(null)
@@ -205,6 +216,83 @@ export default function EjecutivoDashboardPage() {
           </Card>
         </Col>
       </Row>
+
+      {/* YoY — Crecimiento interanual (ADR-016 / ANA-R025): solo con filtro año */}
+      {anioFiltro != null && dash.comparacionAnual && (() => {
+        const ca = dash.comparacionAnual!
+        const sinDatosAnioAnterior = !ca.tieneDatosAnioAnterior
+        const sinBase = ca.tieneDatosAnioAnterior && ca.variacionPorcentaje == null
+        const variacion = ca.variacionPorcentaje
+        const esPositiva = variacion != null && variacion > 0
+        const esNegativa = variacion != null && variacion < 0
+        const color = esPositiva ? '#52c41a' : esNegativa ? '#cf1322' : '#595959'
+
+        return (
+          <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+            <Col span={24}>
+              <Card size="small" title="Crecimiento interanual">
+                {sinDatosAnioAnterior ? (
+                  <Row gutter={[24, 12]} align="middle">
+                    <Col xs={24} md={16}>
+                      <Text type="secondary" style={{ fontSize: 13 }}>
+                        Sin datos del año anterior — no hay licitaciones ganadas en {ca.anioAnterior}
+                      </Text>
+                    </Col>
+                    <Col xs={24} md={8}>
+                      <Text type="secondary" style={{ fontSize: 12, display: 'block', letterSpacing: '0.02em' }}>
+                        Monto {ca.anioActual}
+                      </Text>
+                      <Text strong style={{ fontSize: 16 }}>{fmtClpConCero(ca.montoActual)}</Text>
+                    </Col>
+                  </Row>
+                ) : sinBase ? (
+                  <div>
+                    <Row gutter={[24, 12]} align="middle">
+                      <Col xs={12} sm={8}>
+                        <Text type="secondary" style={{ fontSize: 12, display: 'block' }}>Monto {ca.anioActual}</Text>
+                        <Text strong style={{ fontSize: 16 }}>{fmtClpConCero(ca.montoActual)}</Text>
+                      </Col>
+                      <Col xs={12} sm={8}>
+                        <Text type="secondary" style={{ fontSize: 12, display: 'block' }}>Monto {ca.anioAnterior}</Text>
+                        <Text style={{ fontSize: 16 }}>{fmtClpConCero(ca.montoAnterior)}</Text>
+                      </Col>
+                      <Col xs={24} sm={8}>
+                        <Text type="secondary" style={{ fontSize: 12, display: 'block' }}>Variación</Text>
+                        <Text type="secondary" style={{ fontSize: 14, fontStyle: 'italic' }}>Sin base de comparación</Text>
+                      </Col>
+                    </Row>
+                    <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 8 }}>
+                      El monto del año anterior es $0, por lo que no se puede calcular variación porcentual.
+                    </Text>
+                  </div>
+                ) : (
+                  <Row gutter={[24, 12]} align="middle">
+                    <Col xs={12} sm={7}>
+                      <Text type="secondary" style={{ fontSize: 12, display: 'block' }}>Monto {ca.anioActual}</Text>
+                      <Text strong style={{ fontSize: 16 }}>{fmtClpConCero(ca.montoActual)}</Text>
+                    </Col>
+                    <Col xs={12} sm={7}>
+                      <Text type="secondary" style={{ fontSize: 12, display: 'block' }}>Monto {ca.anioAnterior}</Text>
+                      <Text style={{ fontSize: 15 }}>{fmtClpConCero(ca.montoAnterior)}</Text>
+                    </Col>
+                    <Col xs={24} sm={10}>
+                      <Text type="secondary" style={{ fontSize: 12, display: 'block' }}>Variación interanual</Text>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color, fontWeight: 700, fontSize: 16 }}>
+                        {esPositiva && <RiseOutlined style={{ color }} />}
+                        {esNegativa && <FallOutlined style={{ color }} />}
+                        {variacion != null ? formatVariacion(variacion) : '—'}
+                      </span>
+                      <Text type="secondary" style={{ fontSize: 12, marginLeft: 8 }}>
+                        vs. {ca.anioAnterior}
+                      </Text>
+                    </Col>
+                  </Row>
+                )}
+              </Card>
+            </Col>
+          </Row>
+        )
+      })()}
 
       {/* Puntajes promedio */}
       {(dash.puntajePromedioTivit || dash.puntajePromedioGanador) && (

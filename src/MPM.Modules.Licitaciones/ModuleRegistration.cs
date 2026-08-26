@@ -13,6 +13,7 @@ public static class ModuleRegistration
         services.AddScoped<SyncLogHandler>();
         services.AddScoped<SyncEngineHandler>();
         services.AddScoped<SeguimientoHandler>();
+        services.AddScoped<PreferenciasLicitacionesHandler>();
         services.AddScoped<LicitacionService>();
         services.AddScoped<ImportBackfillService>();
         services.AddScoped<SyncService>();

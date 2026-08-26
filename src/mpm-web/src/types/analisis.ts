@@ -114,6 +114,15 @@ export interface CompetidorRanking {
   licitaciones: LicitacionResumenEjecutivo[]
 }
 
+export interface ComparacionAnual {
+  anioActual: number
+  anioAnterior: number
+  montoActual: number
+  montoAnterior: number
+  variacionPorcentaje: number | null
+  tieneDatosAnioAnterior: boolean
+}
+
 export interface DashboardEjecutivo {
   totalAnalizadas: number
   totalGanadas: number
@@ -126,4 +135,5 @@ export interface DashboardEjecutivo {
   factoresPerdidaFrecuentes: string[]
   licitaciones: LicitacionResumenEjecutivo[]
   aniosDisponibles: number[]
+  comparacionAnual?: ComparacionAnual | null
 }

@@ -158,6 +158,16 @@ public class CompetidorRankingDto
     public List<LicitacionResumenEjecutivoDto> Licitaciones { get; set; } = new();
 }
 
+public class ComparacionAnualDto
+{
+    public int AnioActual { get; set; }
+    public int AnioAnterior { get; set; }
+    public decimal MontoActual { get; set; }
+    public decimal MontoAnterior { get; set; }
+    public double? VariacionPorcentaje { get; set; }
+    public bool TieneDatosAnioAnterior { get; set; }
+}
+
 public class DashboardEjecutivoDto
 {
     public int TotalAnalizadas { get; set; }
@@ -171,6 +181,7 @@ public class DashboardEjecutivoDto
     public List<string> FactoresPerdidaFrecuentes { get; set; } = new();
     public List<LicitacionResumenEjecutivoDto> Licitaciones { get; set; } = new();
     public List<int> AniosDisponibles { get; set; } = new();
+    public ComparacionAnualDto? ComparacionAnual { get; set; }
 }
 
 public class PaginatedResult<T>
