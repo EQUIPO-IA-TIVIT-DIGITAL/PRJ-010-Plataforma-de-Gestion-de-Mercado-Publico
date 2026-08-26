@@ -93,9 +93,9 @@ public class AnalisisService(
         {
             await _storageService.DeleteAsync(doc.RutaStorage, ct);
         }
-        catch
+        catch (Exception ex)
         {
-            // Opcional: registrar error pero no bloquear si el archivo fisico ya no existe
+            _logger.LogWarning(ex, "DeleteAsync fallback ws {WorkspaceId} doc {DocId}", workspaceId, id);
         }
 
         return (true, null);
@@ -236,6 +236,7 @@ public class AnalisisService(
                 {
                     variacionVacia = Math.Round((double)((0m - montoAnteriorVacio) / montoAnteriorVacio * 100m), 1);
                 }
+                _logger.LogDebug(new EventId(1300, "YoYCalc"), "YoY {AnioActual} vs {AnioAnterior} var {Var}% monto {MontoActual}/{MontoAnterior}", anio.Value, anioAnteriorVacio, variacionVacia, 0m, montoAnteriorVacio);
 
                 comparacionVacia = new ComparacionAnualDto
                 {
@@ -288,7 +289,7 @@ public class AnalisisService(
 
             JsonElement root;
             try { root = JsonDocument.Parse(r.ContenidoJson).RootElement; }
-            catch { todosLosAnios.Add(r.CreadoEn.Year); continue; }
+            catch (Exception ex) { _logger.LogDebug(ex, "Parse JSON fallback anioReal ws {WorkspaceId}", r.WorkspaceId); todosLosAnios.Add(r.CreadoEn.Year); continue; }
             if (root.ValueKind != JsonValueKind.Object) { todosLosAnios.Add(r.CreadoEn.Year); continue; }
 
             // 029-fix-hallazgos-code-review-competidores-alertas (FR-018/US14, QA BUG-011): antes
@@ -473,6 +474,7 @@ public class AnalisisService(
             {
                 variacionPorcentaje = Math.Round((double)((montoTotalGanado - montoAnterior) / montoAnterior * 100m), 1);
             }
+            _logger.LogDebug(new EventId(1300, "YoYCalc"), "YoY {AnioActual} vs {AnioAnterior} var {Var}% monto {MontoActual}/{MontoAnterior}", anioActual, anioAnterior, variacionPorcentaje, montoTotalGanado, montoAnterior);
 
             comparacionAnual = new ComparacionAnualDto
             {
@@ -543,7 +545,7 @@ public class AnalisisService(
 
             JsonElement root;
             try { root = JsonDocument.Parse(r.ContenidoJson).RootElement; }
-            catch { continue; }
+            catch (Exception ex) { _logger.LogDebug(ex, "Parse JSON fallback anioReal ws {WorkspaceId}", r.WorkspaceId); continue; }
             if (root.ValueKind != JsonValueKind.Object) continue;
 
             var anioReal = ExtraerAnioRealLicitacion(root) ?? r.CreadoEn.Year;

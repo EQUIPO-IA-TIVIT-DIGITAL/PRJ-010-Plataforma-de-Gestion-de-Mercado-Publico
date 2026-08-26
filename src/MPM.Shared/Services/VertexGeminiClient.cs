@@ -220,7 +220,7 @@ public class VertexGeminiClient(
         };
     }
 
-    private static Activity? StartLlmActivity(string provider, string modelo)
+    private Activity? StartLlmActivity(string provider, string modelo)
     {
         try
         {
@@ -249,8 +249,9 @@ public class VertexGeminiClient(
             a?.SetTag("llm.modelo", modelo);
             return a;
         }
-        catch
+        catch (Exception ex)
         {
+            logger.LogDebug(ex, "StartLlmActivity fallback");
             return null;
         }
     }

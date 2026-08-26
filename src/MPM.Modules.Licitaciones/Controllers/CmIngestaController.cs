@@ -90,7 +90,7 @@ public class CmIngestaController(
         {
             var d = desde ?? 2020;
             var h = hasta ?? DateTime.UtcNow.Year;
-            if (d > h) return BadRequest(ApiResponse<object>.Fail("Rango inválido: desde > hasta"));
+            if (d > h) return BadRequest(ApiResponse<object>.Fail("VAL_001: Rango inválido: desde > hasta", [new ErrorDetail { Code = "VAL_001", Field = "desde/hasta", Message = "Rango inválido: desde > hasta" }]));
             for (var y = d; y <= h; y++) years.Add(y);
         }
         else
