@@ -1,0 +1,44 @@
+{
+  "workflow_id": "capacitacion-1408-pendientes",
+  "description": "Implementacion de pendientes de la capacitacion interna 14-08-2026 (PRJ-010). Tracks 1-3 del plan ajustado v2. Pivot Track2 a API mserv sin zip (ADR-016).",
+  "mode": "hybrid-brownfield",
+  "current_step": "F1-en-curso",
+  "steps_completed": [
+    "exploracion-capacitacion-vs-codigo",
+    "plan-v2-aprobado-por-usuario",
+    "preflight-migraciones (fuente de verdad: src/MPM.Api/Database/Scripts, siguiente V155; docs/migrations/V155 es copia documental)",
+    "scraping-datos-abiertos-chilecompra (fuente verificada, sin credenciales)",
+    "design-track1-specs (4 artefactos)",
+    "design-track2-spec (2 artefactos)",
+    "F0-gobernanza (ADR-016 aprobado 2026-08-26, 6 HITL bloqueantes resueltos, rama 039 creada)"
+  ],
+  "steps_failed": [],
+  "artifacts": {
+    "specs-track1": [
+      "docs/api-first/analisis-ejecutivo-v2.md",
+      "docs/api-first/preferencias-usuario.md",
+      "docs/specs/go-nogo-por-tipo.feature-spec.md",
+      "docs/specs/track1-quickwins.tasks.md"
+    ],
+    "specs-track2": [
+      "docs/api-first/ingesta-datos-abiertos.md",
+      "docs/specs/track2-ingesta-cm.tasks.md"
+    ],
+    "adr": [
+      "docs/adr/ADR-016-decisiones-hit-track1-2.md"
+    ]
+  },
+  "hitl_pending": {},
+  "hitl_resolved": {
+    "ADR-016": "UTM 100/1000/2000, CO prompt-only, neto CLP, solo TIVIT 76.130.712-6, +/-1%, dia5 06:00, pivot a API mserv sin zip",
+    "resolved_at": "2026-08-26",
+    "branch": "039-cierre-v11-hitl-tracks-1-2"
+  },
+  "next_steps": [
+    "F1 Track1 T1-T6 + GoNoGo (27h) en 039",
+    "F2 Track2 ligero mserv API (6h) paralelo",
+    "F3 Cierre v1.1 (merge 038, clean, progress, validators, tag)"
+  ],
+  "started_at": "2026-08-20",
+  "last_checkpoint": "2026-08-26 F0 completado, ADR-016 aprobado, rama 039 en curso"
+}

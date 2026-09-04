@@ -177,7 +177,7 @@ public class AnalisisBackgroundService : IAnalisisBackgroundService
             }
 
             var (resultadoId, insError) = await handler.CrearResultadoAsync(
-                workspaceId, documentoRepresentativoId, jsonText, GeminiService.ModelName,
+                workspaceId, documentoRepresentativoId, jsonText, geminiResponse.ModelName,
                 geminiResponse.Usage.PromptTokenCount, geminiResponse.Usage.CandidatesTokenCount, CancellationToken.None);
 
             if (insError != null)

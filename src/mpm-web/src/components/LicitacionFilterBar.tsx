@@ -1,5 +1,5 @@
-import { Row, Col, Input, Select, DatePicker, Button, Segmented, Checkbox } from 'antd';
-import { SearchOutlined, ClearOutlined, BulbOutlined, FilterOutlined } from '@ant-design/icons';
+import { Row, Col, Input, Select, DatePicker, Button, Segmented, Checkbox, InputNumber, Tooltip, Tag } from 'antd';
+import { SearchOutlined, ClearOutlined, BulbOutlined, FilterOutlined, DollarOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { useCatalogos, useAreasNegocio } from '../hooks/useCatalogos';
 import type { LicitacionFilter } from '../types/licitacion';
@@ -15,11 +15,14 @@ interface Props {
   naturalQuery: string;
   onNaturalQueryChange: (q: string) => void;
   onNaturalQuerySubmit: () => void;
+  /** F1-T5: monto preferido del usuario (para tag discreto). Si filter.montoDesde === preferenciaActiva se muestra "según tu preferencia". */
+  preferenciaActiva?: number | null;
 }
 
 export function LicitacionFilterBar({
   filter, onChange, onReset,
   searchMode, onSearchModeChange, naturalQuery, onNaturalQueryChange, onNaturalQuerySubmit,
+  preferenciaActiva,
 }: Props) {
   const { data: catalogos } = useCatalogos();
   const { data: areasNegocio } = useAreasNegocio();
@@ -67,7 +70,7 @@ export function LicitacionFilterBar({
       ) : (
       <Col xs={24} sm={12} md={7}>
         <Input
-          placeholder="Buscar por código o nombre..."
+          placeholder="Buscar por código, nombre o descripción..."
           prefix={<SearchOutlined />}
           allowClear
           value={filter.search ?? ''}
@@ -134,6 +137,49 @@ export function LicitacionFilterBar({
           value={filter.fechaHasta ? dayjs(filter.fechaHasta) : null}
           onChange={(_date: unknown, dateStr: string | string[]) => onChange({ fechaHasta: (typeof dateStr === 'string' ? dateStr : dateStr[0]) || undefined })}
         />
+      </Col>
+      <Col xs={12} sm={6} md={3}>
+        <Tooltip title="Monto mínimo (ej 50000000 = 50M) - oculta licitaciones por debajo">
+          <InputNumber
+            placeholder="Monto desde"
+            prefix={<DollarOutlined style={{ color: '#94a3b8' }} />}
+            style={{ width: '100%' }}
+            value={filter.montoDesde ?? null}
+            onChange={(v) => onChange({ montoDesde: v ?? undefined })}
+            min={0}
+            step={1000000}
+            formatter={(value) => value ? `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, '.') : ''}
+            parser={(value) => Number(value?.replace(/\./g, '')) as unknown as number}
+            data-testid="filter-monto-desde"
+          />
+        </Tooltip>
+        {preferenciaActiva != null && filter.montoDesde === preferenciaActiva && (
+          <Tooltip title="Valor aplicado desde tu preferencia guardada. Puedes editarlo o limpiarlo; la preferencia no cambia.">
+            <Tag
+              color="blue"
+              data-testid="tag-preferencia-monto"
+              style={{ marginTop: 4, fontSize: 11, lineHeight: '16px', borderRadius: 999, maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis' }}
+            >
+              según tu preferencia
+            </Tag>
+          </Tooltip>
+        )}
+      </Col>
+      <Col xs={12} sm={6} md={3}>
+        <Tooltip title="Monto máximo">
+          <InputNumber
+            placeholder="Monto hasta"
+            prefix={<DollarOutlined style={{ color: '#94a3b8' }} />}
+            style={{ width: '100%' }}
+            value={filter.montoHasta ?? null}
+            onChange={(v) => onChange({ montoHasta: v ?? undefined })}
+            min={0}
+            step={1000000}
+            formatter={(value) => value ? `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, '.') : ''}
+            parser={(value) => Number(value?.replace(/\./g, '')) as unknown as number}
+            data-testid="filter-monto-hasta"
+          />
+        </Tooltip>
       </Col>
       <Col xs={24} sm={12} md={3}>
         <Button

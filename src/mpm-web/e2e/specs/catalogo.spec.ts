@@ -29,7 +29,9 @@ test.describe('Catálogo @regression', () => {
     const body = await response.json();
     expect(body.success).toBe(true);
     expect(Array.isArray(body.data)).toBe(true);
-    expect(body.data.length).toBeGreaterThanOrEqual(8);
+    // V108 (spec 027): el catálogo público expone solo los 5 códigos vigentes del
+    // portal (5,6,7,8,15); los códigos legacy 1-4 no se usan y quedan excluidos.
+    expect(body.data.length).toBeGreaterThanOrEqual(5);
   });
 
   test('GET /api/v1/catalogos/tipos-licitacion returns tipos @smoke', async ({ request }) => {
@@ -74,7 +76,9 @@ test.describe('Catálogo @regression', () => {
     const body = await response.json();
     const estados = body.data as { codigo: number; nombre: string }[];
 
-    const expected = ['Publicada', 'Modificada', 'Desierta', 'Revocada', 'Adjudicada', 'Cerrada'];
+    // Estados vigentes confirmados en V086/V108; "Modificada" (código legacy 2) no
+    // forma parte del catálogo público actual.
+    const expected = ['Publicada', 'Cerrada', 'Desierta', 'Adjudicada', 'Revocada'];
     for (const nombre of expected) {
       expect(estados.some(e => e.nombre === nombre)).toBeTruthy();
     }
@@ -85,7 +89,10 @@ test.describe('Catálogo @regression', () => {
     const body = await response.json();
     const tipos = body.data as { codigo: number; nombre: string; slug: string }[];
 
-    const expectedSlugs = ['Licitacion', 'TratoDirecto', 'ConvenioMarco', 'CompraAgil'];
+    // V108 repobló tipos_licitacion con los códigos reales del portal y slugs en
+    // minúscula. El tipo genérico "Licitación" ya no existe: se descompuso en
+    // LE/LP/LQ/LR/LS — usamos LP como representante de licitación pública.
+    const expectedSlugs = ['lp', 'td', 'co', 'ca'];
     for (const slug of expectedSlugs) {
       expect(tipos.some(t => t.slug === slug)).toBeTruthy();
     }

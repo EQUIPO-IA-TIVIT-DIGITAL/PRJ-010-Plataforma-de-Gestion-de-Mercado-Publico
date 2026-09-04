@@ -143,6 +143,9 @@ public class LicitacionResumenEjecutivoDto
     public double? PuntajeMaximo { get; set; }
     public DateTime FechaAnalisis { get; set; }
     public List<string> CompetidoresNombres { get; set; } = new();
+    public bool? CompetidorGano { get; set; }
+    public string? ResultadoCompetidor { get; set; }
+    public decimal? MontoCompetidor { get; set; }
 }
 
 public class CompetidorRankingDto
@@ -153,6 +156,16 @@ public class CompetidorRankingDto
     public int VecesGanador { get; set; }
     public decimal MontoTotalAdjudicado { get; set; }
     public List<LicitacionResumenEjecutivoDto> Licitaciones { get; set; } = new();
+}
+
+public class ComparacionAnualDto
+{
+    public int AnioActual { get; set; }
+    public int AnioAnterior { get; set; }
+    public decimal MontoActual { get; set; }
+    public decimal MontoAnterior { get; set; }
+    public double? VariacionPorcentaje { get; set; }
+    public bool TieneDatosAnioAnterior { get; set; }
 }
 
 public class DashboardEjecutivoDto
@@ -168,6 +181,11 @@ public class DashboardEjecutivoDto
     public List<string> FactoresPerdidaFrecuentes { get; set; } = new();
     public List<LicitacionResumenEjecutivoDto> Licitaciones { get; set; } = new();
     public List<int> AniosDisponibles { get; set; } = new();
+    public ComparacionAnualDto? ComparacionAnual { get; set; }
+
+    // Track2 ligero — CM Convenio Marco (ADR-016 opción B sin zip)
+    public decimal MontoConvenioMarco { get; set; }
+    public decimal MontoTotalGanadoConCm { get; set; }
 }
 
 public class PaginatedResult<T>

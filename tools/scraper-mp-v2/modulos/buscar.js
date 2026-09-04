@@ -247,11 +247,17 @@ async function ejecutarBusqueda(page) {
   // sirve porque la tabla vieja ya esta en el DOM. Se combinan dos senales:
   //  a) transicion del flag get_isInAsyncPostBack(): true (postback en vuelo) -> false
   //  b) cambio de la "firma" del area de resultados (texto "Se encontraron N" + 1er codigo)
+  // 2026-08-12 (bug real en corridas --incremental): con 0 resultados el portal NO muestra
+  // "Se encontraron 0..." sino "No se han encontrado resultados para su búsqueda." -- ese
+  // texto no matcheaba /Se encontraron/, la firma quedaba identica y el scraper trataba la
+  // busqueda vacia como postback colgado (45s de timeout x 5 estados x 2 intentos por ciclo).
   const firmaResultados = () => page.evaluate(() => {
     const cuenta = [...document.querySelectorAll('span, div, p')]
       .find(e => /Se encontraron/.test(e.textContent) && e.textContent.length < 80);
+    const sinResultados = [...document.querySelectorAll('span, div, p')]
+      .find(e => /No se han encontrado resultados/.test(e.textContent) && e.textContent.length < 120);
     const primerCodigo = document.querySelector('a[onclick*="OpenGlobalPopup"]');
-    return `${cuenta ? cuenta.textContent.trim() : 'sin-cuenta'}|${primerCodigo ? primerCodigo.textContent.trim() : 'sin-filas'}`;
+    return `${cuenta ? cuenta.textContent.trim() : (sinResultados ? 'sin-resultados' : 'sin-cuenta')}|${primerCodigo ? primerCodigo.textContent.trim() : 'sin-filas'}`;
   }).catch(() => null);
 
   const firmaAntes = await firmaResultados();

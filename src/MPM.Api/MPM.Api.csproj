@@ -14,6 +14,16 @@
     <PackageReference Include="Dapper" Version="2.1.35" />
     <PackageReference Include="Google.Cloud.Storage.V1" Version="4.10.0" />
     <PackageReference Include="Npgsql" Version="8.0.3" />
+    <PackageReference Include="Npgsql.OpenTelemetry" Version="8.0.3" />
+    <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.9.0" />
+    <PackageReference Include="OpenTelemetry.Extensions.Hosting" Version="1.9.0" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.9.0" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.Http" Version="1.9.0" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.StackExchangeRedis" Version="1.0.0-rc9.11" />
+    <PackageReference Include="prometheus-net.AspNetCore" Version="8.2.1" />
+    <PackageReference Include="Serilog.AspNetCore" Version="8.0.2" />
+    <PackageReference Include="Serilog.Formatting.Compact" Version="2.0.0" />
+    <PackageReference Include="Serilog.Sinks.Console" Version="5.0.1" />
     <PackageReference Include="StackExchange.Redis" Version="2.7.33" />
     <PackageReference Include="Microsoft.AspNetCore.SignalR.StackExchangeRedis" Version="8.0.6" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.6" />
@@ -22,12 +32,18 @@
 
   <ItemGroup>
     <EmbeddedResource Include="Database\Scripts\*.sql" />
+    <Content Include="Templates\tivit_proposal_template.docx">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>Always</CopyToPublishDirectory>
+    </Content>
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\MPM.Shared\MPM.Shared.csproj" />
     <ProjectReference Include="..\MPM.Core\MPM.Core.csproj" />
     <ProjectReference Include="..\MPM.Modules.Licitaciones\MPM.Modules.Licitaciones.csproj" />
+    <ProjectReference Include="..\MPM.Modules.Censo\MPM.Modules.Censo.csproj" />
+    <ProjectReference Include="..\MPM.Modules.Propuestas\MPM.Modules.Propuestas.csproj" />
     <ProjectReference Include="..\MPM.Modules.Catalogo\MPM.Modules.Catalogo.csproj" />
     <ProjectReference Include="..\MPM.Modules.Mensajeria\MPM.Modules.Mensajeria.csproj" />
     <ProjectReference Include="..\MPM.Modules.Auth\MPM.Modules.Auth.csproj" />
@@ -36,6 +52,7 @@
     <ProjectReference Include="..\MPM.Modules.Alertas\MPM.Modules.Alertas.csproj" />
     <ProjectReference Include="..\MPM.Modules.Competidores\MPM.Modules.Competidores.csproj" />
     <ProjectReference Include="..\MPM.Modules.Colaboracion\MPM.Modules.Colaboracion.csproj" />
+    <ProjectReference Include="..\MPM.Modules.Administracion\MPM.Modules.Administracion.csproj" />
   </ItemGroup>
 
 </Project>

@@ -94,4 +94,48 @@ public class ErrorHandlingMiddlewareTests
 
         context.Response.ContentType.Should().Be("application/json");
     }
+
+    [Fact]
+    public async Task Catches_Exception_DoesNotExposeRawMessage_InsteadReturnsRef()
+    {
+        var logger = CreateLoggerMock();
+        var rawSql = "SELECT * FROM licitaciones WHERE path='/var/lib/sql'; DROP TABLE";
+        var middleware = new ErrorHandlingMiddleware(_ => throw new Exception(rawSql), logger.Object);
+        var context = CreateHttpContext();
+        context.TraceIdentifier = "test-trace-123";
+        context.Items["CorrelationId"] = "corr-test-999";
+
+        await middleware.InvokeAsync(context);
+
+        context.Response.Body.Position = 0;
+        var body = await new StreamReader(context.Response.Body).ReadToEndAsync();
+        body.Should().NotContain(rawSql);
+        body.Should().NotContain("SELECT *");
+        body.Should().NotContain("/var/lib/sql");
+        var json = JsonSerializer.Deserialize<JsonElement>(body);
+        json.TryGetProperty("errors", out var errorsProp).Should().BeTrue();
+        var first = errorsProp[0];
+        first.TryGetProperty("code", out var codeProp).Should().BeTrue();
+        codeProp.GetString().Should().Be("SYS_001");
+        first.TryGetProperty("message", out var msgProp).Should().BeTrue();
+        msgProp.GetString().Should().StartWith("Ref:");
+        msgProp.GetString().Should().Contain("corr-test-999");
+    }
+
+    [Fact]
+    public async Task Catches_Exception_UsesCorrelationIdRef_WhenPresent()
+    {
+        var logger = CreateLoggerMock();
+        var middleware = new ErrorHandlingMiddleware(_ => throw new Exception("boom"), logger.Object);
+        var context = CreateHttpContext();
+        context.Items["CorrelationId"] = "my-corr-id-12345";
+        context.TraceIdentifier = "trace-abc";
+
+        await middleware.InvokeAsync(context);
+
+        context.Response.Body.Position = 0;
+        var body = await new StreamReader(context.Response.Body).ReadToEndAsync();
+        body.Should().Contain("my-corr-id-12345");
+        body.Should().NotContain("boom");
+    }
 }

@@ -1,4 +1,6 @@
 using System.Text.Json;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using MPM.Modules.Analisis.Data;
 using MPM.Modules.Analisis.Models;
 using MPM.Shared.Services;
@@ -9,12 +11,16 @@ public class AnalisisService(
     AnalisisHandler handler,
     GeminiService geminiService,
     IStorageService storageService,
-    IAnalisisBackgroundService backgroundService)
+    IAnalisisBackgroundService backgroundService,
+    ILogger<AnalisisService>? logger = null,
+    IServiceProvider? serviceProvider = null)
 {
     private readonly AnalisisHandler _handler = handler;
     private readonly GeminiService _geminiService = geminiService;
     private readonly IStorageService _storageService = storageService;
     private readonly IAnalisisBackgroundService _backgroundService = backgroundService;
+    private readonly ILogger<AnalisisService> _logger = logger ?? Microsoft.Extensions.Logging.Abstractions.NullLogger<AnalisisService>.Instance;
+    private readonly IServiceProvider? _serviceProvider = serviceProvider;
 
     public async Task<(PaginatedResult<WorkspaceItemDto>? Result, string? Error)> ListarWorkspacesAsync(
         int page, int pageSize, string? search, string? estado,
@@ -87,9 +93,9 @@ public class AnalisisService(
         {
             await _storageService.DeleteAsync(doc.RutaStorage, ct);
         }
-        catch
+        catch (Exception ex)
         {
-            // Opcional: registrar error pero no bloquear si el archivo fisico ya no existe
+            _logger.LogWarning(ex, "DeleteAsync fallback ws {WorkspaceId} doc {DocId}", workspaceId, id);
         }
 
         return (true, null);
@@ -148,7 +154,9 @@ public class AnalisisService(
         {
             Id = 0,
             Estado = "analizando",
-            ModeloUsado = GeminiService.ModelName,
+            // 033-migracion-qwen-g4: el modelo del proveedor activo (ya no una constante
+            // Gemini); el análisis encolado persiste el modelo real al ejecutarse.
+            ModeloUsado = await _geminiService.GetModelNameAsync(ct),
             CreatedAt = DateTime.UtcNow
         }, null);
     }
@@ -217,12 +225,57 @@ public class AnalisisService(
         var resultados = (await _handler.ObtenerResultadosCompletosAsync(anio, ct)).ToList();
 
         if (resultados.Count == 0)
-            return (new DashboardEjecutivoDto { AniosDisponibles = [] }, null);
+        {
+            ComparacionAnualDto? comparacionVacia = null;
+            if (anio.HasValue)
+            {
+                var anioAnteriorVacio = anio.Value - 1;
+                var (montoAnteriorVacio, tieneDatosVacio) = await CalcularTotalesGanadasAsync(anioAnteriorVacio, ct);
+                double? variacionVacia = null;
+                if (tieneDatosVacio && montoAnteriorVacio != 0)
+                {
+                    variacionVacia = Math.Round((double)((0m - montoAnteriorVacio) / montoAnteriorVacio * 100m), 1);
+                }
+                _logger.LogDebug(new EventId(1300, "YoYCalc"), "YoY {AnioActual} vs {AnioAnterior} var {Var}% monto {MontoActual}/{MontoAnterior}", anio.Value, anioAnteriorVacio, variacionVacia, 0m, montoAnteriorVacio);
+
+                comparacionVacia = new ComparacionAnualDto
+                {
+                    AnioActual = anio.Value,
+                    AnioAnterior = anioAnteriorVacio,
+                    MontoActual = 0m,
+                    MontoAnterior = montoAnteriorVacio,
+                    VariacionPorcentaje = variacionVacia,
+                    TieneDatosAnioAnterior = tieneDatosVacio
+                };
+            }
+
+            // Track2 ligero — CM cache (mserv) hook: si hay año filtrado intenta sumar Convenio Marco
+            decimal montoCmVacio = 0m;
+            try
+            {
+                if (_serviceProvider != null && anio.HasValue)
+                {
+                    var cmHandler = _serviceProvider.GetService<ICmResumenHandler>();
+                    if (cmHandler != null)
+                        montoCmVacio = await cmHandler.ObtenerMontoAnualAsync("76.130.712-6", anio.Value, ct);
+                }
+            }
+            catch (Exception ex) { _logger.LogDebug(ex, "CM cache fallback anio {Anio}", anio); }
+
+            return (new DashboardEjecutivoDto
+            {
+                AniosDisponibles = [],
+                ComparacionAnual = comparacionVacia,
+                MontoConvenioMarco = montoCmVacio,
+                MontoTotalGanadoConCm = montoCmVacio
+            }, null);
+        }
 
         var licitaciones = new List<LicitacionResumenEjecutivoDto>();
         var competidores = new Dictionary<string, CompetidorRankingDto>(StringComparer.OrdinalIgnoreCase);
         var todosLosAnios = new HashSet<int>();
         var debilidades = new List<string>();
+        var licitacionesVistas = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         foreach (var r in resultados)
         {
@@ -236,7 +289,7 @@ public class AnalisisService(
 
             JsonElement root;
             try { root = JsonDocument.Parse(r.ContenidoJson).RootElement; }
-            catch { todosLosAnios.Add(r.CreadoEn.Year); continue; }
+            catch (Exception ex) { _logger.LogDebug(ex, "Parse JSON fallback anioReal ws {WorkspaceId}", r.WorkspaceId); todosLosAnios.Add(r.CreadoEn.Year); continue; }
             if (root.ValueKind != JsonValueKind.Object) { todosLosAnios.Add(r.CreadoEn.Year); continue; }
 
             // 029-fix-hallazgos-code-review-competidores-alertas (FR-018/US14, QA BUG-011): antes
@@ -247,6 +300,17 @@ public class AnalisisService(
             // fallback si el JSON no trae ninguna fecha real utilizable.
             var anioReal = ExtraerAnioRealLicitacion(root) ?? r.CreadoEn.Year;
             todosLosAnios.Add(anioReal);
+
+            if (anio.HasValue && anioReal != anio.Value)
+                continue;
+
+            // Deduplicación por licitación (o por workspace si no está asociada a una licitación)
+            var deduplicacionKey = r.LicitacionId.HasValue && r.LicitacionId.Value > 0
+                ? $"lic_{r.LicitacionId.Value}"
+                : $"ws_{r.WorkspaceId}";
+
+            if (!licitacionesVistas.Add(deduplicacionKey))
+                continue;
 
             var tivitGano = false;
             string resultadoTivit = "Desconocido";
@@ -298,8 +362,10 @@ public class AnalisisService(
 
                         if (string.IsNullOrWhiteSpace(nombre)) continue;
 
+                        var ganoOfertante = EsResultadoGanador(resultado, nombre, rut, adjudicatarioNombre, adjudicatarioRut);
+
                         // track puntaje ganador
-                        if (resultado.Contains("Adjudicado", StringComparison.OrdinalIgnoreCase))
+                        if (ganoOfertante)
                             puntajeGanador = puntaje;
 
                         // skip TIVIT from competitor ranking
@@ -314,10 +380,10 @@ public class AnalisisService(
                             competidores[key] = comp;
                         }
                         comp.VecesCompetidor++;
-                        if (resultado.Contains("Adjudicado", StringComparison.OrdinalIgnoreCase))
+                        if (ganoOfertante)
                         {
                             comp.VecesGanador++;
-                            comp.MontoTotalAdjudicado += monto;
+                            comp.MontoTotalAdjudicado += (monto > 0 ? monto : (montoAdj ?? 0));
                         }
                         comp.Licitaciones.Add(new LicitacionResumenEjecutivoDto
                         {
@@ -333,7 +399,10 @@ public class AnalisisService(
                             PuntajeGanador = puntajeGanador,
                             PuntajeMaximo = puntajeMaximo,
                             FechaAnalisis = r.CreadoEn,
-                            CompetidoresNombres = competidoresNombres
+                            CompetidoresNombres = competidoresNombres,
+                            CompetidorGano = ganoOfertante,
+                            ResultadoCompetidor = string.IsNullOrWhiteSpace(resultado) ? (ganoOfertante ? "Adjudicado" : "No adjudicado") : resultado,
+                            MontoCompetidor = monto > 0 ? monto : montoAdj
                         });
                     }
                 }
@@ -376,19 +445,64 @@ public class AnalisisService(
             .Select(g => g.Key)
             .ToList();
 
+        var montoTotalGanado = ganadas.Sum(l => l.MontoAdjudicado ?? 0);
+        var montoTotalPerdido = perdidas.Sum(l => l.MontoAdjudicado ?? 0);
+
+        // Track2 ligero — CM Convenio Marco desde cache mserv (idModalidad=5)
+        decimal montoConvenioMarco = 0m;
+        try
+        {
+            if (_serviceProvider != null && anio.HasValue)
+            {
+                var cmHandler = _serviceProvider.GetService<ICmResumenHandler>();
+                if (cmHandler != null)
+                    montoConvenioMarco = await cmHandler.ObtenerMontoAnualAsync("76.130.712-6", anio.Value, ct);
+            }
+        }
+        catch (Exception ex) { _logger.LogDebug(ex, "CM cache fallback anio {Anio}", anio); }
+
+        var montoTotalGanadoConCm = montoTotalGanado + montoConvenioMarco;
+
+        ComparacionAnualDto? comparacionAnual = null;
+        if (anio.HasValue)
+        {
+            var anioActual = anio.Value;
+            var anioAnterior = anioActual - 1;
+            var (montoAnterior, tieneDatosAnterior) = await CalcularTotalesGanadasAsync(anioAnterior, ct);
+            double? variacionPorcentaje = null;
+            if (tieneDatosAnterior && montoAnterior != 0)
+            {
+                variacionPorcentaje = Math.Round((double)((montoTotalGanado - montoAnterior) / montoAnterior * 100m), 1);
+            }
+            _logger.LogDebug(new EventId(1300, "YoYCalc"), "YoY {AnioActual} vs {AnioAnterior} var {Var}% monto {MontoActual}/{MontoAnterior}", anioActual, anioAnterior, variacionPorcentaje, montoTotalGanado, montoAnterior);
+
+            comparacionAnual = new ComparacionAnualDto
+            {
+                AnioActual = anioActual,
+                AnioAnterior = anioAnterior,
+                MontoActual = montoTotalGanado,
+                MontoAnterior = montoAnterior,
+                VariacionPorcentaje = variacionPorcentaje,
+                TieneDatosAnioAnterior = tieneDatosAnterior
+            };
+        }
+
         return (new DashboardEjecutivoDto
         {
             TotalAnalizadas = licitaciones.Count,
             TotalGanadas = ganadas.Count,
             TotalPerdidas = perdidas.Count,
-            MontoTotalGanado = ganadas.Sum(l => l.MontoAdjudicado ?? 0),
-            MontoTotalPerdido = perdidas.Sum(l => l.MontoAdjudicado ?? 0),
+            MontoTotalGanado = montoTotalGanado,
+            MontoTotalPerdido = montoTotalPerdido,
             PuntajePromedioTivit = puntajePromTivit > 0 ? puntajePromTivit : null,
             PuntajePromedioGanador = puntajePromGanador > 0 ? puntajePromGanador : null,
             RankingCompetidores = rankingCompetidores,
             FactoresPerdidaFrecuentes = factoresFrecuentes,
             Licitaciones = licitaciones.OrderByDescending(l => l.FechaAnalisis).ToList(),
-            AniosDisponibles = todosLosAnios.OrderDescending().ToList()
+            AniosDisponibles = todosLosAnios.OrderDescending().ToList(),
+            ComparacionAnual = comparacionAnual,
+            MontoConvenioMarco = montoConvenioMarco,
+            MontoTotalGanadoConCm = montoTotalGanadoConCm
         }, null);
     }
 
@@ -412,5 +526,99 @@ public class AnalisisService(
             return fechaPub.Year;
 
         return null;
+    }
+
+    private async Task<(decimal montoTotalGanado, bool tieneDatos)> CalcularTotalesGanadasAsync(int anioObjetivo, CancellationToken ct)
+    {
+        var resultadosAnio = (await _handler.ObtenerResultadosCompletosAsync(anioObjetivo, ct)).ToList();
+        if (resultadosAnio.Count == 0)
+            return (0m, false);
+
+        var vistos = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        decimal montoGanado = 0m;
+        int totalDistintas = 0;
+
+        foreach (var r in resultadosAnio)
+        {
+            if (string.IsNullOrWhiteSpace(r.ContenidoJson))
+                continue;
+
+            JsonElement root;
+            try { root = JsonDocument.Parse(r.ContenidoJson).RootElement; }
+            catch (Exception ex) { _logger.LogDebug(ex, "Parse JSON fallback anioReal ws {WorkspaceId}", r.WorkspaceId); continue; }
+            if (root.ValueKind != JsonValueKind.Object) continue;
+
+            var anioReal = ExtraerAnioRealLicitacion(root) ?? r.CreadoEn.Year;
+            if (anioReal != anioObjetivo)
+                continue;
+
+            var key = r.LicitacionId.HasValue && r.LicitacionId.Value > 0
+                ? $"lic_{r.LicitacionId.Value}"
+                : $"ws_{r.WorkspaceId}";
+            if (!vistos.Add(key))
+                continue;
+
+            totalDistintas++;
+
+            bool tivitGano = false;
+            decimal? montoAdj = null;
+
+            if (root.TryGetProperty("analisis_tivit", out var at) && at.ValueKind == JsonValueKind.Object)
+            {
+                tivitGano = at.TryGetProperty("es_ganador", out var eg) && eg.ValueKind == JsonValueKind.True;
+            }
+
+            if (root.TryGetProperty("adjudicacion", out var adj) && adj.ValueKind == JsonValueKind.Object)
+            {
+                if (adj.TryGetProperty("adjudicatario", out var adjt) && adjt.ValueKind == JsonValueKind.Object)
+                {
+                    montoAdj = adjt.TryGetProperty("monto_adjudicado", out var ma) && ma.ValueKind == JsonValueKind.Number
+                        ? (decimal?)ma.GetDecimal()
+                        : null;
+                }
+            }
+
+            if (tivitGano)
+                montoGanado += montoAdj ?? 0m;
+        }
+
+        return (montoGanado, totalDistintas > 0);
+    }
+
+    private static bool EsResultadoGanador(string? resultado, string nombre, string? rut, string? adjNombre, string? adjRut)
+    {
+        if (!string.IsNullOrWhiteSpace(resultado))
+        {
+            var r = resultado.Trim();
+            if (r.StartsWith("no ", StringComparison.OrdinalIgnoreCase) ||
+                r.Contains("no adjudicad", StringComparison.OrdinalIgnoreCase) ||
+                r.Contains("inadmisible", StringComparison.OrdinalIgnoreCase) ||
+                r.Contains("rechazad", StringComparison.OrdinalIgnoreCase) ||
+                r.Contains("descartad", StringComparison.OrdinalIgnoreCase) ||
+                r.Contains("desiert", StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+            if (r.Contains("adjudicado", StringComparison.OrdinalIgnoreCase) ||
+                r.Contains("adjudicada", StringComparison.OrdinalIgnoreCase) ||
+                r.Contains("ganador", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(adjRut) && !string.IsNullOrWhiteSpace(rut) &&
+            string.Equals(adjRut.Trim(), rut.Trim(), StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (!string.IsNullOrWhiteSpace(adjNombre) && !string.IsNullOrWhiteSpace(nombre) &&
+            (adjNombre.Contains(nombre, StringComparison.OrdinalIgnoreCase) || nombre.Contains(adjNombre, StringComparison.OrdinalIgnoreCase)))
+        {
+            return true;
+        }
+
+        return false;
     }
 }

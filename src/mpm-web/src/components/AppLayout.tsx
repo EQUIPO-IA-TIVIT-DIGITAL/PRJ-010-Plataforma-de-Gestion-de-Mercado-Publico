@@ -4,7 +4,8 @@ import {
   FileTextOutlined, BarChartOutlined, BellOutlined, MessageOutlined,
   LogoutOutlined, DatabaseOutlined, MenuFoldOutlined, MenuUnfoldOutlined,
   UserOutlined, SettingOutlined, DownOutlined, NotificationOutlined, TeamOutlined,
-  SendOutlined, LockOutlined,
+  SendOutlined, LockOutlined, AuditOutlined, SafetyCertificateOutlined,
+  StarFilled,
 } from '@ant-design/icons';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
@@ -15,7 +16,17 @@ import { AnalisisCompletionWatcher } from './AnalisisCompletionWatcher';
 
 const { Sider, Content } = Layout;
 
-const NAV_ITEMS = [
+type NavItem = {
+  key: string;
+  icon: React.ReactNode;
+  label: string;
+  badge: string | null;
+  disabled?: boolean;
+  adminOnly?: boolean;
+  section?: string;
+};
+
+const NAV_ITEMS: NavItem[] = [
   { key: '/licitaciones', icon: <FileTextOutlined />, label: 'Licitaciones', badge: null },
   { key: '/catalogos', icon: <DatabaseOutlined />, label: 'Catálogos', badge: null },
   { key: '/analisis', icon: <BarChartOutlined />, label: 'Análisis', badge: null },
@@ -24,6 +35,10 @@ const NAV_ITEMS = [
   { key: '/notificaciones', icon: <BellOutlined />, label: 'Notificaciones', disabled: false, badge: null },
   { key: '/alertas', icon: <NotificationOutlined />, label: 'Alertas', badge: null },
   { key: '/competidores', icon: <TeamOutlined />, label: 'Competidores', badge: null },
+  // Centro de Administración — visible para Admin y SuperAdmin.
+  { key: '/admin/usuarios', icon: <SafetyCertificateOutlined />, label: 'Usuarios', adminOnly: true, section: 'Administración', badge: null },
+  { key: '/admin/logs', icon: <AuditOutlined />, label: 'Logs y actividad', adminOnly: true, section: 'Administración', badge: null },
+  { key: '/admin/config-ia', icon: <SettingOutlined />, label: 'Admin IA', adminOnly: true, section: 'Administración', badge: null },
 ];
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
@@ -336,7 +351,13 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           >
             {!collapsed && 'Navegación'}
           </div>
-          {NAV_ITEMS.map((item) => {
+          {(() => {
+            const esAdmin = user?.roles?.includes('SuperAdmin') || user?.roles?.includes('Admin');
+            const nodes: React.ReactNode[] = [];
+            let lastSection: string | null = null;
+            NAV_ITEMS
+              .filter((item) => !item.adminOnly || esAdmin)
+              .forEach((item) => {
             const hasMoreSpecificMatch = NAV_ITEMS.some(
               other => other.key !== item.key &&
                 other.key.startsWith(item.key) &&
@@ -410,12 +431,35 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
               </div>
             );
 
-            return collapsed ? (
-              <Tooltip key={item.key} title={item.label} placement="right">
-                {navItem}
-              </Tooltip>
-            ) : navItem;
-          })}
+            if (item.section && item.section !== lastSection) {
+              lastSection = item.section;
+              nodes.push(
+                <div
+                  key={`section-${item.section}`}
+                  style={{
+                    padding: collapsed ? '0' : '0 10px 8px',
+                    fontSize: 10,
+                    fontWeight: 600,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.1em',
+                    color: '#94a3b8',
+                    marginTop: 8,
+                  }}
+                >
+                  {!collapsed && item.section}
+                </div>
+              );
+            }
+            nodes.push(
+              collapsed ? (
+                <Tooltip key={item.key} title={item.label} placement="right">
+                  {navItem}
+                </Tooltip>
+              ) : navItem
+            );
+            });
+            return nodes;
+          })()}
         </nav>
 
         {/* User info */}
@@ -493,6 +537,26 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             gap: 8,
           }}
         >
+          {/* Quick link: Licitaciones Seguidas */}
+          <Tooltip title="Ver mis licitaciones seguidas">
+            <Button
+              type="text"
+              icon={<StarFilled style={{ color: '#f59e0b', fontSize: 16 }} />}
+              onClick={() => navigate('/licitaciones?vista=seguidas')}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                fontWeight: 600,
+                color: '#334155',
+                padding: '4px 10px',
+                borderRadius: 8,
+              }}
+            >
+              Seguidas
+            </Button>
+          </Tooltip>
+
           {/* Notification bell */}
           <NotificationBell />
 

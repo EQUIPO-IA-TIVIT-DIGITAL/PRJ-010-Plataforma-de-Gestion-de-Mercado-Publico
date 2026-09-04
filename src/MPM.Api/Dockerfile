@@ -5,6 +5,8 @@ COPY src/MPM.Api/MPM.Api.csproj src/MPM.Api/
 COPY src/MPM.Shared/MPM.Shared.csproj src/MPM.Shared/
 COPY src/MPM.Core/MPM.Core.csproj src/MPM.Core/
 COPY src/MPM.Modules.Licitaciones/MPM.Modules.Licitaciones.csproj src/MPM.Modules.Licitaciones/
+COPY src/MPM.Modules.Censo/MPM.Modules.Censo.csproj src/MPM.Modules.Censo/
+COPY src/MPM.Modules.Propuestas/MPM.Modules.Propuestas.csproj src/MPM.Modules.Propuestas/
 COPY src/MPM.Modules.Catalogo/MPM.Modules.Catalogo.csproj src/MPM.Modules.Catalogo/
 COPY src/MPM.Modules.Mensajeria/MPM.Modules.Mensajeria.csproj src/MPM.Modules.Mensajeria/
 COPY src/MPM.Modules.Auth/MPM.Modules.Auth.csproj src/MPM.Modules.Auth/
@@ -13,6 +15,7 @@ COPY src/MPM.Modules.Notificaciones/MPM.Modules.Notificaciones.csproj src/MPM.Mo
 COPY src/MPM.Modules.Alertas/MPM.Modules.Alertas.csproj src/MPM.Modules.Alertas/
 COPY src/MPM.Modules.Competidores/MPM.Modules.Competidores.csproj src/MPM.Modules.Competidores/
 COPY src/MPM.Modules.Colaboracion/MPM.Modules.Colaboracion.csproj src/MPM.Modules.Colaboracion/
+COPY src/MPM.Modules.Administracion/MPM.Modules.Administracion.csproj src/MPM.Modules.Administracion/
 COPY MPM.sln .
 RUN dotnet restore src/MPM.Api/MPM.Api.csproj
 

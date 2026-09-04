@@ -80,6 +80,7 @@ API_IMAGE="${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT}/${ARTIFACT_REPO}/mpm-api:
 WEB_IMAGE="${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT}/${ARTIFACT_REPO}/mpm-web:${IMAGE_TAG}"
 
 DB_NAME="${DB_NAME:-mpm}"
+REDIS_HOST="${REDIS_HOST:-172.31.85.91}"
 REDIS_PORT="${REDIS_PORT:-6379}"
 GCS_BUCKET="${GCS_BUCKET:-tivit-cu010-mpm-adjuntos}"
 
@@ -182,7 +183,7 @@ common_app_env_vars() {
   # DB_SSL=true: consumido por tools/scraper-mp-v2/modulos/db.js (el Pool crudo de node-postgres
   # del scraper, separado de ConnectionStrings__PostgreSQL de .NET) -- Cloud SQL exige TLS.
   # Sin efecto en .NET ni en Docker Compose local (docker-compose.yml no setea esta variable).
-  echo "ASPNETCORE_URLS=http://+:80##ConnectionStrings__Redis=${REDIS_HOST}:${REDIS_PORT}##Storage__Provider=gcs##Storage__Bucket=${GCS_BUCKET}##GOOGLE_CLOUD_PROJECT=${GCP_PROJECT}##Vertex__Region=${GCP_REGION}##JWT__Issuer=TIVIT.MPM##JWT__Audience=MPM.Users##Cors__AllowedOrigins=${cors_origins}##Telegram__BotUsername=${TELEGRAM_BOT_USERNAME}##Smtp__Host=${smtp_host}##Smtp__Port=${smtp_port}##Smtp__Username=${smtp_username}##Smtp__FromEmail=${smtp_from_email}##Smtp__FromName=${smtp_from_name}##Smtp__EnableSsl=${smtp_enable_ssl}##DB_SSL=true"
+  echo "ASPNETCORE_URLS=http://+:80##ConnectionStrings__Redis=${REDIS_HOST}:${REDIS_PORT}##Storage__Provider=gcs##Storage__Bucket=${GCS_BUCKET}##GOOGLE_CLOUD_PROJECT=${GCP_PROJECT}##Vertex__Region=${GCP_REGION}##JWT__Issuer=TIVIT.MPM##JWT__Audience=MPM.Users##Cors__AllowedOrigins=${cors_origins}##Telegram__BotUsername=${TELEGRAM_BOT_USERNAME}##Smtp__Host=${smtp_host}##Smtp__Port=${smtp_port}##Smtp__Username=${smtp_username}##Smtp__FromEmail=${smtp_from_email}##Smtp__FromName=${smtp_from_name}##Smtp__EnableSsl=${smtp_enable_ssl}##DB_SSL=true##Scraper__CompetidorMercadoScriptPath=/app/tools/competidor-mercado.js"
 }
 
 # Telegram__BotToken/WebhookSecret opcionales -- si no existen todavía en Secret Manager (p.ej.
@@ -233,6 +234,7 @@ deploy_api() {
     --no-cpu-throttling \
     --allow-unauthenticated \
     --port=80 \
+    --startup-probe=tcpSocket.port=80,timeoutSeconds=60,periodSeconds=240,failureThreshold=10 \
     --set-env-vars="^##^RUN_INPROCESS_WORKERS=false##$(common_app_env_vars)" \
     --set-secrets="$(common_app_secrets)"
 }

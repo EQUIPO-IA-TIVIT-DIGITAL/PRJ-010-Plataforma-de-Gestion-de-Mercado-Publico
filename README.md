@@ -35,6 +35,25 @@ El seguimiento de licitaciones en Mercado Público es hoy un proceso manual: rev
 - Chat interno en tiempo real (SignalR)
 - Centro de notificaciones in-app
 
+### Administración (Admin / SuperAdmin)
+- Gestión de usuarios: creación con contraseña temporal, roles, activación/desactivación
+- Jerarquía de roles: **SuperAdmin** gestiona Admins y SuperAdmins; **Admin** gestiona Analistas y Usuarios
+- Logs y actividad del sistema: inicios de sesión, sincronizaciones, scraper, extracción de documentos y cambios de proveedor de IA
+- Switch de proveedor de IA (Gemini ↔ Qwen) — solo SuperAdmin
+
+## Roles
+
+| Rol | Acceso |
+|-----|--------|
+| **SuperAdmin** | Todo: gestión de usuarios (incl. Admins/SuperAdmins), logs, proveedor de IA |
+| **Admin** | Crea/gestiona Analistas y Usuarios, ve logs y resumen del sistema |
+| **Analista** | Toda la plataforma (licitaciones, análisis, alertas, competidores, mensajería) |
+| **Usuario** | Toda la plataforma (hoy con los mismos permisos que Analista) |
+
+> Nota: Analista y Usuario tienen hoy permisos idénticos; la diferenciación es
+> organizacional y queda lista para restricciones futuras. Los seeds de demo
+> incluyen `admin@tivit.cl` (SuperAdmin) y `analista@tivit.cl` (Analista).
+
 ## Tecnologías
 
 **Backend**
@@ -58,6 +77,20 @@ El seguimiento de licitaciones en Mercado Público es hoy un proceso manual: rev
 - Docker Compose (Postgres, Redis, API, Web) para desarrollo local
 - Despliegue en GCP (Cloud Run + Cloud Run Jobs), almacenamiento de adjuntos en Google Cloud Storage
 
+## Skills locales del framework (adicionales a TIVIT Foundry)
+
+Este proyecto mantiene skills propias en `.opencode/skills/` que no vienen en el repo del
+framework (se restauran después de cada `update-framework.ps1`):
+
+| Skill | Uso |
+|-------|-----|
+| `changelog` | Entradas en CHANGELOG.md formato keepachangelog |
+| `database` | Convenciones SQL del proyecto (schemas, naming, errores) |
+| `dotnet-gateway` | Patrones de API Gateway con Ocelot (.NET) |
+| `react-hooks` | Patrones de hooks React (Query/Mutation con TanStack Query) |
+| `skill-sync` | Regenerar SKILLS-MANIFEST.md tras crear/modificar skills |
+| `swagger` | Generación y mantención de OpenAPI/Swagger |
+
 ## Arquitectura
 
 Monolito modular: cada dominio de negocio es una librería de clases independiente con su propio `Controllers/`, `Services/`, `Data/` y `Models/`, registrada vía `AddXxxModule()` en `Program.cs`.
@@ -73,6 +106,7 @@ MPM.Modules.Analisis        Workspace de análisis de documentos + IA
 MPM.Modules.Notificaciones  Notificaciones in-app
 MPM.Modules.Alertas         Alertas por keyword, entrega multicanal
 MPM.Modules.Competidores    Inteligencia de competidores
+MPM.Modules.Administracion  Centro de administración (usuarios, roles, logs)
 ```
 
 Detalle técnico completo (flujos de datos, background services, convenciones) en [CLAUDE.md](CLAUDE.md).

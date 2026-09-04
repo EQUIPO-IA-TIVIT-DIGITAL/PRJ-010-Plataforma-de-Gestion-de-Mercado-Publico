@@ -21,11 +21,12 @@ public class LicitacionService(
         int page, int pageSize, string? search, short? estado, string? tipo, string? organismo,
         DateTime? fechaDesde, DateTime? fechaHasta, string sortBy, string sortDir,
         short? area = null, bool? sinClasificar = null,
+        decimal? montoDesde = null, decimal? montoHasta = null,
         CancellationToken ct = default)
     {
         return await licitacionHandler.ListarAsync(
             page, pageSize, search, estado, tipo, organismo,
-            fechaDesde, fechaHasta, sortBy, sortDir, area, sinClasificar, ct);
+            fechaDesde, fechaHasta, sortBy, sortDir, area, sinClasificar, montoDesde, montoHasta, ct);
     }
 
     // US2 (spec 031)
@@ -91,7 +92,8 @@ public class LicitacionService(
             FechaCierre = DateTime.TryParse(fechas?.FechaCierre, out var fc) ? fc : existing.FechaCierre,
             FechaAdjudicacion = DateTime.TryParse(fechas?.FechaAdjudicacion, out var fa) ? fa : existing.FechaAdjudicacion,
             FechaEstimadaAdjudicacion = DateTime.TryParse(fechas?.FechaEstimadaAdjudicacion, out var fea) ? fea : existing.FechaEstimadaAdjudicacion,
-            Link = $"https://www.mercadopublico.cl/Procurement/Modules/RFB/DetailsAcquisition.aspx?qs=/{api.CodigoExterno}",
+            // V138: ?idlicitacion= es la URL PUBLICA de la ficha (sin login) -- ver ApiMpService.
+            Link = $"https://www.mercadopublico.cl/Procurement/Modules/RFB/DetailsAcquisition.aspx?idlicitacion={api.CodigoExterno}",
             Items = api.Items?.Select(i => new LicitacionItemDto
             {
                 Codigo = i.Correlativo ?? i.CodigoProducto.GetHashCode(),

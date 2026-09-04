@@ -4,13 +4,19 @@ Sincronizado con los pasos numerados `[n]` de `demo-mpm.js`. Cada bloque es lo q
 la voz automatizada debería decir mientras el script ejecuta ese paso. Los tiempos
 son orientativos (ajustar según la velocidad real de la voz).
 
+> **Alcance del demo:** el Módulo de Análisis con IA se muestra sobre un workspace
+> **ya cargado** (no se sube ni descarga una licitación nueva). La **Sala de Oferta**
+> queda fuera porque su primera etapa depende de la descarga bajo demanda de
+> documentos desde Mercado Público, actualmente bloqueada desde IPs de datacenter.
+
 ---
 
 **[Intro, antes de [1]]**
 > "Esta es la Plataforma de Gestión de Mercado Público de TIVIT: sincroniza
-> automáticamente las licitaciones publicadas, las analiza con inteligencia
-> artificial, y avisa proactivamente sobre nuevas oportunidades y movimientos
-> de la competencia. Vamos a recorrerla en vivo."
+> automáticamente las licitaciones publicadas, clasifica las oportunidades
+> según nuestras áreas de negocio, entiende búsquedas complejas con
+> inteligencia artificial, y avisa proactivamente sobre nuevas oportunidades
+> y movimientos de la competencia. Vamos a recorrerla en vivo."
 
 **[1] Login**
 > "Empezamos iniciando sesión con una cuenta de administrador."
@@ -49,49 +55,46 @@ son orientativos (ajustar según la velocidad real de la voz).
 > "Y en esta otra pestaña está el listado completo de licitaciones
 > analizadas, con su resultado y quién se la adjudicó."
 
-**[7] Análisis — listado de workspaces**
-> "Acá está el módulo de análisis: cada licitación adjudicada se convierte en
-> un 'workspace' donde se suben los documentos de evaluación en PDF."
+**[7] Análisis con IA — workspace ya cargado**
+> "Acá está el módulo de análisis. Abrimos un workspace previamente cargado:
+> vemos la validación documental de los documentos de evaluación y el tablero
+> comparativo de resultados de la inteligencia artificial."
 
-**[8] Abrir un workspace**
-> "Dentro de cada workspace vemos los documentos cargados — actas de
-> adjudicación, informes técnicos — listos para ser analizados."
-
-**[9] Dashboard de resultados IA**
-> "Y este es el resultado del análisis con Gemini: puntaje de TIVIT versus el
+**[8] Dashboard comparativo de resultados IA**
+> "Este es el resultado del análisis con Gemini: puntaje de TIVIT versus el
 > ganador, brecha de puntos, diferencia de monto ofertado, y el ranking final
 > entre todos los oferentes."
 
-**[10] Chat contextual con IA**
+**[9] Chat contextual con IA**
 > "También se puede conversar directamente con los resultados. Le preguntamos
 > cuál fue el factor más importante de la pérdida, y la IA responde con el
 > detalle exacto: en qué criterio se perdió puntaje y por qué."
 
-**[11] Mensajería**
+**[10] Mensajería**
 > "La plataforma incluye mensajería interna en tiempo real, para que el
 > equipo comente licitaciones específicas sin salir de ella."
 
-**[12] Notificaciones**
+**[11] Notificaciones**
 > "El centro de notificaciones agrupa todo lo que el sistema detecta solo:
-> nuevas licitaciones que calzan con las alertas configuradas, resultados de
-> scraping y aclaraciones."
+> nuevas licitaciones que calzan con las alertas configuradas, resultados
+> de scraping y aclaraciones."
 
-**[13] Alertas inteligentes**
+**[12] Alertas inteligentes**
 > "Y esto es lo más particular del sistema: las alertas por palabra clave no
 > son búsquedas literales. Creamos una alerta con la palabra 'ciberseguridad'
 > y la IA la expande automáticamente a sinónimos y conceptos relacionados —
 > seguridad informática, protección de datos, defensa digital — así no se
 > escapa ninguna licitación relevante aunque use otro término."
 
-**[14] Catálogos**
+**[13] Catálogos**
 > "Por último, el módulo de catálogos centraliza los datos de referencia del
 > sistema: estados, tipos de licitación y monedas."
 
 **[Cierre]**
 > "Eso es la Plataforma de Gestión de Mercado Público: sincronización
-> automática, análisis con inteligencia artificial, alertas inteligentes y
-> mensajería, todo en un solo lugar para no perder ninguna oportunidad en
-> Mercado Público."
+> automática, búsqueda inteligente con inteligencia artificial, alertas
+> inteligentes y mensajería, todo en un solo lugar para no perder ninguna
+> oportunidad en Mercado Público."
 
 ---
 
@@ -109,12 +112,17 @@ son orientativos (ajustar según la velocidad real de la voz).
   `NARRATION_MS`.
 - Duración total estimada del recorrido con las pausas ya sincronizadas:
   ~3.5–4.5 minutos (varía según la latencia real de red y de las llamadas a
-  Gemini en los pasos [5], [10] y [13]).
+  Gemini en los pasos [5] y [9]).
 - Puntos donde el script espera más tiempo por una llamada real a Gemini
-  además de la narración: pasos **[5]**, **[10]** y **[13]** — el margen ya
-  incluido en `NARRATION_MS` cubre tanto la narración como esa espera.
+  además de la narración: pasos **[5]** y **[9]** — el margen ya incluido en
+  `NARRATION_MS` cubre tanto la narración como esa espera.
 - El paso **[4]** (seguir licitación) puede fallar silenciosamente si el
   ícono cambió de posición en un futuro rediseño; si eso pasa, el script
   sigue sin romperse pero conviene recortar esa frase del audio en edición.
 - Grabar en una resolución de al menos 1440×900 para que el texto de las
   tablas se lea bien.
+- **Excluido del demo:** la **Sala de Oferta** (bases, análisis IA de pliegos,
+  capacidades, decisión GO/NO GO, propuesta DOCX) depende de la descarga de
+  documentos desde Mercado Público, actualmente bloqueada desde IPs de
+  datacenter. El Módulo de Análisis con IA sí se muestra, pero sobre un
+  workspace **ya cargado** (sin subir ni descargar documentos nuevos).

@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -9,21 +10,130 @@ namespace MPM.Shared.Services;
 /// <summary>
 /// Cliente compartido de Gemini vía Vertex AI (autenticado con ADC, ver
 /// <see cref="GoogleAdcTokenProvider"/>), usado por MPM.Modules.Analisis y
-/// MPM.Modules.Competidores. Antes de 029-fix-hallazgos-code-review-competidores-alertas cada
-/// módulo tenía su propia copia de este armado/parseo de request -- lo que dejó a Competidores
-/// con un <c>maxOutputTokens</c> desincronizado del valor que Análisis ya había subido a 65536
-/// para corregir un bug de truncamiento real. Centralizar acá evita que ese tipo de fix quede
-/// aplicado en un solo lugar.
+/// MPM.Modules.Competidores. 037-C: instrumentado con trazabilidad OTel (Activity llm.call),
+/// métricas mpm_llm_* y persistencia llm_usage via LlmUsageService (nunca rompe flujo LLM).
 /// </summary>
-public class VertexGeminiClient(HttpClient httpClient, IConfiguration config, GoogleAdcTokenProvider tokenProvider, ILogger<VertexGeminiClient> logger)
+public class VertexGeminiClient(
+    HttpClient httpClient,
+    IConfiguration config,
+    GoogleAdcTokenProvider tokenProvider,
+    ILogger<VertexGeminiClient> logger,
+    LlmUsageService? llmUsageService = null) : ILlmClient, IConfigurableLlmClient
 {
-    /// <summary>
-    /// Límite de tokens de salida validado en producción para respuestas JSON estructuradas de
-    /// Gemini (fue subido desde un valor menor tras un bug de truncamiento documentado). Los
-    /// callers deben usar esta constante en su <c>generationConfig.maxOutputTokens</c> en vez de
-    /// hardcodear su propio número.
-    /// </summary>
     public const int DefaultMaxOutputTokens = 65536;
+    public const string DefaultModelName = "gemini-2.5-pro";
+
+    private string? _modelOverride;
+
+    public string ModelName => _modelOverride ?? config["AI:Model"] ?? DefaultModelName;
+
+    public void ApplySettings(string? endpoint, string model)
+    {
+        if (!string.IsNullOrWhiteSpace(model))
+            _modelOverride = model;
+    }
+
+    public async Task<LlmResult> GenerarContenidoAsync(LlmRequest request, CancellationToken ct = default)
+    {
+        // 037-C: start Activity llm.call con tags provider/modelo (sin PII) y medir latencia
+        var sw = Stopwatch.StartNew();
+        var activity = StartLlmActivity("gemini", ModelName);
+        VertexGeminiResult? innerResult = null;
+        try
+        {
+            innerResult = await GenerarContenidoAsync(ModelName, BuildRequestBody(request), ct);
+            var result = new LlmResult(
+                innerResult.Text,
+                innerResult.RawResponse,
+                new LlmUsage(innerResult.Usage.PromptTokenCount, innerResult.Usage.CandidatesTokenCount, innerResult.Usage.TotalTokenCount),
+                innerResult.FinishReason);
+            activity?.SetTag("llm.prompt_tokens", innerResult.Usage.PromptTokenCount);
+            activity?.SetTag("llm.completion_tokens", innerResult.Usage.CandidatesTokenCount);
+            activity?.SetStatus(ActivityStatusCode.Ok);
+            return result;
+        }
+        catch (Exception ex)
+        {
+            activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
+            activity?.AddEvent(new ActivityEvent("exception", tags: new ActivityTagsCollection { ["exception.message"] = ex.Message }));
+            throw;
+        }
+        finally
+        {
+            sw.Stop();
+            activity?.SetTag("llm.latency_ms", sw.ElapsedMilliseconds);
+            activity?.Dispose();
+            // Persistir llm_usage + métricas (OBS-R008: nunca debe romper flujo LLM)
+            if (innerResult != null)
+            {
+                try
+                {
+                    var traceId = Activity.Current?.TraceId.ToString() ?? Guid.NewGuid().ToString("N");
+                    if (llmUsageService != null)
+                    {
+                        // fire-and-forget sin bloquear (await but swallow exceptions inside service)
+                        await llmUsageService.RegistrarAsync(
+                            traceId, "gemini", ModelName,
+                            innerResult.Usage.PromptTokenCount, innerResult.Usage.CandidatesTokenCount,
+                            (int)sw.ElapsedMilliseconds, null, null, ct);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    logger.LogWarning(ex, "VertexGeminiClient: fallo al registrar llm_usage (no crítico) modelo {Modelo}", ModelName);
+                }
+            }
+            else
+            {
+                // Si no hay innerResult (excepción antes de usage), aún registrar latencia con 0 tokens
+                try
+                {
+                    if (llmUsageService != null)
+                    {
+                        var traceId = Activity.Current?.TraceId.ToString() ?? Guid.NewGuid().ToString("N");
+                        await llmUsageService.RegistrarAsync(traceId, "gemini", ModelName, 0, 0, (int)sw.ElapsedMilliseconds, null, null, ct);
+                    }
+                }
+                catch (Exception ex) { logger.LogDebug(ex, "VertexGeminiClient fallback llm_usage sin innerResult modelo {Modelo}", ModelName); }
+            }
+        }
+    }
+
+    private static object BuildRequestBody(LlmRequest request)
+    {
+        var body = new Dictionary<string, object?>
+        {
+            ["contents"] = request.Messages.Select(m => new
+            {
+                role = m.Role == "assistant" ? "model" : m.Role,
+                parts = m.Parts.Select(ToGeminiPart).ToArray()
+            }).ToArray()
+        };
+
+        if (!string.IsNullOrWhiteSpace(request.SystemInstruction))
+            body["systemInstruction"] = new { parts = new[] { new { text = request.SystemInstruction } } };
+
+        var generationConfig = new Dictionary<string, object?>
+        {
+            ["temperature"] = request.Temperature,
+            ["maxOutputTokens"] = request.MaxOutputTokens
+        };
+        if (request.JsonResponse)
+            generationConfig["responseMimeType"] = "application/json";
+        body["generationConfig"] = generationConfig;
+
+        return body;
+    }
+
+    private static object ToGeminiPart(LlmPart part) => part switch
+    {
+        LlmTextPart t => new { text = t.Text },
+        LlmPdfPart p when !string.IsNullOrWhiteSpace(p.GcsUri) =>
+            new { fileData = new { mimeType = "application/pdf", fileUri = p.GcsUri } },
+        LlmPdfPart p =>
+            new { inlineData = new { mimeType = "application/pdf", data = Convert.ToBase64String(p.PdfBytes) } },
+        _ => throw new ArgumentOutOfRangeException(nameof(part), part, "Tipo de LlmPart no soportado por Gemini")
+    };
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -38,18 +148,6 @@ public class VertexGeminiClient(HttpClient httpClient, IConfiguration config, Go
     private string EndpointFor(string model) =>
         $"https://{Region}-aiplatform.googleapis.com/v1/projects/{ProjectId}/locations/{Region}/publishers/google/models/{model}:generateContent";
 
-    /// <summary>
-    /// Arma y envía la solicitud a Vertex AI, y parsea la respuesta. <paramref name="requestBody"/>
-    /// es el objeto completo (<c>contents</c>, <c>generationConfig</c>, opcionalmente
-    /// <c>systemInstruction</c>) -- cada caller sigue controlando su propio prompt/config, este
-    /// cliente solo centraliza auth, envío, manejo de errores y parseo de la respuesta.
-    /// </summary>
-    /// <exception cref="GeminiRespuestaBloqueadaException">
-    /// Cuando Vertex AI responde sin <c>candidates</c> (ej. contenido bloqueado por el filtro de
-    /// seguridad) -- antes de esta unificación, Análisis silenciaba este caso devolviendo texto
-    /// vacío y Competidores lo dejaba propagarse como excepción no controlada; ahora ambos
-    /// reciben el mismo error tipado y deciden cómo manejarlo.
-    /// </exception>
     public async Task<VertexGeminiResult> GenerarContenidoAsync(string model, object requestBody, CancellationToken ct = default)
     {
         var token = await tokenProvider.GetAccessTokenAsync(ct);
@@ -94,7 +192,6 @@ public class VertexGeminiClient(HttpClient httpClient, IConfiguration config, Go
 
         var finishReason = first.TryGetProperty("finishReason", out var fr) ? fr.GetString() ?? "" : "";
 
-        // Strip markdown code fences si Gemini envuelve el JSON en ```json ... ```
         if (text.StartsWith("```"))
         {
             var newline = text.IndexOf('\n');
@@ -102,7 +199,6 @@ public class VertexGeminiClient(HttpClient httpClient, IConfiguration config, Go
             if (newline >= 0 && lastFence > newline)
                 text = text[(newline + 1)..lastFence].Trim();
         }
-        // Asegura que el texto arranque en el primer '{' o '[' (quita cualquier preámbulo)
         var jsonStart = text.IndexOfAny(['{', '[']);
         if (jsonStart > 0)
             text = text[jsonStart..];
@@ -123,6 +219,42 @@ public class VertexGeminiClient(HttpClient httpClient, IConfiguration config, Go
             RawResponse = json
         };
     }
+
+    private Activity? StartLlmActivity(string provider, string modelo)
+    {
+        try
+        {
+            // Intentar reusar MpmActivitySource.Instance via reflection (sin dependencia compile-time a MPM.Core)
+            foreach (var asm in AppDomain.CurrentDomain.GetAssemblies())
+            {
+                var t = asm.GetType("MPM.Core.Observability.MpmActivitySource");
+                if (t != null)
+                {
+                    var instProp = t.GetProperty("Instance");
+                    var src = instProp?.GetValue(null) as ActivitySource;
+                    if (src != null)
+                    {
+                        var act = src.StartActivity("llm.call", ActivityKind.Internal);
+                        act?.SetTag("llm.provider", provider);
+                        act?.SetTag("llm.modelo", modelo);
+                        act?.SetTag("llm.system", provider);
+                        return act;
+                    }
+                }
+            }
+            // Fallback: source local con mismo nombre
+            var fallback = new ActivitySource("MPM.Api", "1.0.0");
+            var a = fallback.StartActivity("llm.call", ActivityKind.Internal);
+            a?.SetTag("llm.provider", provider);
+            a?.SetTag("llm.modelo", modelo);
+            return a;
+        }
+        catch (Exception ex)
+        {
+            logger.LogDebug(ex, "StartLlmActivity fallback");
+            return null;
+        }
+    }
 }
 
 public class VertexGeminiResult
@@ -140,12 +272,4 @@ public class VertexGeminiUsage
     public int TotalTokenCount { get; set; }
 }
 
-/// <summary>
-/// Gemini respondió sin <c>candidates</c> -- típicamente el contenido fue bloqueado por el
-/// filtro de seguridad de Vertex AI. Es un caso esperable y recuperable (el usuario puede
-/// reintentar o el contenido simplemente no es analizable), no un error interno del sistema.
-/// </summary>
-public class GeminiRespuestaBloqueadaException(string message, string rawResponse) : Exception(message)
-{
-    public string RawResponse { get; } = rawResponse;
-}
+public class GeminiRespuestaBloqueadaException(string message, string rawResponse) : LlmRespuestaBloqueadaException(message, rawResponse);

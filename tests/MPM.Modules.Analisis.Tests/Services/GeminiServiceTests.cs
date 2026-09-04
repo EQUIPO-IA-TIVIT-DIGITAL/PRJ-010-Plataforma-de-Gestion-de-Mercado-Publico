@@ -4,6 +4,7 @@ using FluentAssertions;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
+using MPM.Core.SystemConfig;
 using MPM.Modules.Analisis.Services;
 using MPM.Shared.Services;
 using Xunit;
@@ -30,20 +31,44 @@ public class GeminiServiceTests
         return mock.Object;
     }
 
-    // 029-fix-hallazgos-code-review-competidores-alertas: armado de request/auth/parseo vive
-    // ahora en VertexGeminiClient (MPM.Shared), compartido con CompetidorGeminiService -- se
-    // construye acá con el mismo HttpClient fake para no perder cobertura sobre GeminiService.
+    // 033-migracion-qwen-g4: GeminiService ya no recibe VertexGeminiClient directo -- recibe
+    // LlmClientResolver (que se mockea para devolver el VertexGeminiClient real con el mismo
+    // HttpClient fake, preservando la cobertura de armado/parseo del request).
     private static GeminiService BuildService(HttpMessageHandler handler)
     {
         var httpClient = new HttpClient(handler);
         var vertexClient = new VertexGeminiClient(httpClient, BuildConfig(), FakeTokenProvider(), NullLogger<VertexGeminiClient>.Instance);
-        return new GeminiService(vertexClient, NullLogger<GeminiService>.Instance);
+        var resolver = new Mock<LlmClientResolver>(null!, null!, NullLogger<LlmClientResolver>.Instance);
+        resolver.Setup(r => r.GetClientAsync(It.IsAny<CancellationToken>())).ReturnsAsync(vertexClient);
+        return new GeminiService(resolver.Object, NullLogger<GeminiService>.Instance);
     }
 
     [Fact]
     public void ModelName_ShouldBeGemini25Pro()
     {
         GeminiService.ModelName.Should().Be("gemini-2.5-pro");
+    }
+
+    [Fact]
+    public async Task GetModelNameAsync_ReturnsActiveClientModel()
+    {
+        var handler = new StubHttpMessageHandler("""{ "candidates": [{ "content": { "parts": [{ "text": "ok" }] } }] }""", HttpStatusCode.OK);
+        var service = BuildService(handler);
+
+        var model = await service.GetModelNameAsync();
+
+        model.Should().Be("gemini-2.5-pro");
+    }
+
+    [Fact]
+    public async Task AnalyzeDocumentosAsync_RecordsModelNameUsed()
+    {
+        var handler = new StubHttpMessageHandler("""{ "candidates": [{ "content": { "parts": [{ "text": "{}" }] } }] }""", HttpStatusCode.OK);
+        var service = BuildService(handler);
+
+        var result = await service.AnalyzePdfAsync(new byte[] { 1, 2, 3 }, "doc.pdf", gcsUri: null);
+
+        result.ModelName.Should().Be("gemini-2.5-pro");
     }
 
     [Fact]

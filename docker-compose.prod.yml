@@ -54,6 +54,10 @@ services:
       - MP_HEADLESS=true
       - MP_FECHA_DESDE=${MP_FECHA_DESDE:-01-01-2025}
       - API_BASE_URL=http://localhost:80
+      # 037-C observabilidad LLM y OTel (prod: OTLP hacia Cloud Trace tivit-cu010)
+      - Otlp__Enabled=${OTLP_ENABLED:-true}
+      - Otlp__Endpoint=${OTLP_ENDPOINT:-https://otel-collector.tivit-cu010:4317}
+      - Langfuse__Enabled=${LANGFUSE_ENABLED:-false}
       # Monitor de aclaraciones
       - MONITOR_ENABLED=${MONITOR_ENABLED:-true}
       - MONITOR_INTERVAL_MINUTES=${MONITOR_INTERVAL_MINUTES:-30}

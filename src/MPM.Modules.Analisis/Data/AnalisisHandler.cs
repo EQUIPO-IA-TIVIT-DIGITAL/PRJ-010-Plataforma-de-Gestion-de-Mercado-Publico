@@ -194,7 +194,7 @@ public class AnalisisHandler(DbConnectionFactory dbFactory)
             commandType: CommandType.Text);
     }
 
-    public async Task<IEnumerable<ResultadoCompletoDto>> ObtenerResultadosCompletosAsync(int? anio, CancellationToken ct = default)
+    public virtual async Task<IEnumerable<ResultadoCompletoDto>> ObtenerResultadosCompletosAsync(int? anio, CancellationToken ct = default)
     {
         await using var conn = _dbFactory.Create();
         return await conn.QueryAsync<ResultadoCompletoDto>(

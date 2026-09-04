@@ -70,13 +70,22 @@ services:
       - Scraper__Enabled=${SCRAPER_ENABLED:-false}
       - Scraper__IntervalHours=${SCRAPER_INTERVAL_HOURS:-12}
       - Scraper__ScriptPath=/app/tools/agente-mp.js
+      # US4 (spec 031): scraper de actividad de mercado on-demand (competidor-mercado.js)
+      - Scraper__CompetidorMercadoScriptPath=/app/tools/competidor-mercado.js
       # Extracción de documentos vía HTTP directo (016-extraccion-documentos-api)
       - Extraccion__Modo=${EXTRACCION_MODO:-solo_navegador}
       - Extraccion__SesionTtlHoras=${EXTRACCION_SESION_TTL_HORAS:-6}
       - Extraccion__ExportarSesionScriptPath=/app/tools/exportar-sesion.js
       - MP_ANALISIS_IA=${MP_ANALISIS_IA:-true}
       - MP_HEADLESS=true
+      - Censo__Url=${CENSO_URL:-}
+      - Censo__Username=${CENSO_USERNAME:-}
+      - Censo__Password=${CENSO_PASSWORD:-}
       - MP_FECHA_DESDE=${MP_FECHA_DESDE:-01-01-2025}
+      # 037-C observabilidad LLM y OTel
+      - Otlp__Enabled=${OTLP_ENABLED:-false}
+      - Otlp__Endpoint=${OTLP_ENDPOINT:-http://localhost:4317}
+      - Langfuse__Enabled=${LANGFUSE_ENABLED:-false}
       - API_BASE_URL=http://localhost:80
       # Monitor de aclaraciones
       - MONITOR_ENABLED=${MONITOR_ENABLED:-true}

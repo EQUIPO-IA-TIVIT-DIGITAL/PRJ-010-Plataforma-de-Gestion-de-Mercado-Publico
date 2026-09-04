@@ -2,6 +2,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using MPM.Modules.Licitaciones.Data;
 using MPM.Modules.Licitaciones.Services;
+using MPM.Shared.Services;
 
 namespace MPM.Modules.Licitaciones;
 
@@ -13,12 +14,18 @@ public static class ModuleRegistration
         services.AddScoped<SyncLogHandler>();
         services.AddScoped<SyncEngineHandler>();
         services.AddScoped<SeguimientoHandler>();
+        services.AddScoped<PreferenciasLicitacionesHandler>();
         services.AddScoped<LicitacionService>();
         services.AddScoped<ImportBackfillService>();
         services.AddScoped<SyncService>();
         services.AddHttpClient<ApiMpService>();
-        // 018-buscador-inteligente-nl: interpretación de consultas en lenguaje natural vía Gemini
-        services.AddHttpClient<ConsultaSemanticaService>();
+        // Track2 ligero mserv (ADR-016 opción B sin zip) — cache cm_resumen_api_cache + HttpClient 30s
+        services.AddScoped<ICmResumenHandler, CmResumenHandler>();
+        services.AddScoped<CmResumenHandler>();
+        services.AddHttpClient<ChileCompraMservService>(c => c.Timeout = TimeSpan.FromSeconds(30));
+        // 033-migracion-qwen-g4: ConsultaSemanticaService ya no hace HTTP propio -- resuelve
+        // el cliente de IA activo vía LlmClientResolver (registrado en Program.cs).
+        services.AddScoped<ConsultaSemanticaService>();
 
         // 016-extraccion-documentos-api: extracción de documentos vía HTTP directo,
         // con fallback al scraper Node/Playwright existente (Extraccion:Modo).
@@ -27,6 +34,18 @@ public static class ModuleRegistration
         services.AddScoped<WebFormsParser>();
         services.AddScoped<AdjuntosHttpExtractor>();
         services.AddScoped<DocumentExtractionService>();
+
+        // 036-flujo-comercial-ofertas: descarga bajo demanda de documentos + cache por hash.
+        services.AddScoped<AdjuntoDocumentosHandler>();
+#pragma warning disable CS0618 // ADR-015 deprecated
+        services.AddScoped<AdjuntoDescargaService>();
+#pragma warning restore CS0618
+        // 038-carga-manual-pliegos: carga manual (ADR-015) — default, scraper deprecado
+        services.AddScoped<AdjuntoManualUploadService>();
+
+        // 036-flujo-comercial-ofertas (Fase 1.3): zona IA on-demand con cache por conjunto.
+        services.AddScoped<AnalisisComercialHandler>();
+        services.AddScoped<AnalisisComercialService>();
 
         // Registrados también como singleton de su propio tipo (no solo IHostedService) para
         // poder resolverlos directamente desde el "modo worker" de Program.cs y llamar

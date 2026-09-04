@@ -6,6 +6,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using MPM.Core.Data;
+using MPM.Core.SystemConfig;
 using MPM.Modules.Competidores.Data;
 using MPM.Modules.Competidores.Models;
 using MPM.Modules.Competidores.Services;
@@ -109,7 +110,10 @@ public class CompetidorAnalysisServiceTests
         tokenProviderMock.Setup(m => m.GetAccessTokenAsync(It.IsAny<CancellationToken>())).ReturnsAsync("fake-token");
         var handler = new EmptyCandidatesHandler();
         var vertexClient = new VertexGeminiClient(new HttpClient(handler), config, tokenProviderMock.Object, NullLogger<VertexGeminiClient>.Instance);
-        var geminiService = new CompetidorGeminiService(vertexClient, NullLogger<CompetidorGeminiService>.Instance);
+        // 033-migracion-qwen-g4: CompetidorGeminiService resuelve el cliente vía LlmClientResolver.
+        var resolver = new Mock<LlmClientResolver>(null!, null!, NullLogger<LlmClientResolver>.Instance);
+        resolver.Setup(r => r.GetClientAsync(It.IsAny<CancellationToken>())).ReturnsAsync(vertexClient);
+        var geminiService = new CompetidorGeminiService(resolver.Object, NullLogger<CompetidorGeminiService>.Instance);
 
         var service = new CompetidorAnalysisService(ofertasHandler, analisisHandler, geminiService);
 

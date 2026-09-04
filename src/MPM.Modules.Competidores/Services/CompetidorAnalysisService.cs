@@ -68,7 +68,7 @@ public class CompetidorAnalysisService(
         {
             contenidoJson = await geminiService.AnalizarCompetidorAsync(request.NombreCompetidor, resumen, ct);
         }
-        catch (GeminiRespuestaBloqueadaException)
+        catch (LlmRespuestaBloqueadaException)
         {
             return (null, "gemini_contenido_bloqueado");
         }

@@ -27,14 +27,15 @@ export function useAnalizarCompetidor() {
 }
 
 // US4 (spec 031): actividad total de mercado -- polling mientras estado === 'generando'
-// (mismo patrón que useAnalisisWorkspace para un análisis en curso)
+// (mismo patrón que useAnalisisWorkspace para un análisis en curso). Exponemos refetch
+// para que la UI pueda reintentar explícitamente cuando el scraper falla (estado 'error').
 export function useActividadMercado(
   nombreCompetidor: string | null,
   area: number | null,
   fechaDesde: string,
   fechaHasta: string,
 ) {
-  return useQuery({
+  const query = useQuery({
     queryKey: ['competidores', nombreCompetidor, 'actividad-mercado', area, fechaDesde, fechaHasta],
     queryFn: async () => {
       const params = new URLSearchParams({ fechaDesde, fechaHasta });
@@ -46,4 +47,5 @@ export function useActividadMercado(
     enabled: !!nombreCompetidor,
     refetchInterval: (query) => (query.state.data?.estado === 'generando' ? 15_000 : false),
   });
+  return query;
 }

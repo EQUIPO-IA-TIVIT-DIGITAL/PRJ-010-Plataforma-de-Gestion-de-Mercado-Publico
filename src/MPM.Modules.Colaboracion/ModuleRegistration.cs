@@ -10,6 +10,10 @@ public static class ModuleRegistration
     {
         services.AddScoped<LicitacionesInteresHandler>();
         services.AddScoped<LicitacionesInteresService>();
+
+        // 036-flujo-comercial-ofertas (Fase 2): decisión GO/NO GO sobre licitaciones_interes (V144).
+        services.AddScoped<DecisionHandler>();
+        services.AddScoped<DecisionService>();
         return services;
     }
 }

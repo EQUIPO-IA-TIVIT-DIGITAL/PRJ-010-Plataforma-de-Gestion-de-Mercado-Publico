@@ -3,6 +3,10 @@
  * Reproduce en Chrome "limpio" (sin overlay de control) el recorrido mapeado
  * manualmente contra el entorno de prueba en producción.
  *
+ * Alcance: el Módulo de Análisis con IA se muestra sobre un workspace YA cargado
+ * (no se sube ni descarga una licitación nueva). La Sala de Oferta queda fuera
+ * porque depende de la descarga bajo demanda de documentos desde Mercado Público.
+ *
  * Uso:
  *   cd "scripts/demo"
  *   npm install puppeteer
@@ -17,7 +21,7 @@ const puppeteer = require('puppeteer');
 
 const BASE_URL = 'https://mpm-web-6nnd6y6owa-uc.a.run.app';
 const EMAIL = 'admin@tivit.cl';
-const PASSWORD = 'test123';
+const PASSWORD = 'test1234';
 
 // Pausa "humana" entre acciones para que la grabación se vea natural.
 const beat = (ms = 1500) => new Promise((r) => setTimeout(r, ms));
@@ -99,14 +103,13 @@ const NARRATION_MS = {
   6: 12000, // "Este es el dashboard ejecutivo..." (~30 palabras)
   '6b': 14000, // "Más abajo está el ranking de competidores..." (~35 palabras)
   '6c': 8000, // "Y en esta otra pestaña..." (~19 palabras)
-  7: 9000, // "Acá está el módulo de análisis..." (~23 palabras)
-  8: 7000, // "Dentro de cada workspace..." (~17 palabras)
-  9: 12000, // "Y este es el resultado del análisis..." (~29 palabras)
-  10: 15000, // "También se puede conversar..." (~35 palabras) + espera real de Gemini
-  11: 8000, // "La plataforma incluye mensajería interna..." (~19 palabras)
-  12: 10000, // "El centro de notificaciones agrupa..." (~24 palabras)
-  13: 20000, // "Y esto es lo más particular del sistema..." (~55 palabras)
-  14: 8000, // "Por último, el módulo de catálogos..." (~19 palabras)
+  7: 9000, // "Acá está el módulo de análisis... workspace ya cargado..." (~23 palabras)
+  8: 12000, // "Este es el resultado del análisis..." (~29 palabras)
+  9: 15000, // "También se puede conversar..." (~35 palabras) + espera real de Gemini
+  10: 8000, // "La plataforma incluye mensajería interna..." (~19 palabras)
+  11: 10000, // "El centro de notificaciones agrupa..." (~24 palabras)
+  12: 20000, // "Y esto es lo más particular del sistema..." (~55 palabras)
+  13: 8000, // "Por último, el módulo de catálogos..." (~19 palabras)
   cierre: 13000, // "Eso es la Plataforma de Gestión de Mercado Público..." (~32 palabras)
 };
 
@@ -229,21 +232,19 @@ async function typeInPlaceholder(page, placeholder, text) {
     await beat(NARRATION_MS['6c']);
   } catch {}
 
-  // [7] Análisis — listado de workspaces
+  // [7] Análisis con IA — abrir un workspace YA cargado (no se sube/descarga licitación)
   await clickByText(page, 'a, span, li', 'Análisis');
   await page.waitForFunction(() => document.body.innerText.includes('Análisis de Licitaciones'), { timeout: 15000 });
   await beat(NARRATION_MS[7]);
 
-  // [8] Abrir un workspace completado
+  // [8] Abrir el workspace y ver el dashboard comparativo de resultados IA
   await clickByText(page, 'button', 'Ver análisis');
-  await beat(NARRATION_MS[8]);
-
-  // [9] Ver dashboard de resultados IA
+  await beat(1500);
   await clickByText(page, 'button', 'Ver dashboard de resultados');
   await page.waitForFunction(() => document.body.innerText.includes('Resumen comparativo'), { timeout: 15000 });
-  await beat(NARRATION_MS[9]);
+  await beat(NARRATION_MS[8]);
 
-  // [10] Abrir el chat contextual con IA y hacer una pregunta
+  // [9] Chat contextual con IA sobre el análisis
   // El botón flotante es un <button class="ant-float-btn mpm-chat-fab">, sin
   // aria-label ni title — hay que apuntarle por su clase propia del proyecto.
   // No usamos los chips de "pregunta sugerida": solo aparecen si el chat del
@@ -256,7 +257,7 @@ async function typeInPlaceholder(page, placeholder, text) {
     await beat(1200);
     await typeInPlaceholder(page, 'Pregunta sobre el análisis...', '¿Cuál fue el factor más importante de la pérdida?');
     await page.keyboard.press('Enter');
-    await beat(NARRATION_MS[10]); // narración + espera real de la respuesta de Gemini
+    await beat(NARRATION_MS[9]); // narración + espera real de la respuesta de Gemini
   } catch {
     /* si el fab de chat cambia de clase en un futuro rediseño, se omite sin romper la demo */
   }
@@ -268,10 +269,10 @@ async function typeInPlaceholder(page, placeholder, text) {
     await page.click('.ant-drawer-close');
     await beat(800);
   } catch {
-    /* si no hay drawer abierto (el paso [10] falló antes), no hay nada que cerrar */
+    /* si no hay drawer abierto (el paso [9] falló antes), no hay nada que cerrar */
   }
 
-  // [11] Mensajería — abrir una conversación y enviar un mensaje
+  // [10] Mensajería — abrir una conversación y enviar un mensaje
   await clickByText(page, 'a, span, li', 'Mensajes');
   await page.waitForSelector('.ant-typography-ellipsis-single-line', { visible: true, timeout: 15000 });
   await beat(1500);
@@ -279,14 +280,14 @@ async function typeInPlaceholder(page, placeholder, text) {
   await beat(1500);
   await typeInPlaceholder(page, 'Escribe un mensaje… (Enter para enviar)', 'Demo: mensaje de prueba');
   await page.keyboard.press('Enter');
-  await beat(NARRATION_MS[11]);
+  await beat(NARRATION_MS[10]);
 
-  // [12] Notificaciones
+  // [11] Notificaciones
   await clickByText(page, 'a, span, li', 'Notificaciones');
   await page.waitForFunction(() => document.body.innerText.includes('Notificaciones'), { timeout: 15000 });
-  await beat(NARRATION_MS[12]);
+  await beat(NARRATION_MS[11]);
 
-  // [13] Alertas — crear una alerta nueva y mostrar la expansión IA de sinónimos
+  // [12] Alertas — crear una alerta nueva y mostrar la expansión IA de sinónimos
   await clickByText(page, 'a, span, li', 'Alertas');
   await page.waitForFunction(() => document.body.innerText.includes('Alertas Inteligentes'), { timeout: 15000 });
   await beat(1500);
@@ -294,12 +295,12 @@ async function typeInPlaceholder(page, placeholder, text) {
   await beat(1000);
   await typeInPlaceholder(page, 'ej. cloud, SOC, data center', 'ciberseguridad');
   await clickByText(page, 'button', 'Crear');
-  await beat(NARRATION_MS[13]); // narración + espera real de la expansión de sinónimos por IA
+  await beat(NARRATION_MS[12]); // narración + espera real de la expansión de sinónimos por IA
 
-  // [14] Catálogos — datos de referencia
+  // [13] Catálogos — datos de referencia
   await clickByText(page, 'a, span, li', 'Catálogos');
   await page.waitForFunction(() => document.body.innerText.includes('Catálogos'), { timeout: 15000 });
-  await beat(NARRATION_MS[14]);
+  await beat(NARRATION_MS[13]);
 
   // [Cierre] — dejar la ventana abierta para el cierre de la grabación
   await beat(NARRATION_MS.cierre);

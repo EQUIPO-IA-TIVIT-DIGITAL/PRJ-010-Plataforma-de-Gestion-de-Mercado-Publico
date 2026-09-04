@@ -32,9 +32,14 @@ docker compose logs -f
 ## Credenciales de Prueba
 
 ```
-admin@tivit.cl   /  test123   (rol Admin)
+admin@tivit.cl   /  test123   (rol SuperAdmin — acceso al Centro de Administración)
 analista@tivit.cl / test123   (rol Analista)
 ```
+
+> El **Centro de Administración** (menú lateral, sección "Administración") permite
+> crear usuarios, asignar roles (SuperAdmin/Admin/Analista/Usuario), activar o
+> desactivar cuentas y revisar los logs del sistema. Ver
+> [docs/api-first/admin.md](docs/api-first/admin.md).
 
 ## Variables de Entorno (`.env`)
 

@@ -34,6 +34,23 @@ public class CompetidoresActividadMercadoHandler(DbConnectionFactory dbFactory)
         await conn.ExecuteAsync(CompetidoresStoredProcedures.ActividadMercadoEncolar, p, commandType: CommandType.Text);
     }
 
+    // V138 (fix actividad de mercado): si un 'generando' lleva mas de 10 minutos colgado
+    // (scraper nunca arranco, murio en el camino, contenedor reiniciado, etc.), se trata
+    // como expirado: el service re-encola y reintenta en vez de dejar al frontend
+    // polleando para siempre.
+    public virtual async Task MarcarErrorAsync(
+        string nombreCompetidor, short? area, DateOnly fechaDesde, DateOnly fechaHasta, CancellationToken ct = default)
+    {
+        await using var conn = dbFactory.Create();
+        var p = new DynamicParameters();
+        p.Add("p_nombre_competidor", nombreCompetidor, DbType.String, size: 300);
+        p.Add("p_area_codigo", area, DbType.Int16);
+        p.Add("p_fecha_desde", fechaDesde.ToDateTime(TimeOnly.MinValue), DbType.Date);
+        p.Add("p_fecha_hasta", fechaHasta.ToDateTime(TimeOnly.MinValue), DbType.Date);
+
+        await conn.ExecuteAsync(CompetidoresStoredProcedures.ActividadMercadoMarcarError, p, commandType: CommandType.Text);
+    }
+
     // Lee directo de areas_negocio (tabla compartida, V118) -- igual que Licitaciones ya
     // consulta estados_licitacion sin pasar por el módulo Catalogo, no es una violación del
     // límite de módulos (Principio I), las tablas son infraestructura compartida, no lógica.

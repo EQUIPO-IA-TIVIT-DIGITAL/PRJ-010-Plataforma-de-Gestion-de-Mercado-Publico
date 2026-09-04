@@ -16,13 +16,14 @@
 - Seguridad: no revelar existencia de email (same response forgot-password)
 
 ### Excluded
-- Registro público de usuarios (admin only, futura fase)
+- Registro público de usuarios (el alta la hace un Admin/SuperAdmin — ver [admin.md](admin.md))
 - Refresh tokens (la sesión dura 8 horas)
 - OAuth2/OIDC con proveedores externos (Google, Microsoft)
 - Two-factor authentication (2FA)
-- Cambio de contraseña estando logueado (futuro)
-- Gestión de roles y permisos CRUD (futuro)
-- Auditoría de sesiones/login history
+- Gestión de roles y permisos CRUD (implementado parcialmente en el Centro de
+  Administración — ver [admin.md](admin.md))
+- Auditoría de sesiones/login history (escritura en `auth_eventos`; consulta en
+  el Centro de Administración — ver [admin.md](admin.md))
 
 ## 2. Data Model
 

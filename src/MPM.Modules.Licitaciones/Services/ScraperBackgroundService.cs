@@ -42,6 +42,7 @@ public class ScraperBackgroundService(
         ["MP_PASSWORD"] = config["MP_PASSWORD"] ?? "",
         ["MP_ANALISIS_IA"] = config["MP_ANALISIS_IA"] ?? "true",
         ["MP_FECHA_DESDE"] = config["MP_FECHA_DESDE"] ?? "01-01-2025",
+        ["MP_TICKET"] = config["MP_TICKET"] ?? "",
         ["API_BASE_URL"] = config["API_BASE_URL"] ?? "http://localhost:80",
         ["JWT_SECRET"] = config["JWT_SECRET"] ?? config["JWT:Secret"] ?? "",
         ["JWT_ISSUER"] = config["JWT_ISSUER"] ?? config["JWT:Issuer"] ?? "",

@@ -14,9 +14,10 @@ dotenv.config({ path: path.join(__dirname, '..', '..', '.env'), override: !hasSy
 import { launch, close, esperarConDelay } from './modulos/browser.js';
 import { login } from './modulos/login.js';
 import { buscarLicitaciones } from './modulos/buscar.js';
-import { extraerDatosLicitacion, cerrarFicha } from './modulos/licitacion.js';
+import { extraerDatosLicitacion, cerrarFicha, abrirFichaPopup } from './modulos/licitacion.js';
 import { descargarActaEvaluacion } from './modulos/adjuntos.js';
 import { extraerCuadroOfertas } from './modulos/cuadroOfertas.js';
+import { obtenerDetalleViaApi } from './modulos/apiMpDetalle.js';
 import { crearCarpetaLote, crearCarpetaLicitacion, guardarDatosLicitacion, guardarResumen, guardarReporteTexto } from './modulos/storage.js';
 import { initDB, closeDB, upsertLicitacion, registrarAdjunto, obtenerUltimaSync, iniciarSyncLog, finalizarSyncLog, tieneAnalisisCompletado, licitacionYaExiste, guardarEstadoSesion, obtenerEstadoSesion, limpiarEstadoSesion } from './modulos/db.js';
 import { pipelineAnalisisCompleto, guardarOfertasCompetidor } from './modulos/api-client.js';
@@ -164,10 +165,23 @@ async function executeCycle() {
       let estaFallo = false;
 
       try {
-        const result = await extraerDatosLicitacion(page, context, lic);
-        const datos = result.datos;
-        fichaPage = result.fichaPage;
-        isPopup = result.isPopup;
+        // 0: Migrar licitacion.js -> ApiMpService: intentar API primero, fallback a Playwright
+        let datos = null;
+        let fichaPage = null;
+        let isPopup = false;
+        let viaApi = false;
+
+        const datosApi = await obtenerDetalleViaApi(lic.codigo);
+        if (datosApi) {
+          datos = { ...lic, ...datosApi, estado: datosApi.estado || lic.estado, datosCompletos: true };
+          viaApi = true;
+          console.log(`[CICLO] Datos via API para ${lic.codigo} (sin abrir ficha Playwright)`);
+        } else {
+          const result = await extraerDatosLicitacion(page, context, lic);
+          datos = result.datos;
+          fichaPage = result.fichaPage;
+          isPopup = result.isPopup;
+        }
 
         const carpetaLicitacion = crearCarpetaLicitacion(
           carpetaLote,
@@ -182,6 +196,18 @@ async function executeCycle() {
           const upsertResult = await upsertLicitacion(datos);
           licitacionDbId = upsertResult.licitacionId;
           datos.licitacionDbId = licitacionDbId;
+        }
+
+        // Si vino via API, no hay fichaPage; abrir una solo para ops irremplazables (cuadro/adjuntos)
+        if (viaApi && licitacionDbId) {
+          try {
+            const res = await abrirFichaPopup(page, context, lic);
+            fichaPage = res.fichaPage;
+            isPopup = res.isPopup;
+            console.log(`[CICLO] Ficha Playwright abierta para ${lic.codigo} (cuadro/adjuntos) - datos ya venían de API`);
+          } catch (e) {
+            console.log(`[CICLO] No se pudo abrir ficha para cuadro/adjuntos de ${lic.codigo}: ${e.message} (se continúa sin cuadro/acta)`);
+          }
         }
 
         if (fichaPage) {
@@ -429,7 +455,11 @@ async function cerrarYGenerar(browser, context, page, resultados, carpetaLote, s
       totalSinActa: sinActa.length,
       totalAnalizados: analizados.length,
       duracionMs: Date.now() - horaInicio,
-      estado: errores.length === resultados.length ? 'error' : 'completado',
+      // 0 resultados legítimos (5/5 estados leídos, 0 licitaciones) NO es un fallo: con
+      // resultados vacíos, "errores.length === resultados.length" es 0===0 → 'error' falso
+      // (detectado en prod 2026-08-12 tras el fix 035, ciclo completado pero sync log marcado
+      // como error). El estado 'error' queda solo cuando HAY resultados y TODOS fallaron.
+      estado: resultados.length > 0 && errores.length === resultados.length ? 'error' : 'completado',
     });
   }
 

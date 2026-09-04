@@ -19,6 +19,7 @@ public class LicitacionInteresDto
 public class LicitacionInteresListItemDto : LicitacionInteresDto
 {
     public string LicitacionNombre { get; set; } = string.Empty;
+    public string CodigoExterno { get; set; } = string.Empty;
 }
 
 public class VincularInteresRequest

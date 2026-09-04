@@ -66,4 +66,5 @@ public record ActividadMercadoCacheRow(
     int? CantidadLicitaciones,
     decimal? MontoTotalAdjudicado,
     string? ContenidoJson,
-    DateTime? GeneradoAt);
+    DateTime? GeneradoAt,
+    DateTime? UpdatedAt);

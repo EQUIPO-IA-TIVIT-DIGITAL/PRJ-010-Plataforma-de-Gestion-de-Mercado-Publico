@@ -51,7 +51,11 @@ public class WebFormsParser
 
     private static List<AdjuntoFila> ExtraerFilas(IDocument document)
     {
-        var tabla = document.GetElementById(TablaAdjuntosId);
+        var tabla = document.GetElementById(TablaAdjuntosId)
+            ?? document.QuerySelector("table[id*='DWNL_grdId']")
+            ?? document.QuerySelector("table[id*='grdId']")
+            ?? document.QuerySelector("table[id*='DWNL']")
+            ?? document.QuerySelector("table[id*='Adjunto']");
         if (tabla == null) return [];
 
         var filas = new List<AdjuntoFila>();

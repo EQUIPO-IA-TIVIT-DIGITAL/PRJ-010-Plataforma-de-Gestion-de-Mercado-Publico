@@ -61,7 +61,10 @@ public class ApiMpService(HttpClient httpClient, ILogger<ApiMpService> logger)
         fecha_cierre = DateTime.TryParse(item.FechaCierre, out var fc) ? fc : null,
         fecha_adjudicacion = DateTime.TryParse(item.Fechas?.FechaAdjudicacion, out var fa) ? fa : null,
         fecha_estimada_adjudicacion = DateTime.TryParse(item.Fechas?.FechaEstimadaAdjudicacion, out var fea) ? fea : null,
-        link = $"https://www.mercadopublico.cl/Procurement/Modules/RFB/DetailsAcquisition.aspx?qs=/{item.CodigoExterno}",
+        // V138: ?idlicitacion= es la URL PUBLICA de la ficha (sin login); ?qs=/ era la vista
+        // interna que exigia sesion+unidad y siempre fallaba ("No tiene los permisos
+        // suficientes"/"No pertenece a la unidad de la ficha"). Verificado en vivo 2026-08-13.
+        link = $"https://www.mercadopublico.cl/Procurement/Modules/RFB/DetailsAcquisition.aspx?idlicitacion={item.CodigoExterno}",
         raw_data = JsonSerializer.Serialize(item)
     };
 

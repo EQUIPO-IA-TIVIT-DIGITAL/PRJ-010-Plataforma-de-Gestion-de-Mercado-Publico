@@ -100,6 +100,9 @@ export interface LicitacionResumenEjecutivo {
   puntajeMaximo?: number | null
   fechaAnalisis: string
   competidoresNombres: string[]
+  competidorGano?: boolean
+  resultadoCompetidor?: string
+  montoCompetidor?: number | null
 }
 
 export interface CompetidorRanking {
@@ -109,6 +112,15 @@ export interface CompetidorRanking {
   vecesGanador: number
   montoTotalAdjudicado: number
   licitaciones: LicitacionResumenEjecutivo[]
+}
+
+export interface ComparacionAnual {
+  anioActual: number
+  anioAnterior: number
+  montoActual: number
+  montoAnterior: number
+  variacionPorcentaje: number | null
+  tieneDatosAnioAnterior: boolean
 }
 
 export interface DashboardEjecutivo {
@@ -123,4 +135,8 @@ export interface DashboardEjecutivo {
   factoresPerdidaFrecuentes: string[]
   licitaciones: LicitacionResumenEjecutivo[]
   aniosDisponibles: number[]
+  comparacionAnual?: ComparacionAnual | null
+  // Track2 ligero — Convenio Marco (mserv)
+  montoConvenioMarco: number
+  montoTotalGanadoConCm: number
 }
