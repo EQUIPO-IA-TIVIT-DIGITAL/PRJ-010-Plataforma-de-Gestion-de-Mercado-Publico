@@ -20,8 +20,9 @@ public class GeminiService(LlmClientResolver resolver, ILogger<GeminiService> lo
     /// resuelve por request desde el cliente — <see cref="GetModelNameAsync"/>).</summary>
     public const string ModelName = VertexGeminiClient.DefaultModelName;
 
-    /// <summary>Id del modelo que ejecutará el próximo análisis (se persiste en modelo_usado).</summary>
-    public async Task<string> GetModelNameAsync(CancellationToken ct = default)
+    /// <summary>Id del modelo que ejecutará el próximo análisis (se persiste en modelo_usado).
+    /// Virtual para permitir mock en tests sin resolver un cliente LLM real.</summary>
+    public virtual async Task<string> GetModelNameAsync(CancellationToken ct = default)
         => (await resolver.GetClientAsync(ct)).ModelName;
 
     /// <param name="gcsUri">

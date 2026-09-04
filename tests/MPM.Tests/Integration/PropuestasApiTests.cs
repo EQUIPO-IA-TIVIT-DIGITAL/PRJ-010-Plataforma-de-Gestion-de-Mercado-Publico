@@ -115,7 +115,7 @@ public class PropuestasApiTests : IClassFixture<CustomWebApplicationFactory>
         response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
         var json = await response.Content.ReadFromJsonAsync<JsonElement>();
         json.GetProperty("success").GetBoolean().Should().BeFalse();
-        json.GetProperty("error").GetProperty("code").GetString().Should().Be("PRO_007");
+        GetErrorCode(json).Should().Be("PRO_007");
     }
 
     [Fact]
@@ -129,7 +129,19 @@ public class PropuestasApiTests : IClassFixture<CustomWebApplicationFactory>
         response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
         var json = await response.Content.ReadFromJsonAsync<JsonElement>();
         json.GetProperty("success").GetBoolean().Should().BeFalse();
-        json.GetProperty("error").GetProperty("code").GetString().Should().Be("PRO_007");
+        GetErrorCode(json).Should().Be("PRO_007");
+    }
+
+    private static string? GetErrorCode(JsonElement json)
+    {
+        // El API devuelve errores de validación como arreglo `errors`; se acepta también
+        // el objeto singular `error` (misma tolerancia que el E2E de propuestas).
+        if (json.TryGetProperty("errors", out var errors) && errors.GetArrayLength() > 0
+            && errors[0].TryGetProperty("code", out var codeFromArray))
+            return codeFromArray.GetString();
+        if (json.TryGetProperty("error", out var error) && error.TryGetProperty("code", out var codeFromObject))
+            return codeFromObject.GetString();
+        return null;
     }
 
     [Fact]

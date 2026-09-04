@@ -54,8 +54,15 @@ public class AnalisisServiceTests : IAsyncLifetime
         }
     }
 
-    private AnalisisService BuildService(Mock<IAnalisisBackgroundService> backgroundMock) =>
-        new(_handler, null!, Mock.Of<IStorageService>(), backgroundMock.Object);
+    private AnalisisService BuildService(Mock<IAnalisisBackgroundService> backgroundMock)
+    {
+        // GeminiService real resolvería un cliente LLM (llamada externa); se mockea solo el
+        // nombre del modelo. Requiere GetModelNameAsync virtual (revertir ese virtual rompe estos tests).
+        var geminiMock = new Mock<GeminiService>(null!, NullLogger<GeminiService>.Instance);
+        geminiMock.Setup(m => m.GetModelNameAsync(It.IsAny<CancellationToken>())).ReturnsAsync("gemini-2.5-pro");
+        return new(_handler, geminiMock.Object, Mock.Of<IStorageService>(), backgroundMock.Object,
+            NullLogger<AnalisisService>.Instance);
+    }
 
     [Fact]
     public async Task AnalizarAsync_SinDocumentoId_EncolaTodosLosDocumentosDelWorkspace()
