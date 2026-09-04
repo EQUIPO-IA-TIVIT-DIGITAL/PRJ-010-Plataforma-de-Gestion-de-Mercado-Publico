@@ -241,6 +241,7 @@ export function CatalogoPage() {
   return (
     <div>
       <PageHeader
+        icon={<BankOutlined />}
         title="Catálogos Corporativos y del Sistema"
         subtitle="Administración de casos de éxito, acreditaciones oficiales de empresa, plantilla de propuestas y parámetros Mercado Público."
       />
@@ -607,7 +608,7 @@ export function CatalogoPage() {
           </Form.Item>
 
           <Space style={{ display: 'flex' }} align="start">
-            <Form.Item label="País" orientation="vertical" name="pais" initialValue="Chile" style={{ minWidth: 160 }}>
+            <Form.Item label="País" name="pais" initialValue="Chile" style={{ minWidth: 160 }}>
               <Select options={['Chile', 'Brasil', 'Perú', 'Colombia', 'Argentina', 'México'].map((p) => ({ value: p, label: p }))} />
             </Form.Item>
             <Form.Item label="Monto Referencial (USD)" name="montoUsd" style={{ minWidth: 200 }}>

@@ -32,6 +32,9 @@ export interface LicitacionResumenOferta {
 }
 
 // 036-flujo-comercial-ofertas (Fase 1.1 / 1.2): documentos de la licitación.
+// Nota: el GET de documentos devuelve AdjuntoDocumentoDto del backend, que además
+// trae esActa/version/fechaGrilla (opcionales acá porque el shape coexiste con el
+// de carga manual).
 export interface LicitacionDocumentoItem {
   id: number;
   licitacionId: number;
@@ -44,6 +47,9 @@ export interface LicitacionDocumentoItem {
   origen: string;
   metadataExtra: Record<string, unknown> | null;
   createdAt: string;
+  esActa?: boolean;
+  version?: number;
+  fechaGrilla?: string | null;
 }
 
 export interface AdjuntoDocumento {
@@ -190,6 +196,22 @@ export interface LicitacionResumen {
   montoEstimado: number | null;
   moneda: string;
   itemsCount: number;
+}
+
+// Detalle de licitación (GET /api/v1/licitaciones/:codigo): resumen + campos
+// extendidos que usa LicitacionDetailDrawer ( opcionales porque no toda vista los trae).
+export interface LicitacionDetalleItem {
+  codigo: string;
+  nombre: string;
+  cantidad: number | null;
+  unidadMedida: string | null;
+  precioEstimado: number | null;
+}
+
+export interface LicitacionDetalle extends LicitacionResumen {
+  items?: LicitacionDetalleItem[] | null;
+  link?: string | null;
+  unidadTecnica?: string | null;
 }
 
 export interface LicitacionFilter {

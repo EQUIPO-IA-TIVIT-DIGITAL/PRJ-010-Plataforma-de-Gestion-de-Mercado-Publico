@@ -166,7 +166,6 @@ export function LicitacionesTable({ dataSource, pagination, loading, onRowClick,
       render: (organismo: string) => (
         <Typography.Text
           ellipsis={{
-            rows: 1,
             tooltip: organismo ? `Institución: ${organismo}` : 'Institución: —',
           }}
           style={{ display: 'block', maxWidth: '100%', fontSize: 12, color: 'var(--text-secondary)' }}
