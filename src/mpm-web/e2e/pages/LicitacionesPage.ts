@@ -52,7 +52,11 @@ export class LicitacionesPage {
   }
 
   async clickFirstRow() {
-    await this.rows.first().click();
+    // Esperar una fila de datos real (con data-row-key): el tbody siempre trae
+    // una measure-row oculta y clickearla revienta con timeout si los datos aún cargan.
+    const firstDataRow = this.page.locator('.ant-table-tbody tr[data-row-key]').first();
+    await firstDataRow.waitFor({ state: 'visible', timeout: 15000 });
+    await firstDataRow.click();
     await this.page.waitForSelector('.ant-drawer', { timeout: 5000 });
   }
 

@@ -6,7 +6,9 @@ namespace MPM.Modules.Licitaciones.Tests.Data;
 
 /// <summary>Cubre QA BUG-008: la búsqueda de <c>usp_Licitaciones_Listar</c> usaba ILIKE con
 /// comodín inicial (no aprovecha ningún índice). Corre contra el Postgres real de
-/// docker-compose (localhost:5433) — requiere V093 aplicada.</summary>
+/// docker-compose (localhost:5433) — requiere V153 aplicada: desde V153 el match es una
+/// expresión inline con <c>unaccent_immutable</c> (ya no la columna <c>search_vector</c>),
+/// y el test refleja el predicado exacto del SP para que el planner use el índice de expresión.</summary>
 public class LicitacionSearchTests
 {
     private const string TestConnectionString =
@@ -20,9 +22,14 @@ public class LicitacionSearchTests
 
         // Se compara el plan de la condición equivalente que usa el proc (no se puede EXPLAIN
         // dentro de una función plpgsql directamente; el planner trata la función como caja
-        // negra en el EXPLAIN del SELECT externo).
+        // negra en el EXPLAIN del SELECT externo). Desde V153 el SP matchea la expresión
+        // inline con unaccent_immutable, que es la que cubre idx_licitaciones_search_vector.
         await using var cmd = new NpgsqlCommand(
-            "EXPLAIN SELECT id FROM licitaciones WHERE deleted_at IS NULL AND search_vector @@ websearch_to_tsquery('spanish', @search)", conn);
+            "EXPLAIN SELECT l.id FROM licitaciones l WHERE l.deleted_at IS NULL AND " +
+            "(setweight(to_tsvector('spanish', unaccent_immutable(coalesce(l.nombre,''))), 'A') || " +
+            "setweight(to_tsvector('spanish', unaccent_immutable(coalesce(l.descripcion,''))), 'B') || " +
+            "setweight(to_tsvector('spanish', unaccent_immutable(coalesce(l.codigo_externo,''))), 'C')) " +
+            "@@ websearch_to_tsquery('spanish', unaccent_immutable(@search))", conn);
         cmd.Parameters.AddWithValue("search", "construccion");
         await using var reader = await cmd.ExecuteReaderAsync();
 

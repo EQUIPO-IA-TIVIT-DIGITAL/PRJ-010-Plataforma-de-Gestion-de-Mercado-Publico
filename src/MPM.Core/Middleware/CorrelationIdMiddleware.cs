@@ -7,7 +7,13 @@ namespace MPM.Core.Middleware;
 
 public class CorrelationIdMiddleware(RequestDelegate next)
 {
-    public async Task InvokeAsync(HttpContext context)
+    /// <summary>
+    /// Resuelve el par (CorrelationId, TraceId) desde los headers del request.
+    /// Se expone para que TenantMiddleware pueda garantizar el contrato aunque
+    /// el orden del pipeline cambie (ver regresión f58e575). La lógica vive acá
+    /// una sola vez: no duplicar la validación en otros middlewares.
+    /// </summary>
+    public static (string CorrelationId, string TraceId) Resolve(HttpContext context)
     {
         var raw = context.Request.Headers["X-Correlation-Id"].FirstOrDefault();
         if (!string.IsNullOrWhiteSpace(raw)) raw = raw.Trim();
@@ -24,6 +30,12 @@ public class CorrelationIdMiddleware(RequestDelegate next)
 
         var correlationId = raw ?? Activity.Current?.TraceId.ToString() ?? context.TraceIdentifier ?? Guid.NewGuid().ToString("N");
         var traceId = Activity.Current?.TraceId.ToString() ?? correlationId;
+        return (correlationId, traceId);
+    }
+
+    public async Task InvokeAsync(HttpContext context)
+    {
+        var (correlationId, traceId) = Resolve(context);
 
         context.Items["CorrelationId"] = correlationId;
         context.Items["TraceId"] = traceId;

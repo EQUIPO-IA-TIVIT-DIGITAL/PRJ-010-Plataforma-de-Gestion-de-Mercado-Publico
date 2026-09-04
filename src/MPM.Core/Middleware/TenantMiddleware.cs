@@ -12,9 +12,19 @@ public class TenantMiddleware(RequestDelegate next, ILogger<TenantMiddleware> lo
     public async Task InvokeAsync(HttpContext context)
     {
         // Este middleware debe correr DESPUÉS de UseAuthentication (ver Program.cs orden)
-        // para que context.User ya esté poblado. CorrelationId ya lo maneja CorrelationIdMiddleware antes.
-        var correlationId = context.Items["CorrelationId"] as string ?? context.TraceIdentifier;
-        var traceId = context.Items["TraceId"] as string ?? correlationId;
+        // para que context.User ya esté poblado. En el pipeline normal CorrelationId ya lo
+        // resolvió CorrelationIdMiddleware antes; si falta (orden distinto), se resuelve acá
+        // con la misma lógica centralizada para no romper el contrato de correlación.
+        var correlationId = context.Items["CorrelationId"] as string;
+        var traceId = context.Items["TraceId"] as string;
+        if (string.IsNullOrEmpty(correlationId) || string.IsNullOrEmpty(traceId))
+        {
+            (correlationId, traceId) = CorrelationIdMiddleware.Resolve(context);
+            context.Items["CorrelationId"] = correlationId;
+            context.Items["TraceId"] = traceId;
+            context.Response.Headers["X-Correlation-Id"] = correlationId;
+            context.Response.Headers["X-Trace-Id"] = traceId;
+        }
         var spanId = Activity.Current?.SpanId.ToString() ?? "";
 
         var user = context.User;
