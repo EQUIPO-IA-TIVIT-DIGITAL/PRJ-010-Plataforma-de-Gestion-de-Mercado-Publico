@@ -41,10 +41,13 @@ public class AnalisisRecoveryWorkerTests : IAsyncLifetime
     {
         _handler = new AnalisisHandler(new DbConnectionFactory(TestConnectionString));
 
+        // Fixture autocontenido: inserta su propia licitación (codigo único) en vez de
+        // depender de datos preexistentes — funciona en BD fresca (CI) y en BD viva.
         await using var conn = new NpgsqlConnection(TestConnectionString);
         await conn.OpenAsync();
-        var id = await conn.ExecuteScalarAsync<long?>("SELECT id FROM licitaciones LIMIT 1");
-        _licitacionId = id ?? throw new InvalidOperationException("La base de test no tiene ninguna licitación — no se puede crear un workspace de prueba.");
+        _licitacionId = await conn.ExecuteScalarAsync<long>(
+            "INSERT INTO licitaciones (codigo_externo, nombre, codigo_estado, tipo) VALUES (@codigo, @nombre, 1, @tipo) RETURNING id",
+            new { codigo = $"TEST-{Guid.NewGuid():N}", nombre = "Licitación fixture tests recovery", tipo = "LE" });
     }
 
     public async Task DisposeAsync()
@@ -57,6 +60,7 @@ public class AnalisisRecoveryWorkerTests : IAsyncLifetime
             await conn.ExecuteAsync("DELETE FROM analisis_documentos WHERE workspace_id = @id", new { id });
             await conn.ExecuteAsync("DELETE FROM analisis_workspaces WHERE id = @id", new { id });
         }
+        await conn.ExecuteAsync("DELETE FROM licitaciones WHERE id = @id", new { id = _licitacionId });
     }
 
     private async Task<(long WorkspaceId, long DocumentoId)> CrearWorkspaceHuerfanoAsync(TimeSpan antiguedad, bool conResultado)
