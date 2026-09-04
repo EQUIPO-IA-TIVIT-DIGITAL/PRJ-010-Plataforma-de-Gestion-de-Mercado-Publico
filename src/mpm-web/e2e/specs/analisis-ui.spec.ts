@@ -34,6 +34,8 @@ test.describe('Analisis UI @regression', () => {
 
     const nombre = `E2E UI ${Date.now()}`;
     await analisisPage.createWorkspace(nombre);
+    // La lista no ordena por creación: hay que buscar para ver la tarjeta nueva.
+    await analisisPage.searchByText(nombre);
 
     await expect(
       analisisPage.workspaceCards.filter({ hasText: nombre })
@@ -61,6 +63,7 @@ test.describe('Analisis UI @regression', () => {
     await analisisPage.goto();
     const nombre = `Click-Test-${Date.now()}`;
     await analisisPage.createWorkspace(nombre);
+    await analisisPage.searchByText(nombre);
     await analisisPage.clickWorkspaceByName(nombre);
     await page.waitForURL(/\/analisis\/\d+/, { timeout: 10000 });
   });

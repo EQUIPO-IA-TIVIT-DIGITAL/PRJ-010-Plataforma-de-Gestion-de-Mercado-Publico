@@ -98,6 +98,7 @@ test.describe('Licitaciones API @regression', () => {
     const body = await response.json();
     expect(body.status).toBe('healthy');
     expect(body.module).toBe('licitaciones');
-    expect(body.totalRecords).toBeGreaterThanOrEqual(0);
+    // Contrato 037: el health expone checks por módulo (ya no totalRecords).
+    expect(body.checks.licitaciones.status).toBe('healthy');
   });
 });

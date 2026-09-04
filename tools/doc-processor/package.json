@@ -9,10 +9,9 @@
     "procesar": "node procesar.js"
   },
   "dependencies": {
-    "openai": "^4.50.0",
-    "pdf-parse": "^1.1.1",
+    "dotenv": "^16.4.0",
     "mammoth": "^1.7.0",
-    "xlsx": "^0.18.5",
-    "dotenv": "^16.4.0"
+    "openai": "^4.50.0",
+    "pdf-parse": "^1.1.1"
   }
 }

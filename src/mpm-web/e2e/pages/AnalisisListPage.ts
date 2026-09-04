@@ -59,7 +59,9 @@ export class AnalisisListPage {
   }
 
   async searchByText(text: string) {
+    // La página solo aplica el filtro con Enter o blur (onChange solo edita el input).
     await this.searchInput.fill(text);
-    await this.page.waitForTimeout(500);
+    await this.searchInput.press('Enter');
+    await this.page.waitForLoadState('networkidle');
   }
 }
