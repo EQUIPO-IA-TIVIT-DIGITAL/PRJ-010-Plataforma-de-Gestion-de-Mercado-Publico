@@ -21,11 +21,12 @@ public class LicitacionService(
         int page, int pageSize, string? search, short? estado, string? tipo, string? organismo,
         DateTime? fechaDesde, DateTime? fechaHasta, string sortBy, string sortDir,
         short? area = null, bool? sinClasificar = null,
+        decimal? montoDesde = null, decimal? montoHasta = null,
         CancellationToken ct = default)
     {
         return await licitacionHandler.ListarAsync(
             page, pageSize, search, estado, tipo, organismo,
-            fechaDesde, fechaHasta, sortBy, sortDir, area, sinClasificar, ct);
+            fechaDesde, fechaHasta, sortBy, sortDir, area, sinClasificar, montoDesde, montoHasta, ct);
     }
 
     // US2 (spec 031)

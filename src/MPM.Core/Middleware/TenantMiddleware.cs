@@ -1,30 +1,49 @@
-using MPM.Shared.Models;
-using Microsoft.AspNetCore.Http;
+using System.Diagnostics;
 using System.Security.Claims;
+using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Logging;
+using MPM.Shared.Models;
+using Serilog.Context;
 
 namespace MPM.Core.Middleware;
 
-public class TenantMiddleware(RequestDelegate next)
+public class TenantMiddleware(RequestDelegate next, ILogger<TenantMiddleware> logger)
 {
     public async Task InvokeAsync(HttpContext context)
     {
+        // Este middleware debe correr DESPUÉS de UseAuthentication (ver Program.cs orden)
+        // para que context.User ya esté poblado. CorrelationId ya lo maneja CorrelationIdMiddleware antes.
+        var correlationId = context.Items["CorrelationId"] as string ?? context.TraceIdentifier;
+        var traceId = context.Items["TraceId"] as string ?? correlationId;
+        var spanId = Activity.Current?.SpanId.ToString() ?? "";
+
         var user = context.User;
+        TenantContext? tenantContext = null;
         if (user?.Identity?.IsAuthenticated == true)
         {
-            // OJO: el claim JWT corto "role" se re-mapea a ClaimTypes.Role al deserializar
-            // (MapInboundClaims default en JwtSecurityTokenHandler) — FindAll("role") nunca
-            // encuentra nada. Se lee ClaimTypes.Role para que TenantContext.Roles funcione.
-            var tenantContext = new TenantContext
+            tenantContext = new TenantContext
             {
                 UserId = user.FindFirst("user_id")?.Value ?? "",
                 TenantId = user.FindFirst("tenant_id")?.Value ?? "",
                 Username = user.FindFirst("username")?.Value ?? "",
-                Roles = user.FindAll(ClaimTypes.Role).Select(c => c.Value).ToArray(),
+                Roles = user.FindAll(ClaimTypes.Role).Concat(user.FindAll("role")).Select(c => c.Value).Distinct().ToArray(),
                 TenantName = user.FindFirst("tenant_name")?.Value ?? ""
             };
-            context.Items["TenantContext"] = tenantContext;
+            // Solo fijar si tiene UserId válido
+            if (!string.IsNullOrWhiteSpace(tenantContext.UserId))
+            {
+                context.Items["TenantContext"] = tenantContext;
+                Activity.Current?.SetTag("user.id", tenantContext.UserId);
+                if (!string.IsNullOrWhiteSpace(tenantContext.Username))
+                    Activity.Current?.SetTag("user.name", tenantContext.Username);
+            }
         }
 
-        await next(context);
+        var userIdForLog = tenantContext?.UserId ?? user?.FindFirst("user_id")?.Value ?? "";
+        using (LogContext.PushProperty("UserId", userIdForLog))
+        using (LogContext.PushProperty("SpanId", spanId))
+        {
+            await next(context);
+        }
     }
 }

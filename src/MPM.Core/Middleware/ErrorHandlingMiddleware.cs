@@ -21,12 +21,13 @@ public class ErrorHandlingMiddleware(RequestDelegate next, ILogger<ErrorHandling
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Unhandled exception");
+            var cid = context.Items["CorrelationId"] as string ?? context.TraceIdentifier;
+            logger.LogError(ex, "Unhandled exception {CorrelationId}", cid);
             context.Response.ContentType = "application/json";
             context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
 
             var response = ApiResponse<object>.Fail("Error interno del servidor",
-                [new ErrorDetail { Code = "SYS_001", Message = ex.Message }]);
+                [new ErrorDetail { Code = "SYS_001", Message = $"Ref: {cid}" }]);
 
             await context.Response.WriteAsync(JsonSerializer.Serialize(response, _jsonOptions));
         }

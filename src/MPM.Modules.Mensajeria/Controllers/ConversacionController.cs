@@ -114,7 +114,7 @@ public class ConversacionController(ConversacionService service) : ControllerBas
         }
 
         var result = await _service.ObtenerAsync(id, tenant.UserId.ToString(), ct);
-        return Ok(ApiResponse<ConversacionDetalleDto>.Ok(result));
+        return Ok(ApiResponse<ConversacionDetalleDto>.Ok(result!));
     }
 
     /// <summary>

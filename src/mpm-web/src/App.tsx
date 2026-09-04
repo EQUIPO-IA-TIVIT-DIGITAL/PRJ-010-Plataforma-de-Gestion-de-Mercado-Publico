@@ -4,6 +4,7 @@ import { LoginPage } from './pages/LoginPage';
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage';
 import { ResetPasswordPage } from './pages/ResetPasswordPage';
 import { LicitacionesPage } from './pages/LicitacionesPage';
+import { LicitacionOfertaPage } from './pages/LicitacionOfertaPage';
 import { MensajeriaPage } from './pages/MensajeriaPage';
 import { CatalogoPage } from './pages/CatalogoPage';
 import { AnalisisListPage } from './pages/AnalisisListPage';
@@ -40,6 +41,7 @@ export default function App() {
         <Route element={<ProtectedRoute />}>
           <Route path="/" element={<Navigate to="/licitaciones" replace />} />
           <Route path="/licitaciones" element={<LicitacionesPage />} />
+          <Route path="/licitaciones/:codigo/oferta" element={<LicitacionOfertaPage />} />
           <Route path="/catalogos" element={<CatalogoPage />} />
           <Route path="/mensajes" element={<MensajeriaPage />} />
           <Route path="/analisis" element={<AnalisisListPage />} />

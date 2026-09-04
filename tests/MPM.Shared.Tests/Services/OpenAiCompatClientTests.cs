@@ -65,7 +65,7 @@ public class OpenAiCompatClientTests
     }
 
     [Fact]
-    public async Task GenerarContenidoAsync_PdfPart_SeEnviaComoDataUriBase64()
+    public async Task GenerarContenidoAsync_PdfPart_SeEnviaComoTextoEstructuradoParaQwen()
     {
         var handler = new CapturingHandler(OkResponse("{}"));
         var client = BuildClient(handler, ("AI:Endpoint", "http://qwen:8000/v1"), ("AI:Model", "qwen3.7-g4"));
@@ -76,8 +76,7 @@ public class OpenAiCompatClientTests
             Messages: [new LlmMessage("user", [new LlmPdfPart(pdfBytes, "doc.pdf", null)])],
             JsonResponse: true));
 
-        handler.LastRequestBody.Should().Contain("data:application/pdf;base64," + Convert.ToBase64String(pdfBytes));
-        handler.LastRequestBody.Should().Contain("\"type\":\"file\"");
+        handler.LastRequestBody.Should().Contain("\"type\":\"text\"");
     }
 
     [Fact]

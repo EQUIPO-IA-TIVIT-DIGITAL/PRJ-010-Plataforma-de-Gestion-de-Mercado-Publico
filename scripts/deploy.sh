@@ -80,6 +80,7 @@ API_IMAGE="${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT}/${ARTIFACT_REPO}/mpm-api:
 WEB_IMAGE="${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT}/${ARTIFACT_REPO}/mpm-web:${IMAGE_TAG}"
 
 DB_NAME="${DB_NAME:-mpm}"
+REDIS_HOST="${REDIS_HOST:-172.31.85.91}"
 REDIS_PORT="${REDIS_PORT:-6379}"
 GCS_BUCKET="${GCS_BUCKET:-tivit-cu010-mpm-adjuntos}"
 

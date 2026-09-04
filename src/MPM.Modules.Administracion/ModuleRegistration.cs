@@ -10,7 +10,9 @@ public static class ModuleRegistration
     {
         services.AddScoped<AdminUsuariosHandler>();
         services.AddScoped<AdminLogsHandler>();
+        services.AddScoped<Data.AdminLlmCostosHandler>();
         services.AddScoped<AdminUsuariosService>();
+        services.AddScoped<Services.AdminLlmCostosService>();
         return services;
     }
 }

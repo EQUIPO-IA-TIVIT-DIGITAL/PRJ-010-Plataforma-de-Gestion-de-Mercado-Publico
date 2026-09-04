@@ -150,7 +150,9 @@ erDiagram
 | `organismo` | string | No | Filtrar por nombre de organismo |
 | `fechaDesde` | string | No | Fecha publicación desde (ISO 8601) |
 | `fechaHasta` | string | No | Fecha publicación hasta (ISO 8601) |
-| `sortBy` | string | No | Campo de ordenamiento (default: `fecha_publicacion`) |
+| `montoDesde` | decimal | No | Filtrar licitaciones con monto estimado >= valor (CLP) |
+| `montoHasta` | decimal | No | Filtrar licitaciones con monto estimado <= valor (CLP) |
+| `sortBy` | string | No | Campo de ordenamiento (default: `fecha_publicacion`). Valores permitidos: `fecha_publicacion`, `fecha_cierre`, `monto_estimado`, `nombre`, `organismo` |
 | `sortDir` | string | No | Dirección: `asc`/`desc` (default: `desc`) |
 
 **Response `200`:**
@@ -295,7 +297,7 @@ erDiagram
 
 | Endpoint | SP/Query | Parameters |
 |----------|----------|------------|
-| Listar licitaciones | `usp_Licitaciones_Listar` | `p_page`, `p_page_size`, `p_search`, `p_estado`, `p_tipo`, `p_organismo`, `p_fecha_desde`, `p_fecha_hasta`, `p_sort_by`, `p_sort_dir` |
+| Listar licitaciones | `usp_Licitaciones_Listar` | `p_page`, `p_page_size`, `p_search`, `p_estado`, `p_tipo`, `p_organismo`, `p_fecha_desde`, `p_fecha_hasta`, `p_monto_desde`, `p_monto_hasta`, `p_sort_by`, `p_sort_dir` |
 | Obtener detalle | `usp_Licitaciones_ObtenerPorCodigo` | `p_codigo_externo` |
 | Buscar licitaciones | `usp_Licitaciones_Buscar` | `p_q`, `p_limit` |
 | Iniciar sync | `usp_SyncLog_Iniciar` | `p_tipo`, `p_sync_id` (OUT), `p_error_msg` (OUT) |
@@ -365,6 +367,9 @@ erDiagram
 | `BUS_LIC_006` | Las licitaciones eliminadas (soft delete) no aparecen en listados ni búsquedas | Integridad |
 | `BUS_LIC_007` | Los tipos de licitación se normalizan a 4 valores conocidos | Normalización |
 | `BUS_LIC_008` | El ordenamiento seguro solo permite columnas predefinidas para evitar SQL injection | Seguridad |
+| `BUS_LIC_009` | El filtro por rango de monto (`montoDesde`/`montoHasta`) valida que ambos sean positivos y `montoDesde` ≤ `montoHasta` | Validación |
+| `BUS_LIC_010` | El render del presupuesto en tabla usa formato CLP con separador de miles y símbolo de moneda | Presentación |
+| `BUS_LIC_011` | La institución se muestra con tooltip en tarjetas, truncando a 1 línea si excede el ancho | Presentación |
 
 ### `GET /health/licitaciones` — Health check
 

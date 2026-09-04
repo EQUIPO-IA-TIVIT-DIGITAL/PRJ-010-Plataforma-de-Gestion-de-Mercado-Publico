@@ -3,6 +3,10 @@
 -- (scraper que nunca arranco o murio en el camino: script no publicado, node caido,
 -- contenedor reiniciado) y reintentar en vez de dejar al frontend polleando para siempre.
 
+-- PostgreSQL no permite CREATE OR REPLACE con cambio del tipo de retorno (OUT params):
+-- la funcion previa (V124) no exponia UpdatedAt -> DROP explicito antes de recrear.
+DROP FUNCTION IF EXISTS usp_CompetidoresActividadMercado_ObtenerCache(VARCHAR(300), SMALLINT, DATE, DATE);
+
 CREATE OR REPLACE FUNCTION usp_CompetidoresActividadMercado_ObtenerCache(
     p_nombre_competidor VARCHAR(300), p_area_codigo SMALLINT, p_fecha_desde DATE, p_fecha_hasta DATE
 )

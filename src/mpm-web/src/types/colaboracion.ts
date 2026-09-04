@@ -14,4 +14,5 @@ export interface LicitacionInteres {
 
 export interface LicitacionInteresListItem extends LicitacionInteres {
   licitacionNombre: string;
+  codigoExterno?: string;
 }

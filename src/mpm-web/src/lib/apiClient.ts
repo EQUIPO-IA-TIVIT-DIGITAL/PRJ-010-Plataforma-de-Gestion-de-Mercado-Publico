@@ -88,3 +88,44 @@ export function apiPatch<T>(url: string, body?: unknown): Promise<T> {
 export function apiDelete<T>(url: string): Promise<T> {
   return apiFetch<T>(url, { method: 'DELETE' });
 }
+
+/**
+ * Descarga de binario con el Bearer token (036-flujo-comercial-ofertas).
+ * El token viaja en header, por lo que un <a href> directo no sirve.
+ */
+export async function apiDownload(url: string): Promise<Blob> {
+  const token = getToken();
+  const headers: Record<string, string> = {
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  };
+
+  const response = await fetch(url, { headers });
+
+  if (response.status === 401) {
+    if (!sessionExpiredFired && onSessionExpired) {
+      sessionExpiredFired = true;
+      onSessionExpired();
+    }
+    throw new ApiError(401, 'Sesión expirada');
+  }
+
+  if (!response.ok) {
+    let msg = `Error ${response.status}`;
+    try {
+      const err = await response.json();
+      if (err?.message) msg = err.message;
+    } catch {
+      /* ignore */
+    }
+    throw new ApiError(response.status, msg);
+  }
+
+  return response.blob();
+}
+
+export function apiPostForm<T>(url: string, formData: FormData): Promise<T> {
+  return apiFetch<T>(url, {
+    method: 'POST',
+    body: formData,
+  });
+}

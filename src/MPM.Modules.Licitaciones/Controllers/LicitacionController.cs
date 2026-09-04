@@ -32,8 +32,26 @@ public class LicitacionController(
         [FromQuery] string sortDir = "desc",
         [FromQuery] short? area = null,
         [FromQuery] bool? sinClasificar = null,
+        [FromQuery] decimal? montoDesde = null,
+        [FromQuery] decimal? montoHasta = null,
         CancellationToken ct = default)
     {
+        // Validación montoDesde/montoHasta: deben ser > 0 si se proveen
+        if (montoDesde.HasValue && montoDesde.Value <= 0)
+            return BadRequest(ApiResponse<PaginatedResult<LicitacionResumenDto>>.Fail(
+                "Monto mínimo debe ser positivo",
+                [new ErrorDetail { Code = "VAL_001", Field = "montoDesde", Message = "Debe ser mayor a 0" }]));
+
+        if (montoHasta.HasValue && montoHasta.Value <= 0)
+            return BadRequest(ApiResponse<PaginatedResult<LicitacionResumenDto>>.Fail(
+                "Monto máximo debe ser positivo",
+                [new ErrorDetail { Code = "VAL_001", Field = "montoHasta", Message = "Debe ser mayor a 0" }]));
+
+        if (montoDesde.HasValue && montoHasta.HasValue && montoDesde.Value > montoHasta.Value)
+            return BadRequest(ApiResponse<PaginatedResult<LicitacionResumenDto>>.Fail(
+                "Rango de monto inválido",
+                [new ErrorDetail { Code = "VAL_001", Field = "montoDesde", Message = "montoDesde no puede ser mayor a montoHasta" }]));
+
         DateTime? fechaDesdeDt = null;
         DateTime? fechaHastaDt = null;
 
@@ -44,7 +62,7 @@ public class LicitacionController(
 
         var (items, totalCount) = await licitacionService.ListarAsync(
             page, pageSize, search, estado, tipo, organismo,
-            fechaDesdeDt, fechaHastaDt, sortBy, sortDir, area, sinClasificar, ct);
+            fechaDesdeDt, fechaHastaDt, sortBy, sortDir, area, sinClasificar, montoDesde, montoHasta, ct);
 
         var paginatedResult = new PaginatedResult<LicitacionResumenDto>
         {

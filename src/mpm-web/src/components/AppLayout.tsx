@@ -5,6 +5,7 @@ import {
   LogoutOutlined, DatabaseOutlined, MenuFoldOutlined, MenuUnfoldOutlined,
   UserOutlined, SettingOutlined, DownOutlined, NotificationOutlined, TeamOutlined,
   SendOutlined, LockOutlined, AuditOutlined, SafetyCertificateOutlined,
+  StarFilled,
 } from '@ant-design/icons';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
@@ -536,6 +537,26 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             gap: 8,
           }}
         >
+          {/* Quick link: Licitaciones Seguidas */}
+          <Tooltip title="Ver mis licitaciones seguidas">
+            <Button
+              type="text"
+              icon={<StarFilled style={{ color: '#f59e0b', fontSize: 16 }} />}
+              onClick={() => navigate('/licitaciones?vista=seguidas')}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                fontWeight: 600,
+                color: '#334155',
+                padding: '4px 10px',
+                borderRadius: 8,
+              }}
+            >
+              Seguidas
+            </Button>
+          </Tooltip>
+
           {/* Notification bell */}
           <NotificationBell />
 

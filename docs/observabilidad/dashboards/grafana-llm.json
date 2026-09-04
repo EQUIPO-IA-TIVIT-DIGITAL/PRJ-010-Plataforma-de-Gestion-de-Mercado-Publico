@@ -1,0 +1,90 @@
+{
+  "__inputs": [],
+  "__requires": [{ "type": "datasource", "id": "prometheus", "name": "DS_PROMETHEUS", "version": "1.0.0" }],
+  "title": "MPM LLM — Calls, Tokens, Latencia y Costo",
+  "uid": "mpm-llm-037",
+  "tags": ["mpm", "llm", "costos", "037-C"],
+  "description": "Dashboard LLM 037-C: calls/día por provider, tokens, latencia p50/p95 y costo acumulado (via DB endpoint /api/v1/admin/llm-costos). Métricas: mpm_llm_* (sin PII).",
+  "timezone": "browser",
+  "editable": true,
+  "time": { "from": "now-30d", "to": "now" },
+  "refresh": "5m",
+  "panels": [
+    {
+      "type": "timeseries",
+      "title": "LLM calls/día por provider",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "targets": [
+        { "expr": "sum by (provider) (increase(mpm_llm_calls_total[24h]))", "legendFormat": "{{provider}}", "refId": "A" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] }
+    },
+    {
+      "type": "timeseries",
+      "title": "LLM calls/día por modelo",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "targets": [
+        { "expr": "sum by (modelo) (increase(mpm_llm_calls_total[24h]))", "legendFormat": "{{modelo}}", "refId": "A" }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Tokens/día por tipo (prompt vs completion)",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "targets": [
+        { "expr": "sum by (tipo) (increase(mpm_llm_tokens_total[24h]))", "legendFormat": "{{tipo}}", "refId": "A" }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Latencia LLM p50 / p95 (s) por provider",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "targets": [
+        { "expr": "histogram_quantile(0.50, sum by (le, provider) (rate(mpm_llm_latency_seconds_bucket[5m])) )", "legendFormat": "p50 {{provider}}", "refId": "A" },
+        { "expr": "histogram_quantile(0.95, sum by (le, provider) (rate(mpm_llm_latency_seconds_bucket[5m])) )", "legendFormat": "p95 {{provider}}", "refId": "B" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] }
+    },
+    {
+      "type": "stat",
+      "title": "Costo acumulado CLP (30d) — consultar API",
+      "gridPos": { "h": 4, "w": 12, "x": 0, "y": 16 },
+      "description": "El costo exacto en CLP vive en llm_usage (pricing por modelo) y se consulta via GET /api/v1/admin/llm-costos?desde=&hasta=. Este panel muestra tokens como proxy; para CLP usar la API o la vista v_llm_costos_diarios.",
+      "fieldConfig": { "defaults": { "unit": "currencyCLP", "noValue": "Ver API" }, "overrides": [] },
+      "targets": [
+        { "expr": "sum(increase(mpm_llm_tokens_total[30d]))", "refId": "A" }
+      ],
+      "options": {
+        "textMode": "value",
+        "graphMode": "none",
+        "colorMode": "value"
+      }
+    },
+    {
+      "type": "table",
+      "title": "Instrucciones costo real",
+      "gridPos": { "h": 4, "w": 12, "x": 12, "y": 16 },
+      "options": {
+        "showHeader": false,
+        "cellHeight": "sm"
+      },
+      "fieldConfig": { "defaults": { "custom": { "align": "left" } }, "overrides": [] },
+      "targets": [
+        {
+          "expr": "vector(1)",
+          "refId": "A"
+        }
+      ],
+      "transformations": []
+    }
+  ],
+  "templating": {
+    "list": [
+      { "name": "DS_PROMETHEUS", "type": "datasource", "query": "prometheus", "current": { "text": "Prometheus", "value": "prometheus" } }
+    ]
+  }
+}

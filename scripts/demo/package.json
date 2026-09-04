@@ -5,9 +5,15 @@
   "description": "Script de Puppeteer para grabar una demo del aplicativo MPM",
   "main": "demo-mpm.js",
   "scripts": {
-    "demo": "node demo-mpm.js"
+    "record": "node record-demo-playwright.js",
+    "record:headless": "node record-demo-playwright.js --headless",
+    "record:config": "node record-configuracion-usuario.js",
+    "demo": "node record-demo-playwright.js",
+    "demo:puppeteer": "node demo-mpm.js"
   },
   "dependencies": {
+    "dotenv": "^17.4.2",
+    "playwright": "^1.62.1",
     "puppeteer": "^23.11.1"
   }
 }

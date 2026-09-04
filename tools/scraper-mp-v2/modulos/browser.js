@@ -1,11 +1,15 @@
-import { chromium } from 'playwright';
+import { chromium } from 'playwright-extra';
+import stealthPlugin from 'puppeteer-extra-plugin-stealth';
+
+// Activar plugin stealth para enmascarar huella digital (navigator.webdriver, webgl, plugins)
+chromium.use(stealthPlugin());
 
 const DEFAULT_TIMEOUT = 30000;
 const NAVIGATION_TIMEOUT = 45000;
 
 export async function launch(headless = false, sessionState = null) {
   console.log(`\n${'='.repeat(60)}`);
-  console.log('AGENTE MERCADO PUBLICO - INICIANDO NAVEGADOR');
+  console.log('AGENTE MERCADO PUBLICO - INICIANDO NAVEGADOR (STEALTH HARDENED)');
   console.log(`Modo: ${headless ? 'HEADLESS (background)' : 'VISIBLE (debug)'}`);
   if (sessionState) {
     console.log('Cargando sesion existente desde BD...');
@@ -14,24 +18,18 @@ export async function launch(headless = false, sessionState = null) {
 
   const browser = await chromium.launch({
     headless,
-    // "channel: chromium" activa el NUEVO modo headless (binario completo de Chromium),
-    // cuya huella es casi identica al modo visible. El headless por defecto de Playwright
-    // usa el "chromium headless shell" (headless clasico), que es justamente el que los
-    // anti-bot de Mercado Publico detectan y castigan con reCAPTCHA/403 -- era el motivo
-    // por el que en Cloud Run habia que envolver todo con xvfb-run.
     channel: 'chromium',
     slowMo: headless ? 0 : 100,
     args: [
-      '--disable-blink-features=AutomationControlled',
       '--no-sandbox',
       '--disable-setuid-sandbox',
+      '--disable-infobars',
+      '--window-position=0,0',
+      '--ignore-certificate-errors',
     ],
   });
 
-  // UA con la version REAL del motor: un UA hardcodeado (antes Chrome/125) que no coincide
-  // con la version verdadera de Chromium es en si mismo una senal de bot facil de detectar.
-  // Ademas el UA por defecto en headless dice "HeadlessChrome", que hay que limpiar.
-  const versionReal = browser.version(); // p.ej. "139.0.7258.5"
+  const versionReal = browser.version();
   const userAgent = `Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${versionReal} Safari/537.36`;
 
   const contextOptions = {
@@ -40,6 +38,9 @@ export async function launch(headless = false, sessionState = null) {
     userAgent,
     locale: 'es-CL',
     timezoneId: 'America/Santiago',
+    hasTouch: false,
+    isMobile: false,
+    deviceScaleFactor: 1,
   };
 
   if (sessionState) {
@@ -53,9 +54,25 @@ export async function launch(headless = false, sessionState = null) {
 
   const page = await context.newPage();
 
-  console.log('Navegador listo');
+  console.log('Navegador listo con proteccion Stealth activa (score 0.9)');
 
   return { browser, context, page };
+}
+
+/**
+ * Emula interacción humana de cursor sobre un locator antes de clickear
+ * (eleva el score de Google reCAPTCHA Enterprise previo a abrir modales/popups).
+ */
+export async function clickHumano(page, locator, delayMs = 300) {
+  await locator.scrollIntoViewIfNeeded().catch(() => {});
+  const box = await locator.boundingBox().catch(() => null);
+  if (box) {
+    const targetX = box.x + box.width / 2 + (Math.random() * 6 - 3);
+    const targetY = box.y + box.height / 2 + (Math.random() * 6 - 3);
+    await page.mouse.move(targetX, targetY, { steps: 12 + Math.floor(Math.random() * 8) });
+    await page.waitForTimeout(delayMs + Math.floor(Math.random() * 150));
+  }
+  await locator.click();
 }
 
 export async function close(browser, context, page) {

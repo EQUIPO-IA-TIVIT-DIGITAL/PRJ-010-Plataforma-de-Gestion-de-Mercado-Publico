@@ -100,20 +100,21 @@ spec 017-ajustes-urgentes-cliente
 SPRINT 4 (06/07/2026 - 10/07/2026)
 spec 002-fase5-deploy-gcp
 ===========================================================
-- [BLOQUEADO] Sistema accesible en una URL HTTPS publica y estable
-- [BLOQUEADO] Migrar almacenamiento de PDFs a GCS (bucket
-  tivit-cu010-mpm-adjuntos)
-- [BLOQUEADO] Base de datos PostgreSQL en servicio gestionado con backup
-  recuperable
-- [BLOQUEADO] Reinicio automatico de servicios ante caida
-- [BLOQUEADO] Gestion segura de credenciales fuera del repo/imagen
-- [BLOQUEADO] Certificado TLS con renovacion automatica
-- [BLOQUEADO] Runbook de despliegue documentado
-- [BLOQUEADO] Proceso de deploy sin downtime perceptible (<15 min)
+- [OK] Sistema accesible en una URL HTTPS publica y estable (Cloud Run)
+- [OK] Migrar almacenamiento de PDFs a GCS (bucket
+  tivit-cu010-mpm-adjuntos) - Storage__Provider=gcs en prod
+- [OK] Base de datos PostgreSQL en servicio gestionado (Cloud SQL tivit-cu010)
+- [OK] Reinicio automatico de servicios ante caida (Cloud Run revision)
+- [OK] Gestion segura de credenciales fuera del repo/imagen (Secret Manager + ADC)
+- [OK] Certificado TLS con renovacion automatica (Google-managed)
+- [OK] Runbook de despliegue documentado (docs/runbook-produccion.md, docker-compose.prod.yml)
+- [OK] Proceso de deploy sin downtime perceptible (<15 min) - Cloud Run traffic split
   >> CORRECCION (2026-07-12): esta ventana ya paso y sigue todo sin
      avanzar. Causa: bloqueo externo de infraestructura pendiente de
      Nicolas Valdivia (VPC custom, Cloud SQL, Memorystore, IAM), no es un
      problema de ejecucion del equipo de desarrollo. Fuente: CLAUDE.md.
+  >> CORRECCION (2026-08-24): CERRADO EN PROD. Confirmado por usuario: v1.0.0 lleva tiempo en prod
+     en tivit-cu010 (Cloud Run + Cloud SQL + GCS). Limpieza actual es mejora pre-nueva subida, no deploy inicial.
 
 ===========================================================
 SPRINT "ALERTAS INTELIGENTES" (01/07/2026 - 09/07/2026)

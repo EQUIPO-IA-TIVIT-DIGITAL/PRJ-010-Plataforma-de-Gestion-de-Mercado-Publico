@@ -115,7 +115,7 @@ public class MensajeController(
         var mensajes = await _mensajeService.ListarAsync(conversacionId, tenant.UserId.ToString(), 1, 1, null, ct);
         var mensaje = mensajes.Items.FirstOrDefault(m => m.Id == msgId);
 
-        return Ok(ApiResponse<MensajeDetalleDto>.Ok(mensaje));
+        return Ok(ApiResponse<MensajeDetalleDto>.Ok(mensaje!));
     }
 
     /// <summary>

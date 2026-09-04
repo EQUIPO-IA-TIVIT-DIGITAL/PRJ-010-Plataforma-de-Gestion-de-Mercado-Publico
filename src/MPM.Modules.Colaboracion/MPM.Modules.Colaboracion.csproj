@@ -22,6 +22,7 @@
   <ItemGroup>
     <ProjectReference Include="..\MPM.Shared\MPM.Shared.csproj" />
     <ProjectReference Include="..\MPM.Core\MPM.Core.csproj" />
+    <ProjectReference Include="..\MPM.Modules.Licitaciones\MPM.Modules.Licitaciones.csproj" />
   </ItemGroup>
 
 </Project>

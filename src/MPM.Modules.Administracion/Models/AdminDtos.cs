@@ -49,3 +49,16 @@ public class AdminLogItemDto
     public string Detalle { get; set; } = string.Empty;
     public string? Extra { get; set; }                // JSONB como texto, listo para la UI
 }
+
+/// <summary>037-C: Agregado diario de costos LLM por provider/modelo (sin PII).</summary>
+public class LlmCostoDiaDto
+{
+    // Postgres DATE -> Npgsql maps to DateTime (midnight UTC). Usamos DateTime para compat Dapper/Npgsql.
+    // El JSON serializa como "2026-08-24T00:00:00", el frontend puede tomar solo la fecha.
+    public DateTime Dia { get; set; }
+    public string Provider { get; set; } = string.Empty;
+    public string Modelo { get; set; } = string.Empty;
+    public long Calls { get; set; }
+    public long Tokens { get; set; }
+    public decimal Costo { get; set; }
+}

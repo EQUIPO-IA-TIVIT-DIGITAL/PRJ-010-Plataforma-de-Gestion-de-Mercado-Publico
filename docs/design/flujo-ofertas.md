@@ -1,0 +1,343 @@
+# Diseño — Flujo Comercial de Ofertas en MPM
+
+**Estado**: Borrador para validación (v0.4 — entendimiento consolidado con el negocio)
+**Fecha**: 2026-08-15
+**Autor**: Orchestrator (TIVIT Foundry) con insumos del gerente comercial
+**Sistema**: MPM — CU010 Mercado Público
+**Tipo de cambio**: Evolución de pack existente (no proyecto nuevo)
+
+---
+
+## 1. Contexto y objetivo
+
+El gerente comercial de TIVIT quiere que la plataforma MPM (que hoy ya trae las
+licitaciones de Mercado Público y permite analizarlas) le responda rápido:
+
+> **"¿Podemos ofertar esta licitación? ¿Sale a cuenta? ¿De cuánto? — y si sí,
+> ayúdame a armar la propuesta."**
+
+Hoy eso se hace a mano (bajar pliegos, leerlos, decidir con el equipo). La meta
+es automatizar la lectura y el criterio, y dejar la decisión final siempre en
+las personas.
+
+**Fuentes de verdad para este diseño** (verificadas, no asumidas):
+
+| Fuente | Qué aporta |
+|--------|-----------|
+| Scraper MPM (`tools/scraper-mp-v2/`, `MPM.Modules.Licitaciones`) | Licitaciones reales de ChileCompra, sesión/login, extracción de adjuntos |
+| `AdjuntosHttpExtractor.cs` + `DocumentExtractionService` | Mecanismo real de descarga de adjuntos (navegador + sesión; fallback HTTP con reCAPTCHA documentado) |
+| `ApiMpService.cs` | API oficial de ChileCompra: **no** expone adjuntos (solo datos de licitación y aclaraciones) |
+| Base PRJ-001 (`Caso-01`, excluyendo `cu01-v2`) | Cerebro reutilizable: análisis de pliegos con IA, costeo, match talento Census, generador de propuesta DOCX (10 capítulos), go/no-go con decisión humana |
+| Verificación en vivo 2026-08-15 | Ficha `729-134-LE26`: `ViewAttachment.aspx` protegida por reCAPTCHA Enterprise; `ViewAttachmentLC.aspx` sin token → robot.png (acceso denegado) |
+
+---
+
+## 2. Flujo de negocio (validado con el negocio)
+
+```
+1. Licitación entra por el scraper automático            (sin cambios)
+2. Botón "Descargar documentos" en la ficha
+   → PDFs (administrativo, técnico, preguntas y respuestas)
+   → storage del sistema (GCS en prod / local en dev)
+   → copia a Drive del usuario en prod                    (nuevo)
+3. Botón "Analizar con IA" (zona IA, bajo demanda)
+   → la IA lee los documentos guardados y extrae los datos (nuevo)
+4. Match con TIVIT: Census (skills/certificaciones) + portafolio
+   → ¿tenemos gente? ¿sale a cuenta? ¿de cuánto ofertamos?  (nuevo)
+5. Vista ejecutiva: todo lo extraído + match + GO / NO GO  (nuevo)
+6. GO  → genera propuesta (estructura base PRJ-001)        (nuevo)
+        + avisa a las personas que el usuario marcó        (nuevo)
+7. NO GO → registra el porqué y cierra                     (nuevo)
+          + avisa a las personas que el usuario marcó      (nuevo)
+```
+
+Reglas transversales:
+- **La decisión final es humana** (la IA solo recomienda: `strong_go` … `strong_no_go`).
+- **Cero trabajo duplicado**: si una licitación ya tiene documentos guardados y
+  no cambiaron, nadie re-descarga ni se re-paga análisis IA.
+- **Censo (datos de personal de Census) va aparte del documento de propuesta**,
+  nunca embebido en el DOCX principal.
+
+---
+
+## 3. Decisiones de diseño (con evidencia)
+
+| # | Decisión | Detalle | Evidencia |
+|---|----------|---------|-----------|
+| D1 | **Descarga bajo demanda con la sesión existente** | Se reutiliza el login/sesión de Mercado Público que ya usa MPM (scraper y `.NET`). Nunca descargas masivas: la sesión tiene **cupo limitado de "Ver Adjuntos"** y bloqueos (403/robot.png) con enfriamiento | `agente-mp.js` (cupo/enfriamiento), `AdjuntosHttpExtractor.cs`, verificación en vivo |
+| D2 | **Mecanismo de descarga = navegador real, SIN sesión** *(actualizado 2026-08-15 tras prueba E2E real)* | La ficha pública por `idlicitacion=` responde 200 sin sesión, pero **con sesión logueada redirige al portal interno** (Menu.aspx) y nunca carga. `ViewAttachmentLC.aspx` resuelve su reCAPTCHA Enterprise con Chromium channel (fingerprint del daemon) sin login. El script `descargar-documentos.js` va sin sesión: más simple, no gasta credenciales. Validado E2E: 8 documentos de `729-134-LE26` descargados con hash + binario servido | Verificación en vivo 2026-08-15 (debug-ficha + corrida E2E en docker) |
+| D3 | **Cache y versionado de documentos por hash** | Al guardar cada PDF: `hash SHA-256` + `tamaño` + `fecha de la grilla` (cuando esté disponible). Antes de descargar: comparar tamaño/fecha (señal rápida, parcial). Después de descargar: comparar hash (definitivo, 100%). Análisis IA cacheado por versión del conjunto de documentos | Patrón ya usado en base PRJ-001 (`content_hash`) y en MPM (idempotencias) |
+| D4 | **Almacenamiento** | El sistema guarda los PDFs en su storage actual (GCS prod / local dev). El botón además exporta a **Drive del usuario** en prod (integración Google Drive corporativa; en dev, carpeta local). Se puede ofrecer ambos destinos | Decisión de negocio + `storage` existente en MPM |
+| D5 | **Proveedor IA = el de MPM** | La zona IA usa `ILlmClient`/`LlmClientResolver` de MPM (switch gcloud/Qwen configurable por SuperAdmin), no el cliente Gemini directo de la base PRJ-001. Los **prompts** de análisis de pliegos y de match se adaptan de la base (RFP_DATA_EXTRACTION, analisis-tender) | Switch IA ya existe (spec 033) |
+| D6 | **GO/NO GO formal = evolución de Colaboración** | Se amplía `licitaciones_interes` (spec 031) con decisión formal: `go`/`no_go`, motivo, recomendación IA, score, decidido_por, notificados. NO GO cierra el expediente. Ambos caminos notifican a las personas elegidas a mano | Esbozo actual en `docs/api-first/colaboracion.md` |
+| D7 | **Match TIVIT con Census** | Nueva integración en MPM: API Census (trabajadores, skills, certificaciones). Ojo conocido: **el token de Census expira en ~5 min** (BUG-023 de la base) → renovación por request. Complementar con portafolio/capacidades de TIVIT y grounding opcional | `integrations/census.py` + BUG-023 en base PRJ-001 |
+| D7.1 | **Census validado en vivo (2026-08-16)** | **La API funciona**: auth `POST /external-auth/token` con `{Username, Password}` (PascalCase) → 201 con `accessToken`/`securityToken`; datos `GET /services/knowledge/certifications/users?certificationName=X&workCountry=Y` y `/technologies/users?technologyName=X&workCountry=Y` → 200 con usuarios reales (skills con levelSkill 1-4, certificaciones, manager, corporateId). **URL dev**: `http://136.115.20.85/b-side` (IP directa); **URL prod**: `https://api.tivit.com/exper` (WAF configurado para la app). **Credenciales de servicio**: `SERVICE.KNOWLEDGE-USER-001@TIVIT.COM` (password por variable de entorno, nunca en el repo) | Verificación E2E real con navegador Chromium |
+| D7.2 | **WAF Volterra: bloquea `curl`, deja pasar .NET/Postman/navegador (verificado)** | El WAF (F5 Volterra, `x-volterra-location`) rechaza requests de auth desde `curl` ("Request Rejected" con Support ID) pero **`Invoke-RestMethod`/`Invoke-WebRequest` (.NET HttpClient), Postman y navegadores reales pasan** (verificado en vivo 2026-08-16: auth + GET de datos 200 desde PowerShell/.NET). Implicación: **la integración MPM con `HttpClient` directo es viable en dev (IP directa) y prod (URL con WAF configurado)**. El 400 anterior con credenciales del `.env` de la base era por credenciales NO de servicio (rechazadas con 400) | Verificación en vivo (curl bloqueado vs PowerShell/.NET 200) |
+| D7.3 | **Census: accesibilidad verificada con credenciales de servicio (2026-08-16)** | **Accesibles (200)**: `services/knowledge/*` (catálogo de certificaciones; skills y certificaciones por email de usuario con `fileId`); `intellectual-capital/certifications` (catálogo completo ~540 KB); `intellectual-capital/user-certifications` (~5,2 MB: todas las certificaciones de todos los usuarios con archivos); `census/knowledge` (árbol de conocimiento ~59 KB); `professional-experience/profile` (perfil del token); `me` (rol `service`, módulos Admin/BSC/Talent). **Restringidos (401)**: `companies`, listado `users` y `professional-experience/profiles` (POST con `ResumeFilter` — sin permiso del rol service). Swagger completo guardado en `docs/design/census-swagger.json` (~320 endpoints) | Batería de pruebas en vivo |
+| D7.5 | **Archivo de certificación directo: CONFIRMADO** | `GET services/knowledge/certifications/file/{fileId}` → **200 con el PDF real** (verificado: 607.815 bytes, magic `%PDF`, content-type application/pdf). Alternativa: `GET intellectual-capital/user-certifications/{id}/file/{fileId}`. **Uso**: visor de certificados y sección "Certificaciones" de la propuesta (Fase 3) con el documento real de cada ISO | Verificación en vivo |
+| D7.6 | **`professional-experience/*` NO accesible con rol service → se ignora** | `POST professional-experience/profiles` (ResumeFilter) → **401**; el resto del módulo (experiencias/proyectos de personas) queda fuera del alcance de las credenciales de servicio. **Consecuencia**: la sección "Experiencias" de la propuesta (Fase 3) usa el catálogo manual de experiencias (como en la base PRJ-001), no Census. Si algún día se necesita, pedir permiso a IT | Verificación en vivo |
+| D7.7 | **Búsqueda por conceptos amplios: expansión INTEGRADA (lección de Caso-01)** | Problema: Census exige el nombre exacto de la tecnología ("react"), no entiende "frontend"/"backend". La base PRJ-001 tenía el mecanismo (Gemini + catálogo local + fuzzy) pero **NO lo integró al pipeline** (endpoint `/talent/expand` aislado, nunca consumido por el frontend — la búsqueda real iba con skills crudos a Census). **Diseño MPM (evita el error)**: (1) el match SIEMPRE pasa por expansión de conceptos → tecnologías concretas (prompt MANTENER/TRADUCIR/DESCARTAR de la base, adaptado); (2) validación contra catálogo local con fuzzy (token_set_ratio ≥80, umbrales 90/85 heredados); (3) búsqueda batch en Census por cada tecnología expandida (paralelo) + dedup por email; (4) **cache de expansión persistido** (concepto → tecnologías) para no re-pagar IA por el mismo término; (5) **catálogo refrescable desde `census/knowledge`** (59 KB, accesible con rol service — verificado) en vez de un JSON estático de 244 KB en portugués con typos | Análisis de la base (subagente) + verificación en vivo |
+| D7.8 | **mcp-v2 recuperado del git (historial de Caso-01) + estrategia EFICIENTE de expansión** | **mcp-v2 existía en el git** (restaurado `eca4d98` 2026-02-23; borrado `7852af3` 2026-07-03 — recuperable con `git show 93029c9:mcp-v2/server.py`). Allí la expansión SÍ estaba integrada ("NIVEL 3": una sola llamada Gemini global para todos los términos → validación contra catálogo → búsqueda Census); **la migración a backend_v2 la desconectó** (quedó el endpoint suelto). **Estrategia eficiente para MPM (catálogo-first, IA solo como fallback)**: (1) **Capa 1 sin IA**: concepto → fuzzy match contra los **types** del catálogo (los types YA son los conceptos amplios: "Front-END" → [React, Angular, Vue], "Back-End", "CI/CD", "RPA", "Testes e QA") — instantáneo, $0; (2) **Capa 2 sin IA**: match directo contra tecnologías (knowledge) — el término era una tecnología; (3) **Capa 3 IA con cache persistido**: solo conceptos no cubiertos → Gemini 1 vez, guardado en `censo_expansiones` (concepto → tecnologías validadas) — nunca se re-paga; (4) **cache de resultados de match** (concepto → personas) por TTL (ej. 1 día) para no re-consultar Census; (5) normalización sin acentos (remove_accents, ES↔PT para types) — patrón de mcp-v2. **Delay normal: 0 ms y $0** (catálogo); IA solo en el primer uso de un concepto nuevo | Subagente + git log de Caso-01 |
+| D7.9 | **Búsqueda multi-skill (10 skills por licitación): paralelo + cache por tecnología + dedup/cobertura** | Verificado en el swagger: Census NO tiene búsqueda multi (1 `technologyName` por consulta, sin endpoints batch). **Estrategia MPM**: (1) **paralelismo con semáforo** (máx 8 concurrentes, patrón mcp-v2) — 10 consultas HTTP paralelas ≈ 2-5 s (vs 30-60 s secuencial); (2) **cache por tecnología** (`censo_cache_personas_tecnologia`: tecnología+país → personas, TTL 24 h) — las tecnologías comunes (react, python, aws, sql...) se consultan UNA vez y las siguientes licitaciones son locales (~0 consultas nuevas); (3) **dedup por email + scoring de cobertura**: el mismo candidato aparece en varias consultas → unión, score = skills matcheados/total + levelSkill (match parcial válido: 7/10 > 3/10); (4) **priorización**: skills/certificaciones mandatorias primero (descartan), deseables después; (5) token renovado automáticamente durante el batch (CensusTokenManager). **Costo: $0 en tokens LLM** (consultas HTTP a API interna); el único costo IA es la expansión de conceptos nuevos, cacheada | Swagger + análisis de la base |
+| D7.10 | **Benchmark real del match (2026-08-16, licitación real de antivirus)** | Prueba con la licitación `1425525-3-LE26` (antivirus/seguridad, analizada con Gemini en 60 s — 6.926+2.381 tokens ≈ USD 0,02): **16 consultas a Census en paralelo (semáforo 8) = 3.044 ms total** (min 925 / max 1.953 / avg 1.288 ms por consulta), **0 errores, 92 personas únicas** (dedup por email) y top candidatos con cobertura real (2 personas con 10/10 skills). Expansión catálogo-first: **22,6 ms, $0** (pero con gaps: "SIEM", "EDR", "SOC", "ISO 27001" no matchearon el catálogo → confirma la necesidad de la Capa 3 IA-cacheada y de canonicalización de certificaciones: "ISO 27001" devolvió 0 en certifications). Herramienta reproducible: `tools/scraper-mp-v2/prueba-match-census.mjs` | Benchmark en vivo |
+| D7.11 | **Certificaciones: `certifications/users` SÍ funciona — el filtro `workCountry` era el problema (corregido)** | `GET services/knowledge/certifications/users?certificationName=X` busca por **substring del nombre SIN necesidad de país**: "ISO 27001" → **6 personas**, "ISO" → **95 personas**, nombre exacto del catálogo → 1 persona. El `workCountry` es un **filtro estricto** (con `Chile` → 0 para ISO 27001 — fue el error de la primera prueba). **Estrategia MPM simplificada**: búsqueda en vivo con cache de resultados (TTL), **sin índice local** (se descarta la opción de copiar user-certifications); `workCountry` se omite por defecto (match LATAM: la gente puede estar en Brasil/otros países de TIVIT) y el país solo filtra si la licitación lo exige; canonicalización ligera (variantes "ISO/IEC 27001", "27001") vía Capa 1-2 del catálogo de types si aplica. El `intellectual-capital/user-certifications` queda solo como fuente de **archivos** (fileId) para la propuesta (Fase 3), no para la búsqueda | Verificación en vivo (variantes con/sin país) |
+| D7.12 | **Filtro de país configurable por usuario (toggle)** | Control en la vista de match/GO-NO-GO: **"Filtrar por país" — DESHABILITADO por defecto** (busca en TODOS los países de TIVIT, match LATAM completo: ISO 27001 → 6 personas vs 0 en Chile). Al habilitarlo: selector de país (Chile, Brasil, Perú... o el país de ejecución que sugiera el análisis). **Comportamiento elegante**: con el filtro OFF no se excluye a nadie — se aplica un **bonus por país de ejecución** en el scoring (las personas del país donde se ejecuta la licitación rankean arriba sin descartar al resto); con el filtro ON, `workCountry` acota la consulta al país elegido. Preferencia persistida por usuario + override por licitación | Decisión de negocio |
+| D7.4 | **Expiración del token Census: manejo por manager con cache + retry** | El `accessToken` es JWT (vida real ~45 min en el emitido, pero Census puede invalidarlo antes — BUG-023 documentaba 5-15 min). Diseño: `CensusTokenManager` en memoria con `SemaphoreSlim` (una renovación concurrente a la vez); expiración derivada del JWT (`exp`) con **margen de seguridad de 2 min** (renovar antes); si no hay `exp` → TTL conservador configurable (default 4 min); **retry ante 401**: si una llamada autenticada falla con 401 (token invalidado prematuramente), renovar token y reintentar 1 vez; el `securityToken` se renueva junto | BUG-023 + JWT inspeccionado en vivo |
+| D8 | **Estimación de oferta = ORIENTATIVA** | Sin tarifa oficial vigente, la estimación usa la lógica de la base (4 escenarios, margen 20%, tarifas LATAM por seniority) y se muestra **siempre con disclaimer** "estimación orientativa, validar con comercial". Al existir tarifa oficial, se conecta | Decisión de negocio (no hay tabla oficial) |
+| D9 | **Generador de propuesta = estructura PRJ-001** | 10 capítulos canónicos: carátula (razón social por país), confidencialidad, resumen ejecutivo, certificaciones ISO, experiencias, alcance, organigrama, aportes de las partes, entregables, capítulos teóricos. Plantilla DOCX corporativa de la base. Certificaciones y experiencias desde catálogos (recomendación IA con umbrales 0.8/0.5/0.3) | Exploración de la base (2 subagentes, 2026-08-15) |
+| D10 | **Zona IA: solo PDFs al LLM** *(hallazgo E2E 2026-08-16)* | Gemini rechaza archivos xlsx enviados como parte PDF ("The document has no pages"). El análisis comercial envía solo los documentos PDF; anexos xlsx/docx se excluyen | Verificación E2E real |
+| D11 | **Timeout de 10 min en la llamada al LLM** *(hallazgo E2E 2026-08-16)* | El SDK de Google usa transporte propio — el timeout de 5 min del HttpClient del DI NO aplica a Gemini. Sin timeout explícito, una llamada sin credenciales/cuota quedaba colgada en 'analizando' para siempre | Verificación E2E real |
+| D12 | **Costo real del análisis comercial** | 7 PDFs (~8,3 MB) → 12.128 tokens in + 2.526 out ≈ **USD 0,04** con gemini-2.5-pro; ~$0 con Qwen local. Cache por conjuntoHash: se paga una sola vez por versión de documentos | Medición real 2026-08-16 |
+
+---
+
+## 4. Arquitectura propuesta (módulos MPM)
+
+```
+┌────────────────────────────────────────────────────────────┐
+│ Frontend React (mpm-web)                                   │
+│  · Ficha licitación: botón "Descargar documentos"          │
+│  · Zona IA: análisis on-demand + chat                      │
+│  · Vista ejecutiva: resumen + match + GO/NO GO             │
+│  · Modal GO: armar propuesta + elegir notificados          │
+│  · Modal NO GO: motivo + cierre                            │
+└──────────────────────────┬─────────────────────────────────┘
+                           │ REST /api/v1
+┌──────────────────────────▼─────────────────────────────────┐
+│ Backend .NET (MPM.Api)                                     │
+│  · MPM.Modules.Licitaciones    → + descarga adjuntos       │
+│  · MPM.Modules.Analisis (nuevo) → zona IA on-demand        │
+│  · MPM.Modules.Colaboracion    → GO/NO GO formal           │
+│  · MPM.Modules.Propuestas (nuevo) → generador DOCX         │
+│  · MPM.Modules.Censo (nuevo)   → integración Census TIVIT  │
+│  · MPM.Modules.Notificaciones  → avisos a personas         │
+│  · ILlmClient (existente)      → proveedor IA MPM          │
+└──────────────┬─────────────────────────────┬───────────────┘
+               │                             │
+        ┌──────▼──────┐              ┌───────▼───────┐
+        │ PostgreSQL  │              │ Storage GCS  │
+        │ + tablas    │              │ /local (dev) │
+        │ nuevas (ver │              │ + Drive (prod)│
+        │ §5)         │              └───────────────┘
+        └─────────────┘
+Integraciones externas: ChileCompra (sesión MP existente) · Census API (nueva) · Google Drive (nueva)
+```
+
+---
+
+## 5. Modelo de datos (nuevas entidades, alto nivel)
+
+```mermaid
+erDiagram
+    licitaciones ||--o{ licitacion_documentos : "tiene"
+    licitaciones ||--o{ licitacion_decisiones : "decide"
+    licitaciones ||--o{ analisis_ia_licitaciones : "analiza"
+    licitaciones ||--o{ propuestas : "genera"
+    licitacion_documentos ||--o{ analisis_ia_licitaciones : "versión usada"
+
+    licitacion_documentos {
+        bigint id PK
+        bigint licitacion_id FK
+        varchar tipo_documento "administrativo|tecnico|preguntas_respuestas|otro"
+        varchar nombre
+        varchar ruta_storage
+        varchar hash_sha256 "detección de cambio (definitiva)"
+        bigint tamanio_bytes "señal rápida de cambio"
+        varchar fecha_grilla "fecha mostrada por el portal (si está disponible)"
+        int version
+        varchar descargado_por
+        timestamp descargado_at
+    }
+    licitacion_decisiones {
+        bigint id PK
+        bigint licitacion_id FK UK
+        varchar decision "go|no_go"
+        varchar motivo
+        varchar recomendacion_ia "strong_go|go|no_go|strong_no_go"
+        numeric score_confianza
+        varchar decidido_por
+        timestamp decidido_at
+        varchar notificados "emails/ids elegidos a mano"
+        timestamp notificado_at
+    }
+    analisis_ia_licitaciones {
+        bigint id PK
+        bigint licitacion_id FK
+        varchar documento_set_hash "cache del análisis por versión"
+        varchar estado "pendiente|procesando|completado|error"
+        varchar proveedor "gcloud|qwen (resolver MPM)"
+        varchar modelo_usado
+        text resultado_json "datos extraídos + match + estimación"
+        text resumen_ejecutivo
+        numeric costo_tokens_usd
+        timestamp created_at
+    }
+    propuestas {
+        bigint id PK
+        bigint licitacion_id FK
+        int version
+        varchar capitulos_seleccionados
+        varchar certificaciones_ids
+        varchar experiencias_ids
+        varchar ruta_archivo "DOCX/PDF generado"
+        varchar estado "borrador|generada|enviada|descartada"
+        varchar generado_por
+        timestamp generado_at
+    }
+```
+
+Además, catálogos base (semilla desde la base PRJ-001):
+- `catalogo_experiencias` (proyectos similares: cliente, descripción, montos, fechas)
+- `catalogo_certificaciones` (ISO y otras, con archivo DOCX/PDF asociado)
+- `catalogo_capitulos` (bloques teóricos de la propuesta)
+- `config_census` (endpoint/credenciales — nunca en repositorio)
+
+---
+
+## 6. Integraciones
+
+| Integración | Estado hoy | Trabajo |
+|-------------|-----------|---------|
+| ChileCompra (sync licitaciones) | ✅ Existe | Sin cambios |
+| ChileCompra (descarga adjuntos) | ✅ Existe (navegador + sesión, cupos) | Botón on-demand + cache (D1, D2, D3) |
+| API oficial ChileCompra | ✅ Existe | Sin cambios (no expone adjuntos) |
+| **Census TIVIT** | ❌ No existe en MPM | Nuevo módulo `MPM.Modules.Censo`: auth token (renovar c/request, expira ~5 min), skills/certificaciones por usuario, catálogo de skills |
+| **Google Drive** | ❌ No existe en MPM | Subida de PDFs a Drive del usuario (prod); en dev carpeta local. Portar patrón de `google_drive.py` de la base PRJ-001 |
+| **Proveedor IA** | ✅ Existe (switch gcloud/Qwen) | Reutilizar; adaptar prompts desde la base |
+
+---
+
+## 7. Fases de implementación
+
+| Fase | Contenido | Entregable visible | Habilita |
+|------|-----------|--------------------|----------|
+| **1 — Descarga + cache + zona IA** | Botón "Descargar documentos" (storage + local dev), tabla `licitacion_documentos` con hash, endpoint análisis on-demand con proveedor MPM, chat sobre el análisis | El usuario baja los pliegos 1 vez y habla con la IA sobre ellos; los demás no re-descargan ni re-pagan | Pasos 2-3 |
+| **2 — Match + vista ejecutiva + GO/NO GO formal** | Integración Census, match capacidades, estimación orientativa con disclaimer, vista ejecutiva, decisión GO/NO GO con motivo y cierre (evoluciona Colaboración) | "¿Podemos? ¿De cuánto? GO/NO GO con fundamento" | Pasos 4-5 |
+| **3 — Generador de propuesta + avisos + Drive** | Catálogos (experiencias, certificaciones, capítulos), generador DOCX (10 capítulos, plantilla corporativa), notificación a personas marcadas (GO y NO GO), exportación a Drive | Propuesta generada y equipo avisado | Pasos 6-7 |
+
+Criterio de corte por fase: prueba end-to-end con una licitación real + aceptación del
+gerente comercial (HITL) antes de pasar a la siguiente.
+
+---
+
+## 8. Riesgos y decisiones abiertas
+
+| Riesgo / abierto | Impacto | Mitigación / decisión necesaria |
+|------------------|---------|--------------------------------|
+| **Cupo de "Ver Adjuntos"** en la sesión MP | Descargas masivas o frecuentes agotan la sesión (403/enfriamiento) | Descarga on-demand + cache; monitorear cupo; alertar cuando quede bajo |
+| **Tarifas sin tabla oficial** | La estimación de oferta puede no reflejar costos reales | Marcar SIEMPRE como orientativa; dejar interfaz para conectar tarifa oficial cuando exista |
+| **Token Census expira ~5 min** | Match falla intermitentemente | Renovación por request + caché corto + alerta si falla (BUG conocido de la base) |
+| **reCAPTCHA en adjuntos** | Alguna descarga puede fallar ocasionalmente | Reintentos + mensaje claro al usuario + fallback HTTP futuro |
+| **Plantilla DOCX corporativa** | El generador depende del formato oficial | Validar con TIVIT la `tivit_proposal_template.docx` de la base (o entregar una nueva) |
+| **Drive: cuenta individual vs. carpeta compartida** | Dónde caen los PDFs | Decidir en Fase 3 (default: carpeta personal del usuario vía OAuth/service account) |
+
+---
+
+## 9. Registro de routing (orchestrator)
+
+- **Tipo de cambio**: modificación de pack existente → *governance (verificar) → diseño funcional (este doc) → spec api-first por módulo → qa-validation*.
+- **Skills a activar en las siguientes fases**: `api-first-spec` (specs por módulo), `hu-template` (HUs), `tasks`, `api-first-backend`, `api-first-frontend`, `api-first-testing`, `qa-validation`, `converge`, `changelog`/`pull-request`.
+- **Agentes**: design (specs/HUs) → delivery (implementación) → control (validación y go/no-go por fase).
+- **Artefactos previos consumidos**: entendimiento validado con el negocio (rondas 2026-08-15), exploración de la base PRJ-001 (2 subagentes), verificación en vivo de ChileCompra.
+- **Registro de routing — Fase 2 (2026-08-16)**:
+  - Skills activadas: `api-first-spec` (specs `censo.md` + `decisiones.md`, **aprobadas por el negocio**) → `tasks` (breakdown `docs/design/tasks-fase2.md`) → `api-first-backend`/`api-first-frontend` (delivery-agent) → `api-first-testing` + `qa-validation` (control-agent).
+  - Agentes: **design** (specs — hecho) → **delivery** (backend + frontend en bundles) → **control** (tests + validación).
+  - Decisiones de spec tomadas: match síncrono (200), precedencia de país (body > usuario > default), snapshot inmutable de recomendación IA en la decisión, CEN_002=502.
+  - Inconsistencias a corregir en implementación (delegadas al delivery): V144 `estado_licitacion_al_marcar` real (no hardcode 1), `notificados` JSONB, adopción de `censo_match`/`censo_preferencias`/refresco de catálogo.
+- **Decisiones abiertas al cierre de este diseño**: tarifas oficiales, plantilla DOCX vigente, destino Drive (individual vs. compartido), autenticación Census en MPM.
+
+---
+
+## 10. Gobernanza del trabajo (decisión del negocio, 2026-08-15)
+
+- **Todo el trabajo de este flujo se arma en una rama dedicada** (patrón del
+  repo: ramas `NNN-slug` desde `dev` — ver `019-rediseno-frontend`,
+  `029-fix-hallazgos-code-review-competidores-alertas`, `033-migracion-qwen-g4`).
+- **Rama propuesta**: `036-flujo-comercial-ofertas` (base: `dev`). El número de
+  spec se confirma al crear la rama; el CHANGELOG sigue la numeración por lote.
+- **Regla**: no se mezcla con trabajo en curso de `dev` — al momento de la
+  anotación `dev` tenía cambios sin commitear de otro lote (Competidores /
+  ApiMpService / mpm-web), que no son parte de este flujo y no se tocan.
+- Los artefactos de diseño (`docs/design/flujo-ofertas.md`) se incorporan a la
+  rama dedicada en su primer commit.
+
+---
+
+## 11. Fase 2 — Diseño detallado (cerrado 2026-08-16)
+
+> **Objetivo**: responder "¿puede TIVIT ofertar? ¿tenemos la gente?" con match
+> real contra Census, y formalizar la decisión GO/NO GO. Todo lo crítico fue
+> **verificado en vivo** (benchmarks y hallazgos en D7.x).
+
+### 11.1 Componentes (`MPM.Modules.Censo`, nuevo)
+
+| Componente | Responsabilidad | Verificado |
+|---|---|---|
+| `CensusTokenManager` | Cache del token (JWT `exp` con margen 2 min), renovación con `SemaphoreSlim`, retry ante 401 (token invalidado antes de expirar — BUG-023) | D7.4 |
+| `CensusClient` | Auth (`/external-auth/token`, `{Username,Password}`) + búsquedas: `technologies/users?technologyName=X` y `certifications/users?certificationName=X` (substring, sin país por defecto) + catálogo `census/knowledge` + archivo `certifications/file/{fileId}` | D7.1-D7.11 |
+| `CensoCatalogoService` | Catálogo local refrescable desde `census/knowledge` (59 KB, 210 types, ~939 tecnologías): tabla `censo_catalogo` (grupo→categoría→type→tecnología) | D7.7/D7.8 |
+| `CensoExpansionService` | **Capa 1** (fuzzy types ≥80 → tecnologías del type, sin IA, ~22 ms), **Capa 2** (fuzzy tecnología), **Capa 3** (IA fallback cacheada en `censo_expansiones`, una vez por concepto) | D7.8/D7.10 |
+| `CensoMatchService` | Match multi-skill: expandir → validar → **consultas paralelas (semáforo 8)** → **cache por tecnología** (TTL 24 h) → dedup por email → scoring de cobertura (skills matcheados + levelSkill 1-4 + bonus país de ejecución) | D7.9/D7.10/D7.12 |
+| Config de usuario | Toggle "Filtrar por país" (OFF default) + selector; preferencia persistida + override por licitación | D7.12 |
+
+### 11.2 Flujo del match (tiempos reales benchmarkeados)
+
+```
+Requisitos de la licitación (del análisis comercial, Fase 1.3: certificaciones +
+personal requerido + skills de experiencia)
+  → Expansión por capas (22,6 ms, $0; IA solo primera vez por concepto)
+  → Consultas Census paralelas (16 consultas = 3.044 ms, $0) 
+      · tecnologías → technologies/users (cache 24 h por tecnología)
+      · certificaciones → certifications/users (substring, sin país)
+  → Dedup por email/corporateId + cobertura por candidato (x/10 skills)
+  → Scoring: cobertura + levelSkill + bonus país ejecución (OFF no excluye)
+  → Top candidatos por rol → vista ejecutiva
+```
+
+**Números verificados**: análisis IA 60 s (~USD 0,02) + match 3 s ($0) + candidatos
+con cobertura real (2 personas 10/10 en la licitación de antivirus). Con cache
+caliente: match ≈ 0 ms.
+
+### 11.3 Endpoints — `[Authorize]`
+
+| Método | Ruta | Descripción |
+|--------|------|-------------|
+| POST | `/api/v1/licitaciones/{codigoExterno}/match-capacidades` | Ejecuta el match contra Census usando los requisitos del análisis (o los que reciba en el body); responde 202 + polling si es primera vez, 200 con cache |
+| GET | `/api/v1/licitaciones/{codigoExterno}/match-capacidades` | Estado + resultado del match (personas por rol con cobertura, resumen) |
+| POST | `/api/v1/licitaciones/{codigoExterno}/decision` | GO/NO GO formal: `{decision, motivo}` → registra y (Fase 3) notifica |
+| GET | `/api/v1/licitaciones/{codigoExterno}/decision` | Estado de la decisión (para la ficha) |
+| GET/PUT | `/api/v1/usuarios/me/preferencias-censo` | Toggle de país + país preferido (persistido por usuario) |
+| GET | `/api/v1/censo/catalogo` | Catálogo de types/tecnologías (autocompletar en la UI) |
+
+### 11.4 Modelo de datos (migraciones nuevas)
+
+```
+censo_catalogo          — grupo/categoría/type/tecnología (refresco desde census/knowledge)
+censo_expansiones       — concepto → [tecnologías validadas] (cache IA, UK concepto)
+censo_cache_personas    — tecnología + país → personas JSON (TTL 24 h, refresco lazy)
+licitaciones_interes    — EVOLUCIÓN (V122): + decision, motivo, recomendacion_ia,
+                          score_confianza, decidido_por, decidido_at, notificados
+```
+
+### 11.5 Reglas de negocio
+
+- `CEN-R001`: el match devuelve personas con **cobertura parcial válida** (7/10 > 3/10).
+- `CEN-R002`: decisión GO/NO GO **siempre humana**; la IA solo recomienda (`strong_go`…`strong_no_go`).
+- `CEN-R003`: filtro de país OFF por defecto; ON acota con `workCountry`; OFF aplica bonus por país de ejecución (no excluye).
+- `CEN-R004`: token renovado automáticamente (margen 2 min + retry 401).
+- `CEN-R005`: cache por tecnología 24 h — la 2ª licitación con los mismos skills no consulta Census.
+- `CEN-R006`: cero réplica persistente de Census (solo cache de resultados y expansiones).
+- `CEN-R007`: la vista ejecutiva combina: resumen del análisis IA + match de capacidades + recomendación → el gerente decide.
+
+### 11.6 Errores
+
+`CEN_001` (sin requisitos para match) · `CEN_002` (Census inalcanzable) · `CEN_003` (en curso) ·
+`CEN_004` (sin documentos analizados) · reutiliza `LIC_001`, `AUTH_*`.
+
+### 11.7 UI (vista ejecutiva + GO/NO GO)
+
+- Sección "Capacidades TIVIT" en la ficha: toggle país, personas por rol (con
+  cobertura x/10 y nivel), certificaciones con archivo.
+- Panel GO/NO GO: recomendación IA (badge + score) + botones GO/NO GO + motivo
+  obligatorio en NO GO → estado persistido en la ficha.
+- Criterio de corte: HITL con el gerente sobre una licitación real de ciberseguridad.
