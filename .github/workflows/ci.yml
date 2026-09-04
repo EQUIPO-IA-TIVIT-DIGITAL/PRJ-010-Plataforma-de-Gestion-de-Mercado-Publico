@@ -95,6 +95,10 @@ jobs:
       ASPNETCORE_ENVIRONMENT: Development
       SCRAPER_ENABLED: "false"
       ADC_CREDENTIALS_PATH: /dev/null
+      # El config de Playwright usa http://web:PORT cuando CI=true; en el runner
+      # ese hostname no resuelve (los tests corren en el host, no en un contenedor).
+      BASE_URL: http://localhost:8181
+      PLAYWRIGHT_TEST_BASE_URL: http://localhost:8181
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
