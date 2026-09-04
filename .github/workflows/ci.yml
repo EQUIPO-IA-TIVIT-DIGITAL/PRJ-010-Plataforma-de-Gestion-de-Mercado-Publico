@@ -40,6 +40,12 @@ jobs:
             -v "$PWD/src/MPM.Api/Database/Scripts:/scripts:ro" \
             -e PGPASSWORD=mpm_password \
             postgres:16-alpine sh /migrate.sh /scripts
+      - name: Seed mínimo CI (sustancia para tests de datos)
+        run: |
+          docker run --rm --network host \
+            -v "$PWD/.github/scripts/seed-ci.sql:/seed-ci.sql:ro" \
+            -e PGPASSWORD=mpm_password \
+            postgres:16-alpine psql -h localhost -p 5433 -U mpm -d mpm -v ON_ERROR_STOP=1 -f /seed-ci.sql
       - name: Restore
         run: dotnet restore MPM.sln
       - name: Build
