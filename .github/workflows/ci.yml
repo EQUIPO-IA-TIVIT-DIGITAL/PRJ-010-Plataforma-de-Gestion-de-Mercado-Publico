@@ -33,6 +33,13 @@ jobs:
         run: |
           docker run -d --name ci-redis -p 6379:6379 redis:7-alpine redis-server --requirepass redis_password
           for i in $(seq 1 30); do docker exec ci-redis redis-cli -a redis_password ping 2>/dev/null | grep -q PONG && break; sleep 2; done
+      - name: Migrar BD fresca (espejo de DatabaseInitializer)
+        run: |
+          docker run --rm --network host \
+            -v "$PWD/.github/scripts/migrate.sh:/migrate.sh:ro" \
+            -v "$PWD/src/MPM.Api/Database/Scripts:/scripts:ro" \
+            -e PGPASSWORD=mpm_password \
+            postgres:16-alpine sh /migrate.sh /scripts
       - name: Restore
         run: dotnet restore MPM.sln
       - name: Build
