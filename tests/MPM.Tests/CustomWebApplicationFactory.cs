@@ -13,7 +13,14 @@ public class CustomWebApplicationFactory : WebApplicationFactory<MPM.Api.Program
             config.AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["ConnectionStrings:PostgreSQL"] = "Host=localhost;Port=5433;Database=mpm;Username=mpm;Password=mpm_password",
-                ["ConnectionStrings:Redis"] = "localhost:6379,password=redis_password"
+                ["ConnectionStrings:Redis"] = "localhost:6379,password=redis_password",
+                // Los workers in-process (sync, monitores, recovery) mutan la BD y compiten
+                // con los tests; en el harness van apagados (en despliegues reales corren igual).
+                ["RUN_INPROCESS_WORKERS"] = "false",
+                ["Scraper:Enabled"] = "false",
+                ["SCRAPER_ENABLED"] = "false",
+                ["Monitor:Enabled"] = "false",
+                ["MONITOR_ENABLED"] = "false"
             });
         });
     }
